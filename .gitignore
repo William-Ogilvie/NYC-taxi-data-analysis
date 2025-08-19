@@ -3,6 +3,9 @@ data/
 *.csv
 *.parquet
 
+# Ignore all .html files
+*.html
+
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
