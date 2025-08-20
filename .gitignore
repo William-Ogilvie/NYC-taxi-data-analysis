@@ -1,10 +1,9 @@
 # Ignore all raw data files
-data/
 *.csv
 *.parquet
 
 # Ignore all .html files
-reports/
+
 *.html
 
 # Ignore Jupyter Notebook checkpoints
