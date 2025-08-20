@@ -1,5 +1,4 @@
 # Ignore all raw data files
-data/
 *.csv
 *.parquet
 
