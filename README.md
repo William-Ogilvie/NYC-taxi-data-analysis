@@ -6,8 +6,6 @@ Explain what the data is and why it's interesting.
 Mention the timeframe (2024) and key goals (visulaizations, forecasting, etc)
 
 ## Data Sources
-Data is primarily from:
-https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 
 Data source: [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), 
 via [NYC Open Data](https://opendata.cityofnewyork.us/).  
@@ -22,7 +20,7 @@ cd NYC-taxi-data-analysis
 ```
 
 - The data you will need are the Taxi Zone Shapefile (PARQUET), Taxi Zone Lookup Table (CSV) and the Yellow Taxi Trip Records (PARQUET) for Januaray 2025. (change once add more data)
-- All of which can be downloaded from the previous link to the nyc.gov website.
+- All of which can be downloaded from [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
 - Extract any zip files and place all data in a data/raw directory.
 
 To run the notebook you will need to install the dependencies in requirements.txt. Create a virtual enviroment and install all dependencies:
