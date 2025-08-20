@@ -25,8 +25,13 @@ cd NYC-taxi-data-analysis
 - All of which can be downloaded from the previous link to the nyc.gov website.
 - Extract any zip files and place all data in a data/raw directory.
 
-To run the notebook you will need to install the dependencies in requirements.txt. Create a virtual environment and then run:
+To run the notebook you will need to install the dependencies in requirements.txt. Create a virtual enviroment and install all dependencies:
 
+```bash
+pyton -m venv venv
+source venv/bin/activate   # on MAC/Linux
+venv/Scripts/activate      # On Windows
+```
 ```bash
 pip install -r requirements.txt
 ```
