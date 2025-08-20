@@ -37,7 +37,7 @@ pip install -r requirements.txt
 You will now be able to run the Notebooks. Note any output will be stored in a reports directory. 
 
 ```bash
-jupyter notebook
+jupyter lab
 ```
 
 ## Reults / Key Findings
