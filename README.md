@@ -34,6 +34,12 @@ venv/Scripts/activate      # On Windows
 pip install -r requirements.txt
 ```
 
+All the scripts in src/ are under a package called jfk_taxis (the setup is in setup.py). This will need to be installed on top. The -e means the pacakge is in editable mode so any changes will be made available without a reinstall.  
+
+```bash
+pip install -e .
+```
+
 You will now be able to run the Notebooks. Note any output will be stored in a reports directory. 
 
 ```bash

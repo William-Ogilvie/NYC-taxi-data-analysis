@@ -1,0 +1,6 @@
+README.md
+setup.py
+src/jfk_taxis.egg-info/PKG-INFO
+src/jfk_taxis.egg-info/SOURCES.txt
+src/jfk_taxis.egg-info/dependency_links.txt
+src/jfk_taxis.egg-info/top_level.txt

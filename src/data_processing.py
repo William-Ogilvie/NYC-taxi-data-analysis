@@ -37,7 +37,7 @@ def select_jfk(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # Creates a time series for a specified feature to group by 
-def create_ts(df: pd.DataFrame, feature: str) -> pd.Series:
+def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
     '''
     For now these ts will all be created from the 'tpep_pickup_datetime' column 
     The feature will be passed as a string:
@@ -49,11 +49,12 @@ def create_ts(df: pd.DataFrame, feature: str) -> pd.Series:
     if feature == "daily":
         df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
 
-        return df.groupby('pickup_date').size()
+        return df.groupby('pickup_date').size().reset_index()
     elif feature == "hour":
-        df['pickup_date'] = df['tpep_pickup_datetime'].dt.hour
+        df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
+        df['pickup_hour'] = df['tpep_pickup_datetime'].dt.hour
 
-        return df.groupby('pickup_date').size()
+        return df.groupby(['pickup_date', 'pickup_hour']).size().reset_index()
     else:
         print("Invalid feature entered for create_ts.")
 
