@@ -31,6 +31,9 @@ with open("parquet_files.txt", "w") as f:
 # If it doesn't exist already make the data/raw directory
 # mkdir -p ../data/raw
 
-# wget -i urls.txt -P ../data/raw
+# wget -c -i urls.txt -P ../data/raw
+# -c: resume interupted downloads
+# -i: input file
+# -P: directory prefix
 
-
+# I wasn't able to find any checksums to confirm successfull download 

@@ -1,0 +1,275 @@
+# Series of helper functions for time series forecasting
+from sklearn.metrics import mean_absolute_error
+import matplotlib.pyplot as plt
+from xgboost import XGBRegressor
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from statsmodels.tsa.deterministic import DeterministicProcess
+import seaborn as sns
+
+# Preprocess the data for the models:
+
+# Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
+def preprocess_linear(lags, order, ts):
+    y = ts
+
+    # When forecasting we need the index to have a frequency, for us this is daily
+    y.index = pd.date_range(start=y.index[0], periods=len(y), freq="D")
+
+
+    dp = DeterministicProcess(
+        index = y.index,
+        constant = True,   # Dummy feature for bias (y-intercept)
+        order = order,         # Polynomial trend (degree 1 = linear)
+        seasonal = True,    # Adds seasonal dummies
+        period = 7,        # Weekly seasonality (7-day cycle)
+        drop = True,       # Drop first column to avoid collinearity
+    )
+
+    X = dp.in_sample()
+
+    # We now add in the lag features.
+    # The reason we haven't used all the significant lags is we will need to drop the rows that
+    # contain null values and if we use lag say 49 we will be dropping about 15% of our data
+    
+    for i in lags:
+        X[f'y_lag_{i}'] = y.shift(i)
+    
+    # Drop all na rows
+    mask = X.notna().all(axis=1) # keep only rows with no NaNs
+    X = X.loc[mask]
+    y = y.loc[mask]
+
+    return (X, y, dp)
+        
+# Returns the design matrix with lags and the timeseries
+def preprocess_non_linear(lags, ts):
+    # Create lag design matrix and target series
+    y_lag = ts.copy()
+    
+    # When forecasting we need the index to have a frequency, for us this is daily
+    y_lag.index = pd.date_range(start=y_lag.index[0], periods=len(y_lag), freq="D")
+    
+    # Create emty lag data frame
+    X_lag = pd.DataFrame(index = y_lag.index)
+    
+    for i in lags:
+        X_lag[f'y_lag_{i}'] = y_lag.shift(i)
+    
+    # Drop all na rows
+    mask = X_lag.notna().all(axis=1) # keep only rows with no NaNs
+    X_lag = X_lag.loc[mask]
+    y_lag = y_lag.loc[mask]
+
+    # Create day of the week feature:
+    #X_lag["day_of_week"] = X_lag.index.dayofweek
+    #X_lag["is_weekend"] = (X_lag.index.dayofweek >= 5).astype(int)
+
+
+    return (X_lag, y_lag)
+
+    
+
+# Fit models:
+
+# Fits linear regression to the design matrix, without an intercept due to the use of deterministic processes already including one
+def fit_linear(X,y):
+    model = LinearRegression(fit_intercept = False)
+    model.fit(X,y)
+
+    return model
+
+# Fits XGBoost to the design matrix and time series
+def fit_non_linear(X_lag, y_lag):
+    # XGBoost:
+    model_xgb = XGBRegressor(
+        n_estimators=2000,
+        learning_rate=0.05,
+        max_depth=5,
+        subsample=0.8,
+        colsample_bytree=0.8
+    )
+    model_xgb.fit(X_lag, y_lag);
+    return model_xgb
+
+
+# Creates a lienar forecast for a specifided number of steps
+def forecast_linear(model, y, lags, steps, dp):
+    """
+    model  = trained linear regression
+    y      = pandas Series with historical values
+    lags   = list of lags used in training (e.g. [1,2,3])
+    steps  = how many steps ahead to forecast
+    dp     = the deterministic process used
+    """
+    
+    preds = []
+    y_hist = y.copy()
+
+    # Create the deterministic features for the forecast
+    X_future_det = dp.out_of_sample(steps = steps)
+
+    for i in range(steps): 
+
+        # Get the deterministic row
+        x_next = X_future_det.iloc[i].copy()
+        
+        # Create the lags using historical data
+        for j in lags:
+            x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+        
+        # Predict - x_next is a pandas series and needs to be converted to a dataframe for predictions
+        y_pred = model.predict(pd.DataFrame([x_next], columns = x_next.index))[0]
+        
+        # Append prediction to history so it can be used for future lags
+        new_point = pd.Series(y_pred, index=[X_future_det.index[i]])
+        y_hist = pd.concat([y_hist, new_point])
+
+        # Add prediction to preds series
+        preds.append(new_point)
+
+    # Turn preds into a pandas series
+    preds = pd.concat(preds)
+    return preds
+
+# Creates a forecast for the non linear model (XGBoost) 
+def forecast_non_linear(model, y, lags, steps):
+    """
+    model  = trained linear regression
+    y      = pandas Series with historical values
+    lags   = list of lags used in training (e.g. [1,2,3])
+    steps  = how many steps ahead to forecast
+    """
+    
+    preds = []
+    y_hist = y.copy()
+
+    for i in range(1, steps + 1): 
+
+        # Create the next row
+        next_index = y_hist.index.freq  + y_hist.index[-1]
+       
+        next_index = next_index.date() # convert to date
+        x_next = pd.DataFrame(index = [next_index])
+        
+        # Create the lags using historical data
+        for j in lags:
+            x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+
+        # Create day of the week feature:
+        #x_next["day_of_week"] = next_index.weekday()
+        #x_next["is_weekend"] = int(next_index.weekday() >= 5)
+
+        
+        # Predict - x_next is a pandas series and needs to be converted to a dataframe for predictions
+        y_pred = model.predict(x_next)[0]
+        
+        # Append prediction to history so it can be used for future lags
+        new_point = pd.Series(y_pred, index=x_next.index)
+        y_hist = pd.concat([y_hist, new_point])
+
+        # Reset y_hist's index
+        y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq="D")
+
+
+        # Add prediction to preds series
+        preds.append(new_point)
+
+    # Turn preds into a pandas series
+    preds = pd.concat(preds)
+    return preds
+
+# Create forecasts, plot and compare to naive baseline, the key difference is we will now pass two dicts of linear and non linear models for ease of use
+def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, lags):
+    """
+    steps = array of the step lengths to forecast
+    y_test = pd.Series of the true future values
+    y_hist = pd.Series of historical values
+    linear_models = dict of linear models
+    non_linear_models = dict of non linear models
+    lags = lags used in the models
+    """
+
+    # Compute naive predictions
+    # Today = yesterday
+    y_pred_naive = y_test.shift(1)
+    y_pred_naive.iloc[0] = y_hist.iloc[-1]
+    
+   
+    for step in steps:
+
+        # Store MAE scores for barplot
+        mae_scores = {}
+        
+        # Get real values
+        y_real = y_test.iloc[0:step]
+        
+        # Plot
+        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}")
+        
+        # Forecast the linear models:
+        for name, value in linear_models.items():
+            model = value[0]
+            dp = value[1]
+            
+            # Get forecast
+            y_fore_linear = forecast_linear(model, y_hist, lags, step, dp)
+
+            # Compute MAE linear
+            mae_linear = mean_absolute_error(y_fore_linear, y_real)
+            mae_scores[name] = mae_linear
+            print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
+
+            # Add to plot
+            ax = y_fore_linear.plot(ax = ax, label = name)
+        
+
+        
+        # Forecast the non linear models:
+        for name, model in non_linear_models.items():
+            y_fore_non_linear = forecast_non_linear(model, y_hist, lags, step)
+            y_fore_non_linear.index.name = "pickup_date"
+
+            # Compute MAE non linear
+            mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
+            mae_scores[name] = mae_non_linear
+            print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
+
+            # Add to plot
+            ax = y_fore_non_linear.plot(ax = ax, label = name)
+       
+
+        
+       
+        # Compute naive MAE
+        y_step_pred_naive = y_pred_naive.loc[y_real.index]
+         
+        mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
+        mae_scores["Naive"] = mae_naive
+        print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
+
+        # Plot forecasts
+        ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+        ax.legend()
+        plt.xticks(rotation = 90)
+        plt.show()
+
+        # Plot MAE bar plots:
+        df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
+
+        plt.figure(figsize=(8,5))
+        sns.barplot(data=df_mae, x="Model", y="MAE")
+
+        plt.title(f"Model Comparison by MAE, steps = {step}")
+        plt.xticks(rotation=45, ha="right")
+        plt.show()
+    
+# Runs the forecasts in question, must be passed as pandas series
+def run_forecasts(steps, lags, linear_models, non_linear_models, old_ts: pd.Series, new_ts: pd.Series):
+    
+    y_test = new_ts
+    y_hist = old_ts
+    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq="D")
+    
+    test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, lags)
+    return 0
