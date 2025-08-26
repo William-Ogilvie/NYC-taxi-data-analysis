@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jfk_taxis"
+version = "0.1.0"
+description = "JFK Airport Taxi forecasting tools"
+authors = [
+    { name = "Will", email = "ogilvie2468@outlook.com" }
+]
+
+dependencies = [
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "xgboost",
+    "statsmodels"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

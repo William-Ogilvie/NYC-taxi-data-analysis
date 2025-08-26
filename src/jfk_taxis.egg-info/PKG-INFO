@@ -1,3 +1,11 @@
 Metadata-Version: 2.4
 Name: jfk_taxis
-Version: 0.1
+Version: 0.1.0
+Summary: JFK Airport Taxi forecasting tools
+Author-email: Will <ogilvie2468@outlook.com>
+Requires-Dist: pandas
+Requires-Dist: scikit-learn
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: xgboost
+Requires-Dist: statsmodels
