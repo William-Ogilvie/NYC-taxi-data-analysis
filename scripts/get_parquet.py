@@ -15,9 +15,9 @@ soup = BeautifulSoup(html, "html.parser")
 # Extract all <a> tags
 links = [a['href'] for a in soup.find_all("a", href = True)]
 
-# Filter with regext
+# Filter with regex
 pattern = re.compile(
-    r"yellow[_a-z]*?20\d{2}-\d{2}\.parquet"
+    r"yellow[_a-z]*?20(1[1-9]|2[0-5])-\d{2}\.parquet"
 )
 yellow_links = [link for link in links if pattern.search(link)]
 

@@ -2,6 +2,8 @@ import pandas as pd
 from pathlib import Path
 from IPython.display import display
 import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.dates as mdates
 
 # We need to use the notebook version of tqdm if possible so it renders property in Jupyter Lab
 if __name__ == "__main__":
@@ -24,7 +26,7 @@ def load_parquet(year: int) -> pd.DataFrame:
     files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
    
     # Load and concatenate all the data into a single data frame (for tqdm leave = False ensures the bar disappears when done):
-    df = pd.concat((pd.read_parquet(f) for f in tqdm(files, desc = "Download files: ", leave = False)), ignore_index = True)
+    df = pd.concat((pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"]) for f in tqdm(files, desc = "Download files: ", leave = False)), ignore_index = True)
     
     return df
 
@@ -64,13 +66,27 @@ def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
 
     if feature == "daily":
         df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
+        df = df.groupby('pickup_date').size().reset_index()
+        df = df.rename(columns= {0: 'trips'})
 
-        return df.groupby('pickup_date').size().reset_index()
+        return df
     elif feature == "hour":
         df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
         df['pickup_hour'] = df['tpep_pickup_datetime'].dt.hour
 
-        return df.groupby(['pickup_date', 'pickup_hour']).size().reset_index()
+        df = df.groupby(['pickup_date', 'pickup_hour']).size().reset_index()
+        df = df.rename(columns= {0: 'trips'})
+
+        # Convert the date and hour back into a datetime object
+        df["day"] = pd.to_datetime(df["pickup_date"])
+        df["dt"] = df["day"] + pd.to_timedelta(df["pickup_hour"], unit = "h")
+        df = df.sort_values("dt")
+        df = df.drop(["day"], axis = 1)
+        df["dt"] = pd.to_datetime(df["dt"])
+
+
+
+        return df
     else:
         print("Invalid feature entered for create_ts.")
 
@@ -107,7 +123,7 @@ def process_taxi_data(years: list[int], features: list[str]):
         bar.set_description("Create time series")
         for feature in features:
             ts = create_ts(df_jfk, feature)
-            ts.to_csv(DATA_SAVE_STRING + "/ts_" + feature + str(year) + ".csv")
+            ts.to_csv(DATA_SAVE_STRING + "/ts_" + feature + str(year) + ".csv", index = False)
         bar.update(1)
 
         # Save data
@@ -145,7 +161,54 @@ def taxi_data_visuals(years: list[int]):
         plt.tight_layout()
         plt.show()
 
+# Creates time series plots
+def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]):
+    sns.set_theme(style="darkgrid") 
+    if feature == "daily":
+        ax = sns.lineplot(data = df, x = "pickup_date", y = "trips")
+        ax.set(title = f"JFK Airport yellow taxi trips per day - {year}", xlabel = "Date", ylabel = "Trips")
 
+        # Show only one x axis tick per month
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval = 1))
+
+        plt.xticks(rotation = 45, ha = "right")        
+        plt.show()
+
+    elif feature == "hour":
+        # Create a subset using month:
+        if len(month) != 0:
+            df = df[df["dt"].dt.month.isin([month[0], month[1]])]
+        
+
+        ax = sns.lineplot(data = df, x = "dt", y = "trips")
+        ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year}", xlabel = "", ylabel = "Trips")
+        
+        plt.xticks(rotation = 45, ha = "right")
+        plt.show()
+    else:
+        print("Invalid feature")
+
+# Combines all the daily and hourly times series into two individual csvs
+def combine_ts(years: list[int]):
+    df_daily = pd.concat((pd.read_csv(DATA_SAVE_STRING + "/ts_daily" +  str(year) + ".csv") for year in years), ignore_index= True)      
+    df_hour = pd.concat((pd.read_csv(DATA_SAVE_STRING + "/ts_hour" + str(year) + ".csv") for year in years), ignore_index= True)
+
+    df_daily.to_csv(DATA_SAVE_STRING + f"/ts_daily{years[0]}-{years[-1]}.csv", index = False)
+    df_hour.to_csv(DATA_SAVE_STRING + f"/ts_hour{years[0]}-{years[-1]}.csv", index = False)
+
+# Plots the full daily and hourly ts
+def plot_full_ts(df_daily: pd.DataFrame, years: list[int]):
+    sns.set_theme(style="darkgrid")
+
+    # Plot the daily ts
+    ax = sns.lineplot(data = df_daily, x = "pickup_date", y = "trips")
+    ax.set(title = f"JFK Airport yellow taxi trips per day - {years[0]}-{years[-1]}", xlabel = "Date", ylabel = "Trips")
+
+    # Show only one x axis tick per month
+    ax.xaxis.set_major_locator(mdates.YearLocator(base = 1))
+
+    plt.xticks(rotation = 45, ha = "right")        
+    plt.show()
 
 
 def main():
