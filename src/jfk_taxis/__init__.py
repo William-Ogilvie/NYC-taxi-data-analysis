@@ -1,5 +1,5 @@
 # src/__init__.py
-from .forecast_helpers import run_forecasts
+from .forecast_helpers import run_forecasts, preprocess, preprocess_non_linear, fit_linear, fit_non_linear
 from .data_processing import process_taxi_data, taxi_data_visuals, ts_plots, combine_ts, plot_full_ts
 from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mask_geo_data, drop_id_df, drop_id_geo_data, create_rolling_average, create_rolling_average_hourly
 
@@ -9,7 +9,8 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "ts_plots", "combine_ts", "plot_full_ts", "make_choropleth",
             "make_borough_mask_df", "make_borough_mask_geo_data", 
             "drop_id_df", "drop_id_geo_data", "create_rolling_average",
-            "create_rolling_average_hourly"]
+            "create_rolling_average_hourly", "preprocess",
+            "preprocess_non_linear", "fit_linear", "fit_non_linear"]
 
 
 

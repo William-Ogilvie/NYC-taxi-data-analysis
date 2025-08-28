@@ -6,23 +6,33 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from statsmodels.tsa.deterministic import DeterministicProcess
 import seaborn as sns
+from IPython.display import display
+from statsmodels.tsa.deterministic import CalendarFourier
 
 # Preprocess the data for the models:
 
 # Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
-def preprocess_linear(lags, order, ts):
+def preprocess(lags, constant, order, fourier_features,  ts):
     y = ts
 
     # When forecasting we need the index to have a frequency, for us this is daily
     y.index = pd.date_range(start=y.index[0], periods=len(y), freq="D")
 
+    fourier_list = []
+    # Fourier features for seasonality
+    for feature in fourier_features:
+        if feature == "YE":
+            fourier_list.append(CalendarFourier(freq = "YE", order = 10)) # Annual seasonality (10 harmonics)
+        elif feature == "W":
+            fourier_list.append(CalendarFourier(freq = "W", order = 3)) # Weekly seasonality (3 harmonics)
 
+    
     dp = DeterministicProcess(
         index = y.index,
-        constant = True,   # Dummy feature for bias (y-intercept)
+        constant = constant,   # Dummy feature for bias (y-intercept)
         order = order,         # Polynomial trend (degree 1 = linear)
-        seasonal = True,    # Adds seasonal dummies
-        period = 7,        # Weekly seasonality (7-day cycle)
+        seasonal = False,    # Don't use seasonal dummies
+        additional_terms = fourier_list, # Add in the Fourier terms
         drop = True,       # Drop first column to avoid collinearity
     )
 
@@ -31,10 +41,12 @@ def preprocess_linear(lags, order, ts):
     # We now add in the lag features.
     # The reason we haven't used all the significant lags is we will need to drop the rows that
     # contain null values and if we use lag say 49 we will be dropping about 15% of our data
-    
-    for i in lags:
-        X[f'y_lag_{i}'] = y.shift(i)
-    
+
+    # For performance reasons its better to make all lags at once and then concatante
+    lag_cols = [y.shift(i).rename(f"y_lag_{i}") for i in lags] 
+    X = pd.concat([X] + lag_cols, axis = 1)
+
+
     # Drop all na rows
     mask = X.notna().all(axis=1) # keep only rows with no NaNs
     X = X.loc[mask]
@@ -52,10 +64,11 @@ def preprocess_non_linear(lags, ts):
     
     # Create emty lag data frame
     X_lag = pd.DataFrame(index = y_lag.index)
-    
-    for i in lags:
-        X_lag[f'y_lag_{i}'] = y_lag.shift(i)
-    
+
+    lag_cols = [y_lag.shift(i).rename(f"y_lag_{i}") for i in lags] 
+    X_lag = pd.concat([X_lag] + lag_cols, axis = 1)
+
+   
     # Drop all na rows
     mask = X_lag.notna().all(axis=1) # keep only rows with no NaNs
     X_lag = X_lag.loc[mask]
@@ -80,7 +93,7 @@ def fit_linear(X,y):
     return model
 
 # Fits XGBoost to the design matrix and time series
-def fit_non_linear(X_lag, y_lag):
+def fit_non_linear(X, y):
     # XGBoost:
     model_xgb = XGBRegressor(
         n_estimators=2000,
@@ -89,12 +102,12 @@ def fit_non_linear(X_lag, y_lag):
         subsample=0.8,
         colsample_bytree=0.8
     )
-    model_xgb.fit(X_lag, y_lag);
+    model_xgb.fit(X, y);
     return model_xgb
 
 
-# Creates a lienar forecast for a specifided number of steps
-def forecast_linear(model, y, lags, steps, dp):
+# Creates a forecast for a specifided number of steps
+def forecast(model, y, lags, steps, dp):
     """
     model  = trained linear regression
     y      = pandas Series with historical values
@@ -115,14 +128,23 @@ def forecast_linear(model, y, lags, steps, dp):
         x_next = X_future_det.iloc[i].copy()
         
         # Create the lags using historical data
-        for j in lags:
-            x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+        # for j in lags:
+        #     x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+        lag_dict = {f'y_lag_{j}': y_hist.iloc[-j] for j in lags}
+        x_next = pd.concat([x_next, pd.Series(lag_dict)], axis = 0)
+
+        # lag_cols = [y_hist.shift(i).rename(f"y_lag_{i}") for i in lags] 
+        # x_next = pd.concat([x_next] + lag_cols, axis = 1)
+
+        # display(x_next.head())
+
         
         # Predict - x_next is a pandas series and needs to be converted to a dataframe for predictions
         y_pred = model.predict(pd.DataFrame([x_next], columns = x_next.index))[0]
         
         # Append prediction to history so it can be used for future lags
         new_point = pd.Series(y_pred, index=[X_future_det.index[i]])
+        new_point.index = pd.to_datetime(new_point.index) # ensure datetime index
         y_hist = pd.concat([y_hist, new_point])
 
         # Add prediction to preds series
@@ -150,22 +172,27 @@ def forecast_non_linear(model, y, lags, steps):
         next_index = y_hist.index.freq  + y_hist.index[-1]
        
         next_index = next_index.date() # convert to date
-        x_next = pd.DataFrame(index = [next_index])
+        #x_next = pd.DataFrame(index = [next_index])
         
         # Create the lags using historical data
-        for j in lags:
-            x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+        # for j in lags:
+        #     x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
+        lag_dict = {f'y_lag_{j}': y_hist.iloc[-j] for j in lags}
+        lag_dict = pd.DataFrame([lag_dict]) 
+        x_next = lag_dict
+        x_next.index = [next_index]
 
         # Create day of the week feature:
         #x_next["day_of_week"] = next_index.weekday()
         #x_next["is_weekend"] = int(next_index.weekday() >= 5)
 
         
-        # Predict - x_next is a pandas series and needs to be converted to a dataframe for predictions
+        # Predict 
         y_pred = model.predict(x_next)[0]
         
         # Append prediction to history so it can be used for future lags
         new_point = pd.Series(y_pred, index=x_next.index)
+        new_point.index = pd.to_datetime(new_point.index) # ensure datetime index
         y_hist = pd.concat([y_hist, new_point])
 
         # Reset y_hist's index
@@ -213,7 +240,7 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
             dp = value[1]
             
             # Get forecast
-            y_fore_linear = forecast_linear(model, y_hist, lags, step, dp)
+            y_fore_linear = forecast(model, y_hist, lags, step, dp)
 
             # Compute MAE linear
             mae_linear = mean_absolute_error(y_fore_linear, y_real)
@@ -226,10 +253,13 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
 
         
         # Forecast the non linear models:
-        for name, model in non_linear_models.items():
-            y_fore_non_linear = forecast_non_linear(model, y_hist, lags, step)
-            y_fore_non_linear.index.name = "pickup_date"
+        for name, value in non_linear_models.items():
+            model = value[0]
+            dp = value[1]
 
+            # Get forecast
+            y_fore_non_linear = forecast(model, y_hist, lags, step, dp)
+            
             # Compute MAE non linear
             mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
             mae_scores[name] = mae_non_linear
