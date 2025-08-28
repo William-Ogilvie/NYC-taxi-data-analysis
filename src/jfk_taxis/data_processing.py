@@ -175,6 +175,9 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]):
         plt.show()
 
     elif feature == "hour":
+        # Convert df["dt"] to datetime if not already
+        df["dt"] = pd.to_datetime(df["dt"])
+
         # Create a subset using month:
         if len(month) != 0:
             df = df[df["dt"].dt.month.isin([month[0], month[1]])]
