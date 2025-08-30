@@ -12,7 +12,8 @@ def make_choropleth(df, count_col, geo_data, zone_lookup, extra, scale):
     trips_count = df[count_col].value_counts().reset_index()
     trips_count.columns = ["LocationID", "trips"]
     trips_count = trips_count.sort_values("trips", ascending=False)
-    display(trips_count.head())
+    #display(trips_count.head())
+    
     # Merge this into the orignal GeoPandasDataFrame so that we can use the trips count in the tooltip
     zones =  geo_data.merge(
         trips_count,
@@ -63,7 +64,7 @@ def make_choropleth(df, count_col, geo_data, zone_lookup, extra, scale):
             bins = scale,
             legend_name = count_col + " counts by zone" + extra
         ).add_to(m)
-        print("Used custom scale:", scale)
+       # print("Used custom scale:", scale)
 
     # Add hover tooltip to the choropleth's polygons
     folium.features.GeoJsonTooltip(

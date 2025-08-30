@@ -12,11 +12,11 @@ from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 # Preprocess the data for the models:
 
 # Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
-def preprocess(lags, constant, order, fourier_features, ts):
+def preprocess(lags, constant, order, fourier_features, time_step, ts):
     y = ts
 
     # When forecasting we need the index to have a frequency, for us this is daily
-    y.index = pd.date_range(start=y.index[0], periods=len(y), freq="D")
+    y.index = pd.date_range(start=y.index[0], periods=len(y), freq=time_step)
 
     fourier_list = []
     # Fourier features for seasonality
@@ -54,6 +54,12 @@ def preprocess(lags, constant, order, fourier_features, ts):
     X = X.loc[mask]
     y = y.loc[mask]
 
+    # df = pd.concat([X, y], axis = 1)    
+    # df = df.dropna()
+    # y = df.iloc[:, -1] # target last col
+    # X = df.iloc[:, :-1] # features all but last col
+
+
     return (X, y, dp)
         
     
@@ -76,7 +82,8 @@ def fit_non_linear(X, y):
         max_depth=5,
         subsample=0.8,
         colsample_bytree=0.8,
-        random_state=37
+        random_state=37,
+        n_jobs = -1
     )
     model_xgb.fit(X, y);
     return model_xgb
@@ -137,7 +144,7 @@ def forecast(model, y, lags, steps, dp, hybrid):
     return preds
 
 # Create forecasts, plot and compare to naive baseline, the key difference is we will now pass two dicts of linear and non linear models for ease of use
-def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, lags):
+def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags):
     """
     steps = array of the step lengths to forecast
     y_test = pd.Series of the true future values
@@ -164,58 +171,65 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
         # Plot
         ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}")
         
-        # Forecast the linear models:
-        for name, value in linear_models.items():
-            model = value[0]
-            dp = value[1]
-            hybrid = value[2]
-            
-            # Get forecast
-            y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid)
+        # Check if there are any linear models to forecast
+        if len(linear_models) != 0:
+            # Forecast the linear models:
+            for name, value in linear_models.items():
+                model = value[0]
+                dp = value[1]
+                hybrid = value[2]
+                
+                # Get forecast
+                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid)
 
-            # Compute MAE linear
-            mae_linear = mean_absolute_error(y_fore_linear, y_real)
-            mae_scores[name] = mae_linear
-            print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
+                # Compute MAE linear
+                mae_linear = mean_absolute_error(y_fore_linear, y_real)
+                mae_scores[name] = mae_linear
+                print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
 
-            # Add to plot
-            ax = y_fore_linear.plot(ax = ax, label = name)
+                # Add to plot
+                ax = y_fore_linear.plot(ax = ax, label = name)
         
 
-        
-        # Forecast the non linear models:
-        for name, value in non_linear_models.items():
-            model = value[0]
-            dp = value[1]
-            hybrid = value[2]
+        # check if there are any non linear models to forecast
+        if len(non_linear_models) != 0:
+            # Forecast the non linear models:
+            for name, value in non_linear_models.items():
+                model = value[0]
+                dp = value[1]
+                hybrid = value[2]
 
-            # Get forecast
-            y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid)
-            
-            # Compute MAE non linear
-            mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
-            mae_scores[name] = mae_non_linear
-            print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
+                # Get forecast
+                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid)
+                
+                # Compute MAE non linear
+                mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
+                mae_scores[name] = mae_non_linear
+                print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
 
-            # Add to plot
-            ax = y_fore_non_linear.plot(ax = ax, label = name)
+                # Add to plot
+                ax = y_fore_non_linear.plot(ax = ax, label = name)
        
 
         
-       
-        # Compute naive MAE
-        y_step_pred_naive = y_pred_naive.loc[y_real.index]
+        if naive == True:
+            # Compute naive MAE
+            y_step_pred_naive = y_pred_naive.loc[y_real.index]
          
-        mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
-        mae_scores["Naive"] = mae_naive
-        print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
+            mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
+            mae_scores["Naive"] = mae_naive
+            print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
 
-        # Plot forecasts
-        ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+            # Plot forecasts
+            ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+            
+           
+            
+
+        # Add legend
         ax.legend()
-        plt.xticks(rotation = 90)
+        plt.xticks(rotation = 90, ha = "right")
         plt.show()
-
         # Plot MAE bar plots:
         df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
 
@@ -227,11 +241,11 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
         plt.show()
     
 # Runs the forecasts in question, must be passed as pandas series
-def run_forecasts(steps, lags, linear_models, non_linear_models, old_ts: pd.Series, new_ts: pd.Series):
+def run_forecasts(steps, lags, linear_models, non_linear_models, naive, time_step, old_ts: pd.Series, new_ts: pd.Series):
     
     y_test = new_ts
     y_hist = old_ts
-    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq="D")
+    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
-    test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, lags)
+    test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags)
     return 0
