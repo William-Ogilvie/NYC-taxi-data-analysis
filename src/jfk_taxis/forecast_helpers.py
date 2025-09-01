@@ -13,10 +13,13 @@ from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 
 # Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
 def preprocess(lags, constant, order, fourier_features, time_step, ts):
-    y = ts
+    y = ts.copy()
 
     # When forecasting we need the index to have a frequency, for us this is daily
-    y.index = pd.date_range(start=y.index[0], periods=len(y), freq=time_step)
+    y = y.asfreq(time_step)
+
+    # This may create some NaNs so we fill them with 0
+    y = y.fillna(0)
 
     fourier_list = []
     # Fourier features for seasonality
@@ -47,7 +50,6 @@ def preprocess(lags, constant, order, fourier_features, time_step, ts):
     # For performance reasons its better to make all lags at once and then concatante
     lag_cols = [y.shift(i).rename(f"y_lag_{i}") for i in lags] 
     X = pd.concat([X] + lag_cols, axis = 1)
-
 
     # Drop all na rows
     mask = X.notna().all(axis=1) # keep only rows with no NaNs
@@ -182,6 +184,7 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
                 # Get forecast
                 y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid)
 
+                
                 # Compute MAE linear
                 mae_linear = mean_absolute_error(y_fore_linear, y_real)
                 mae_scores[name] = mae_linear
@@ -201,7 +204,7 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
 
                 # Get forecast
                 y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid)
-                
+              
                 # Compute MAE non linear
                 mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                 mae_scores[name] = mae_non_linear
