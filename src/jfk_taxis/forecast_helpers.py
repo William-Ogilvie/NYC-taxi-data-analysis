@@ -8,6 +8,9 @@ from statsmodels.tsa.deterministic import DeterministicProcess
 import seaborn as sns
 from IPython.display import display
 from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
+import numpy as np
+
+
 
 # Preprocess the data for the models:
 
@@ -64,12 +67,19 @@ def preprocess(lags, constant, order, fourier_features, time_step, ts):
 
     return (X, y, dp)
         
-    
 
-# Fit models:
+# Fit models
+
+# We want to preprocess the design and target matricies into numpy arrays for speed
+def to_numpy(X, y):
+    X_np = X.to_numpy(copy = False)
+    y_np = y.to_numpy(copy = False)
+    return (X_np, y_np)
 
 # Fits linear regression to the design matrix, without an intercept due to the use of deterministic processes already including one
 def fit_linear(X,y):
+
+    (X, y) = to_numpy(X, y)
     model = LinearRegression(fit_intercept = False)
     model.fit(X,y)
 
@@ -77,6 +87,7 @@ def fit_linear(X,y):
 
 # Fits XGBoost to the design matrix and time series
 def fit_non_linear(X, y):
+    (X, y) = to_numpy(X, y)
     # XGBoost:
     model_xgb = XGBRegressor(
         n_estimators=500,
@@ -108,6 +119,61 @@ def forecast(model, y, lags, steps, dp, hybrid):
     # Create the deterministic features for the forecast
     X_future_det = dp.out_of_sample(steps = steps)
 
+    # Convert index to pd.DateTimeIndex if not already
+    if not isinstance(X_future_det.index, pd.DatetimeIndex):
+        X_future_det.index = pd.to_datetime(X_future_det.index)
+
+    # Deteriministic features
+    det_cols = X_future_det.columns.tolist()
+    det_vals = X_future_det.to_numpy(copy = False) # shape : (steps, n_det)
+
+    # Create lag column names
+    lag_cols = [f'y_lag_{j}' for j in lags]
+    feature_cols = det_cols + lag_cols
+
+    # Build lag buffer from last lags[-1] points
+    last_lag = lags[-1]
+    lag_buf = y_hist.iloc[-last_lag:].tolist()
+
+    # Output array
+    preds = np.empty(steps, dtype = np.float64)
+
+    # Number of deterministic features
+    n_det = det_vals.shape[1]
+
+    # Create array to hold one row of features
+    xrow = np.empty(n_det + len(lags), dtype = np.float64)
+
+    for i in range(steps):
+        # Deterministic part
+        xrow[:n_det] = det_vals[i, :]
+
+        # Lag part
+        for j, lag in enumerate(lags):
+            xrow[n_det + j] = lag_buf[-lag]
+        
+        # Predict
+        y_pred = model.predict(xrow.reshape(1, -1))[0]
+
+        # Add hybrid prediction if applicable
+        if hybrid is not None:
+            y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+
+        # Store prediction
+        preds[i] = y_pred
+        
+        # Advance lag buffer
+        lag_buf.append(y_pred)
+        lag_buf.pop(0)
+
+    return pd.Series(preds, index = X_future_det.index, name = getattr(y, "name"))
+
+
+""" Old method using pandas only
+    # We first store the last lags[-1] of y_hist to use for lags
+    lag_vals = list(y_hist.iloc[-lags[-1]:].copy())
+
+
     for i in range(steps): 
 
         # Get the deterministic row
@@ -116,8 +182,11 @@ def forecast(model, y, lags, steps, dp, hybrid):
         # Create the lags using historical data
         # for j in lags:
         #     x_next[f'y_lag_{j}'] = y_hist.iloc[-j]
-        lag_dict = {f'y_lag_{j}': y_hist.iloc[-j] for j in lags}
-        x_next = pd.concat([x_next, pd.Series(lag_dict)], axis = 0)
+        #lag_dict = {f'y_lag_{j}': y_hist.iloc[-j] for j in lags}
+
+        for j in lags:
+            x_next[f'y_lag_{j}'] = lag_vals[-j]
+        #x_next = pd.concat([x_next, pd.Series(lag_dict)], axis = 0)
 
         # lag_cols = [y_hist.shift(i).rename(f"y_lag_{i}") for i in lags] 
         # x_next = pd.concat([x_next] + lag_cols, axis = 1)
@@ -136,7 +205,12 @@ def forecast(model, y, lags, steps, dp, hybrid):
         # Append prediction to history so it can be used for future lags
         new_point = pd.Series(y_pred, index=[X_future_det.index[i]])
         new_point.index = pd.to_datetime(new_point.index) # ensure datetime index
-        y_hist = pd.concat([y_hist, new_point])
+
+        # Add this new prediction to the end of the lag_vals array
+        lag_vals.append(int(new_point.iloc[0]))
+         
+        # old method concatenating to y_hist 
+        #y_hist = pd.concat([y_hist, new_point])
 
         # Add prediction to preds series
         preds.append(new_point)
@@ -144,6 +218,7 @@ def forecast(model, y, lags, steps, dp, hybrid):
     # Turn preds into a pandas series
     preds = pd.concat(preds)
     return preds
+"""
 
 # Create forecasts, plot and compare to naive baseline, the key difference is we will now pass two dicts of linear and non linear models for ease of use
 def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags):
