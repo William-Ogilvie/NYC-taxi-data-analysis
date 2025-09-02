@@ -2,7 +2,7 @@
 from .forecast_helpers import run_forecasts, preprocess, fit_linear, fit_non_linear
 from .data_processing import process_taxi_data, taxi_data_visuals, ts_plots, combine_ts, plot_full_ts
 from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mask_geo_data, drop_id_df, drop_id_geo_data, create_rolling_average, create_rolling_average_hourly
-from .training_helpers import save_models, save_design, load_models, load_design, save_lags
+from .training_helpers import save_models, save_design, load_models, load_design, save_lags, load_lags
 
 # What can be imported from src
 __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
@@ -11,7 +11,7 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "drop_id_df", "drop_id_geo_data", "create_rolling_average",
             "create_rolling_average_hourly", "preprocess",
             "fit_linear", "fit_non_linear", "save_models", "save_design",
-            "load_models", "load_design", "save_lags"]
+            "load_models", "load_design", "save_lags", "load_lags"]
 
 
 

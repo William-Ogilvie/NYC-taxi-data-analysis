@@ -79,7 +79,7 @@ def fit_linear(X,y):
 def fit_non_linear(X, y):
     # XGBoost:
     model_xgb = XGBRegressor(
-        n_estimators=2000,
+        n_estimators=500,
         learning_rate=0.05,
         max_depth=5,
         subsample=0.8,

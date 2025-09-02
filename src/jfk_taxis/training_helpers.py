@@ -6,7 +6,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 # Save dir
-SAVE_DIR_LOC = PROJECT_ROOT / "saved_objects"
+SAVE_DIR_LOC = PROJECT_ROOT / "data" / "saved_objects"
 
 # Create the directory if it doesn't already exist
 SAVE_DIR_LOC.mkdir(parents= True, exist_ok= True)
@@ -23,6 +23,9 @@ def save_models(linear_models: dict, non_linear_models: dict, sig: str):
     non_linear_models: dict where 0: non linear model (XGBoost), 1: deterministic process, 2: hybrid component if any 
     sig: str this is a unique signature to the file names to avoid saving to things to the same file, for example for daily hyrbid models use something like hybrid_daily 
     """
+
+    # Note that although we call them linear models, they can also be hybrid models as well the dict structure is the same
+    # linear models will just have None for the hybrid component if purely linear
 
     # Save models
     for key, value in linear_models.items():
@@ -114,11 +117,16 @@ def load_design(sig: str):
         dp = joblib.load(f"{SAVE_DIR}/{key}_{sig}_dp1.pkl")
         non_linear_design_loaded[key] = (X, y, dp)
 
-    return (linear_design_loaded, non_linear_design_loaded)
+    return linear_design_loaded, non_linear_design_loaded
 
 # Function to save lags, exists primarily to ensure that everything ends up in the same folder at run time
 def save_lags(lags: list, series_type: str, sig: str):
     joblib.dump(lags, f"{SAVE_DIR}/sig_lags_{series_type}_{sig}.pkl")
+
+# Function to load lags
+def load_lags(series_type: str, sig: str):
+    return joblib.load(f"{SAVE_DIR}/sig_lags_{series_type}_{sig}.pkl")
+    
 
 
 
