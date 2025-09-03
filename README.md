@@ -47,3 +47,5 @@ jupyter lab
 ```
 
 ## Reults / Key Findings
+
+Note explain the install of XGBoost for gpus carefully because we assume that u run one
