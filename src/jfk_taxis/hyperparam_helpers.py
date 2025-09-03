@@ -46,7 +46,16 @@ def create_val_data(n_splits, test_size, lags, constant, order, fourier_features
 # The objective function will take a dictionary of folds of the time series, it will forecast predictions for the test set and compute the MAE
 # The loss returned will be the average MAE across the folds
 
-def objective(space, fold_dict, lags, steps):
+def objective(space, fold_dict, lags, steps, hybrid):
+    """
+        Slightly confusing but the hybrid model will actually be the linear component of the hybrid model and we will just swap them before forecasting 
+        Space: search space of hyperparamters
+        fold_dict: dictionary containg the folds to train/val on 
+        lags: list of lags
+        steps: number of steps to forecast
+        hybrid: the linear component of the hybrid model
+    """
+
     model = xgb.XGBRegressor(
         n_estimators = space["n_estimators"],
         
@@ -66,7 +75,7 @@ def objective(space, fold_dict, lags, steps):
         random_state = space["random_state"],
         #early_stopping_rounds = space["early_stopping_rounds"],
         eval_metric = space["eval_metric"],
-        n_jobs = space["n_jobs"],
+        
 
         # Tree method hist will eseentially bin feature values into histograms and consider 
         # and then only considers splits at bin boundaries. 
@@ -74,6 +83,12 @@ def objective(space, fold_dict, lags, steps):
         tree_method = space["tree_method"],
         device = space["device"] # use gpu
         )
+
+    # If there is a hybrid model swap hybrid <-> model
+    if hybrid is not None:
+        tmp = hybrid
+        hybrid = model
+        model = tmp
 
 
     maes = []
@@ -120,9 +135,9 @@ def objective(space, fold_dict, lags, steps):
         # Time forecasting
         start_fore = time.time()
         # Run the forecast for the required steps
-        y_preds = forecast(model, y_train, lags, steps, dp, None, True)
+        y_preds = forecast(model, y_train, lags, steps, dp, hybrid, True)
         end_fore = time.time()
-
+    
         # Report timings
         print(f"Fit time: {end_fit - start_fit:.2f} seconds")
         print(f"Predict time: {end_fore - start_fore:.4f} seconds")
@@ -143,4 +158,4 @@ def objective(space, fold_dict, lags, steps):
 
 # As the objective needs the parameters lags, steps and fold_dict passed we create a wrapper function
 def wrapped_objective(space):
-    return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps)
+    return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid)

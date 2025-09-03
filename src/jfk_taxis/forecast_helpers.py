@@ -175,7 +175,7 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
         if hybrid is not None:
 
             # Check whether xrow is currently on the GPU if it isn't move it to GPU and then move back after predictions
-            if not cp.isinstance(xrow, cp.ndarray):
+            if not (type(xrow)  == cp.ndarray):
                 xrow = cp.asarray(xrow) 
                 y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
                 y_pred = cp.asnumpy(y_pred) # move back to numpy
