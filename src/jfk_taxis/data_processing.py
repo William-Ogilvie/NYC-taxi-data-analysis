@@ -12,11 +12,25 @@ else:
     from tqdm.notebook import tqdm
 
 
+# scripts/ is location of current file so we go one above to get project root
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Save dir
+SAVE_DIR_LOC = PROJECT_ROOT / "data" / "raw"
+
+# Create the directory if it doesn't already exist
+SAVE_DIR_LOC.mkdir(parents= True, exist_ok= True)
 
 # src/jfk_taxis/ is location of current file so we go two above to get project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data" / "raw" 
 DATA_SAVE = PROJECT_ROOT / "data" / "processed"
+
+# Make the directories if they don't exist already
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_SAVE.mkdir(parents=True, exist_ok=True)
+
+# String version of save directory 
 DATA_SAVE_STRING = str(DATA_SAVE.resolve())
 
 # Loads all parquets for a specific year (we do it one year at a time because each year already has approx 30 Million rows which is a lot for pandas to process)
