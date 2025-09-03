@@ -9,6 +9,7 @@ import seaborn as sns
 from IPython.display import display
 from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 import numpy as np
+import cupy as cp
 
 
 
@@ -88,6 +89,11 @@ def fit_linear(X,y):
 # Fits XGBoost to the design matrix and time series
 def fit_non_linear(X, y):
     (X, y) = to_numpy(X, y)
+    
+    # We need to convert to CuPy arrays as well
+    X = cp.asarray(X)
+    y = cp.asarray(y)
+
     # XGBoost:
     model_xgb = XGBRegressor(
         n_estimators=500,
@@ -96,14 +102,16 @@ def fit_non_linear(X, y):
         subsample=0.8,
         colsample_bytree=0.8,
         random_state=37,
-        n_jobs = -1
+        eval_metric="mae",
+        tree_method="hist",
+        device="cuda"
     )
-    model_xgb.fit(X, y);
+    model_xgb.fit(X, y)
     return model_xgb
 
 
 # Creates a forecast for a specifided number of steps
-def forecast(model, y, lags, steps, dp, hybrid):
+def forecast(model, y, lags, steps, dp, hybrid, gpu):
     """
     model  = trained linear regression
     y      = pandas Series with historical values
@@ -127,6 +135,10 @@ def forecast(model, y, lags, steps, dp, hybrid):
     det_cols = X_future_det.columns.tolist()
     det_vals = X_future_det.to_numpy(copy = False) # shape : (steps, n_det)
 
+    # Convert det vals to CuPy if using gpu
+    if gpu:
+        det_vals = cp.asarray(det_vals)
+
     # Create lag column names
     lag_cols = [f'y_lag_{j}' for j in lags]
     feature_cols = det_cols + lag_cols
@@ -144,6 +156,10 @@ def forecast(model, y, lags, steps, dp, hybrid):
     # Create array to hold one row of features
     xrow = np.empty(n_det + len(lags), dtype = np.float64)
 
+    # Convert xrow to CuPy if using gpu
+    if gpu:
+       xrow = cp.asarray(xrow) 
+
     for i in range(steps):
         # Deterministic part
         xrow[:n_det] = det_vals[i, :]
@@ -151,13 +167,20 @@ def forecast(model, y, lags, steps, dp, hybrid):
         # Lag part
         for j, lag in enumerate(lags):
             xrow[n_det + j] = lag_buf[-lag]
-        
+ 
         # Predict
         y_pred = model.predict(xrow.reshape(1, -1))[0]
 
         # Add hybrid prediction if applicable
         if hybrid is not None:
-            y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+
+            # Check whether xrow is currently on the GPU if it isn't move it to GPU and then move back after predictions
+            if not cp.isinstance(xrow, cp.ndarray):
+                xrow = cp.asarray(xrow) 
+                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+                y_pred = cp.asnumpy(y_pred) # move back to numpy
+            else:
+                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
 
         # Store prediction
         preds[i] = y_pred
@@ -256,8 +279,8 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
                 dp = value[1]
                 hybrid = value[2]
                 
-                # Get forecast
-                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid)
+                # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
+                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid, False)
 
                 
                 # Compute MAE linear
@@ -271,14 +294,14 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
 
         # check if there are any non linear models to forecast
         if len(non_linear_models) != 0:
-            # Forecast the non linear models:
+            # Forecast the non linear models::
             for name, value in non_linear_models.items():
                 model = value[0]
                 dp = value[1]
                 hybrid = value[2]
 
-                # Get forecast
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid)
+                # Get forecast (use gpu hence gpu = True)
+                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, True)
               
                 # Compute MAE non linear
                 mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
