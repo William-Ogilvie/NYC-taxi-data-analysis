@@ -84,12 +84,6 @@ def objective(space, fold_dict, lags, steps, hybrid):
         device = space["device"] # use gpu
         )
 
-    # If there is a hybrid model swap hybrid <-> model
-    if hybrid is not None:
-        tmp = hybrid
-        hybrid = model
-        model = tmp
-
 
     maes = []
     for value in fold_dict.values():
@@ -119,23 +113,45 @@ def objective(space, fold_dict, lags, steps, hybrid):
         X_train_np = X_train.to_numpy(copy = True)
         y_train_np = y_train.to_numpy(copy = True)
 
-        # Convert to CuPy arrays if using GPU
-        X_train_cp = cp.asarray(X_train_np)
-        y_train_cp = cp.asarray(y_train_np)
 
         # X_val_np = X_val.to_numpy(copy = True)
         # y_val_np = y_val.to_numpy(copy = True)
 
         # Time fitting the model
         start_fit = time.time()
-        # Fit the model
-        model.fit(X_train_cp, y_train_cp)
+
+        # If there is no hybrid model we can just fit the model to the data
+        if hybrid is None:
+            # Convert to CuPy arrays if using GPU
+            X_train_cp = cp.asarray(X_train_np)
+            y_train_cp = cp.asarray(y_train_np)
+
+            # Fit the model
+            model.fit(X_train_cp, y_train_cp)
+        # If we have a hyrid model then this will need to be fit to the data first (as it is the linear part) and then we pass the XGBoost part to the forecast as hybrid
+        else:
+            # Swap model and hybrid
+            tmp = model
+            model = hybrid
+            hybrid = tmp
+
+            # Fit model to the data (we fit to the numpy arrays as model is a linear regression)
+            model.fit(X_train_np, y_train_np)
+
         end_fit = time.time()
 
         # Time forecasting
         start_fore = time.time()
+        
+        # If there is no hybrid model then we want to use the gpu when forecasting otherwise we don't want to use the gpu (because we will get an error when linear regression tries to predict with a CuPy array)
+        if hybrid is not None:
+            gpu = True
+        else:
+            gpu = False
+
         # Run the forecast for the required steps
-        y_preds = forecast(model, y_train, lags, steps, dp, hybrid, True)
+        y_preds = forecast(model, y_train, lags, steps, dp, hybrid, gpu)
+
         end_fore = time.time()
     
         # Report timings
