@@ -21,7 +21,19 @@ xgboost_setup:
   random_state: 37
   eval_metric: "mae"
   tree_method: "hist"
-  device: "cuda"  
+  device: "cuda" 
+
+# Modelling constants
+modelling:
+  daily_steps: [1, 2, 3, 7, 14, 30, 60, 180, 365, 500, 546]
+  daily_fourier_features: ["YE", "W"] # Yearly, weekly
+  daily_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
+  daily_hybrid_trends: [1, 2]
+  hourly_steps: [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 336, 720]
+  hourly_fourier_features: ["WE", "D"] # Weekly, daily
+  hourly_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
+  hourly_hybrid_trends: [1, 2] 
+  hourly_num_lags: 168 # number of lags to use for the hourly models (there are around 4710)
 
 # Hyperparameter tuning settings
 hyperparameter_tuning:
@@ -36,9 +48,9 @@ model_naming:
   default_non_linear: "base_non_linear"
   hybrid_model_prefix: "hybrid_order"
 
-# Model keys
-model_keys:
-  daily_linear: "5_order_linear_daily"
+# Model signatures 
+model_sigs:
+  daily_linear: "5_order_linear_daily" # if you change the number of daily linear trends you may want to change the 5 here
   hourly_linear: "5_order_linear_hourly"
   daily_hybrid: "2_order_hybrid_daily"
   hourly_hybrid: "2_order_hybrid_hourly"
@@ -52,17 +64,15 @@ saving:
   target_file_suffix: "target.pkl"
   linear_keys_preffix: "linear_keys"
   non_linear_keys_preffix: "non_linear_keys"
-  daily_lags: "dalily"
-  hourly_lags: "hourly"
-  lags_preffix: "sig_lags"
-  hyperparams_preffix: "hyperparams"
-
-
-# Misc names
-misc_names:
   daily_lags: "daily"
   hourly_lags: "hourly"
+  lags_sig: "eda"
+  lags_preffix: "sig_lags"
+  hyperparams_preffix: "hyperparams"
+  ts_prefix: "ts"
+  ts_daily: "daily"
+  ts_hourly: "hourly"
+  original_parquet_prefix: "processed"
+  jfk_parquet_prefix: "processed_jfk"
 
-# Misc keys
-misc_keys:
-  lags: "eda"
+

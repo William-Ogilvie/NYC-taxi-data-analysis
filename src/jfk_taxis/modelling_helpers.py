@@ -1,5 +1,6 @@
 from .forecast_helpers import fit_non_linear, preprocess, fit_linear 
 from .training_helpers import save_design, save_models
+import copy
 
 # Function will create and return dict of design, target and deterministic process for non linear model
 def create_design_non_linear(lags, fourier_features, time_step, ts, name):
@@ -100,13 +101,15 @@ def train_hybrid_models(linear_design, hybrid_model):
 
         # Compute resiudals
         y_resid = y - y_fit
-
+ 
         # Fit the non linear component to the residuals
-        hybrid_model.fit(X, y_resid)
+        # We need to make a deepcopy of the hybrid model as otherwise we will be just fitting to the same model several times
+        hybrid_model_copy = copy.deepcopy(hybrid_model)
+        hybrid_model_copy.fit(X, y_resid)
 
         # Update hybrid models dict, note how we pass the model in two components the linear part and the hybrid part
         # See src/jfk_taxis/forecast_helpers.py to see why
-        hybrid_models[key] = (linear_model, dp, hybrid_model)
+        hybrid_models[key] = (linear_model, dp, hybrid_model_copy)
 
     return hybrid_models
 

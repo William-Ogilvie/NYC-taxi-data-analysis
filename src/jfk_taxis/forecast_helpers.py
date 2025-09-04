@@ -12,6 +12,7 @@ from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 import numpy as np
 import cupy as cp
 import yaml
+import copy
 
 
 # src/jfk_taxis/ is location of current file so we go two above to get project root
@@ -28,7 +29,7 @@ with open(CONFIG_PATH, "r") as f:
 
 # Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
 def preprocess(lags, constant, order, fourier_features, time_step, ts):
-    y = ts.copy()
+    y = copy.deepcopy(ts) # Create a separate copy of the time series to avoid any changes to the original
 
     # When forecasting we need the index to have a frequency, for us this is daily
     y = y.asfreq(time_step)
@@ -130,6 +131,7 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
     steps  = how many steps ahead to forecast
     dp     = the deterministic process used
     hybrid = if not None, the hybrid model to add to the linear model
+    gpu = bool wherether we are using gpu to predict with the model (xgboost) or not (linear regression)
     """
     
     preds = []
@@ -359,8 +361,8 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
 # Runs the forecasts in question, must be passed as pandas series
 def run_forecasts(steps, lags, linear_models, non_linear_models, naive, time_step, old_ts: pd.Series, new_ts: pd.Series):
     
-    y_test = new_ts
-    y_hist = old_ts
+    y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
+    y_hist = copy.deepcopy(old_ts)
     y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
     test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags)
