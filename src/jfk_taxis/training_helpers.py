@@ -128,12 +128,18 @@ def load_lags(series_type: str, sig: str):
     return joblib.load(f"{SAVE_DIR}/sig_lags_{series_type}_{sig}.pkl")
 
 
+# Function to save hyperparams
 def save_hyperparams(hyperparams: dict, sig: str):
     joblib.dump(hyperparams, f"{SAVE_DIR}/hyperparams_{sig}.pkl")
 
+# Function to load hyperparams
 def load_hyperparams(sig: str):
     return joblib.load(f"{SAVE_DIR}/hyperparams_{sig}.pkl")
-    
 
+# Function to save any object
+def save_obj(obj, sig: str):
+    joblib.dump(obj, f"{SAVE_DIR}/{sig}.pkl")
 
-
+# Function to load any object
+def load_obj(sig: str):
+    return joblib.load(f"{SAVE_DIR}/{sig}.pkl") 
