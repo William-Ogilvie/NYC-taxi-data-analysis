@@ -1,10 +1,12 @@
 # Data file paths
 data:
-  raw_path: "data/raw/"
-  processed_path: "data/processed/"
-  saved_objects_path: "data/saved_objects/"
-  figures_path: "reports/figures/"
-  maps_path: "reports/maps/"
+  data_path: "data"
+  raw_path: "raw"
+  processed_path: "processed"
+  saved_objects_path: "saved_objects"
+  reports_path: "reports"
+  figures_path: "figures"
+  maps_path: "maps"
 
 # Default XGBoost model parameters
 xgboost_default:
@@ -46,6 +48,15 @@ saving:
   model_file_suffix: "model.pkl"
   hybrid_file_suffix: "hybrid.pkl"
   dp_file_suffix: "dp.pkl"
+  design_file_suffix: "design.pkl"
+  target_file_suffix: "target.pkl"
+  linear_keys_preffix: "linear_keys"
+  non_linear_keys_preffix: "non_linear_keys"
+  daily_lags: "dalily"
+  hourly_lags: "hourly"
+  lags_preffix: "sig_lags"
+  hyperparams_preffix: "hyperparams"
+
 
 # Misc names
 misc_names:
