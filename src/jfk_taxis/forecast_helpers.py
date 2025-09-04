@@ -1,4 +1,5 @@
 # Series of helper functions for time series forecasting
+from pathlib import Path
 from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
@@ -10,8 +11,18 @@ from IPython.display import display
 from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 import numpy as np
 import cupy as cp
+import yaml
 
 
+# src/jfk_taxis/ is location of current file so we go two above to get project root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Path to config
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
+
+# Load config
+with open(CONFIG_PATH, "r") as f:
+    config = yaml.safe_load(f)
 
 # Preprocess the data for the models:
 
@@ -96,15 +107,15 @@ def fit_non_linear(X, y):
 
     # XGBoost:
     model_xgb = XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=5,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=37,
-        eval_metric="mae",
-        tree_method="hist",
-        device="cuda"
+        n_estimators=config["xgboost_default"]["n_estimators"],
+        learning_rate=config["xgboost_default"]["learning_rate"],
+        max_depth=config["xgboost_default"]["max_depth"],
+        subsample=config["xgboost_default"]["subsample"],
+        colsample_bytree=config["xgboost_default"]["colsample_bytree"],
+        random_state=config["xgboost_default"]["random_state"],
+        eval_metric=config["xgboost_default"]["eval_metric"],
+        tree_method=config["xgboost_default"]["tree_method"],
+        device=config["xgboost_default"]["device"]
     )
     model_xgb.fit(X, y)
     return model_xgb
@@ -166,6 +177,9 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
 
         # Lag part
         for j, lag in enumerate(lags):
+            if len(lag_buf) < lag:
+                print(f"lag_buf length: {len(lag_buf)}, lag: {lag}, lags: {lags}")
+                raise IndexError("lag_buf too short for requested lag")
             xrow[n_det + j] = lag_buf[-lag]
  
         # Predict

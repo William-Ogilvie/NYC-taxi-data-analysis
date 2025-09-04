@@ -4,7 +4,8 @@ from .data_processing import process_taxi_data, taxi_data_visuals, ts_plots, com
 from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mask_geo_data, drop_id_df, drop_id_geo_data, create_rolling_average, create_rolling_average_hourly
 from .training_helpers import save_models, save_design, load_models, load_design, save_lags, load_lags, save_hyperparams, load_hyperparams, save_obj, load_obj
 from .hyperparam_helpers import create_val_data, wrapped_objective
-
+from .modelling_helpers import create_train_save_models
+from .loading_helpers import load_config
 
 # What can be imported from src
 __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
@@ -15,7 +16,7 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "fit_linear", "fit_non_linear", "save_models", "save_design",
             "load_models", "load_design", "save_lags", "load_lags", "forecast",
             "create_val_data", "wrapped_objective",  "save_hyperparams", "load_hyperparams",
-            "save_obj", "load_obj"]
+            "save_obj", "load_obj", "create_train_save_models"]
 
 
 

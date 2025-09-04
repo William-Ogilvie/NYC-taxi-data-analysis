@@ -4,6 +4,7 @@ from IPython.display import display
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
+import yaml
 
 # We need to use the notebook version of tqdm if possible so it renders property in Jupyter Lab
 if __name__ == "__main__":
@@ -12,26 +13,28 @@ else:
     from tqdm.notebook import tqdm
 
 
-# scripts/ is location of current file so we go one above to get project root
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-# Save dir
-SAVE_DIR_LOC = PROJECT_ROOT / "data" / "raw"
-
-# Create the directory if it doesn't already exist
-SAVE_DIR_LOC.mkdir(parents= True, exist_ok= True)
-
 # src/jfk_taxis/ is location of current file so we go two above to get project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJECT_ROOT / "data" / "raw" 
-DATA_SAVE = PROJECT_ROOT / "data" / "processed"
 
-# Make the directories if they don't exist already
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-DATA_SAVE.mkdir(parents=True, exist_ok=True)
+# Path to config
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
 
-# String version of save directory 
-DATA_SAVE_STRING = str(DATA_SAVE.resolve())
+# Load config
+with open(CONFIG_PATH, "r") as f:
+    config = yaml.safe_load(f)
+    
+
+# Data directories
+DATA_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"] 
+DATA_SAVE = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["processed_path"]
+
+# Saving conventions
+ORIGINAL_PARQUET_PREFIX = config["saving"]["original_parquet_prefix"]
+JFK_PARQUET_PREFIX = config["saving"]["jfk_parquet_prefix"]
+TS_PREFIX = config["saving"]["ts_prefix"]
+TS_DAILY = config["saving"]["ts_daily"] 
+TS_HOURLY = config["saving"]["ts_hourly"]
+
 
 # Loads all parquets for a specific year (we do it one year at a time because each year already has approx 30 Million rows which is a lot for pandas to process)
 def load_parquet(year: int) -> pd.DataFrame:
@@ -137,14 +140,17 @@ def process_taxi_data(years: list[int], features: list[str]):
         bar.set_description("Create time series")
         for feature in features:
             ts = create_ts(df_jfk, feature)
-            ts.to_csv(DATA_SAVE_STRING + "/ts_" + feature + str(year) + ".csv", index = False)
+            csv_path = DATA_SAVE / f"{TS_PREFIX}_{feature}{year}.csv"
+            ts.to_csv(csv_path, index = False)
         bar.update(1)
 
         # Save data
-        bar.set_description("Save data") 
-        df.to_parquet(DATA_SAVE_STRING + "/processed_" + str(year) + ".parquet")
+        bar.set_description("Save data")
+        parquet_original_path = DATA_SAVE / f"{ORIGINAL_PARQUET_PREFIX}_{year}.parquet"
+        df.to_parquet(parquet_original_path)
 
-        df_jfk.to_parquet(DATA_SAVE_STRING + "/processed_jfk_" + str(year) + ".parquet")
+        parquet_jfk_path = DATA_SAVE / f"{JFK_PARQUET_PREFIX}_{year}.parquet"
+        df_jfk.to_parquet(parquet_jfk_path)
         bar.update(1) 
 
         bar.close()
@@ -207,11 +213,11 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]):
 
 # Combines all the daily and hourly times series into two individual csvs
 def combine_ts(years: list[int]):
-    df_daily = pd.concat((pd.read_csv(DATA_SAVE_STRING + "/ts_daily" +  str(year) + ".csv") for year in years), ignore_index= True)      
-    df_hour = pd.concat((pd.read_csv(DATA_SAVE_STRING + "/ts_hour" + str(year) + ".csv") for year in years), ignore_index= True)
+    df_daily = pd.concat((pd.read_csv(DATA_SAVE /  f"{TS_PREFIX}_{TS_DAILY}{year}.csv") for year in years), ignore_index= True)      
+    df_hour = pd.concat((pd.read_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{year}.csv") for year in years), ignore_index= True)
 
-    df_daily.to_csv(DATA_SAVE_STRING + f"/ts_daily{years[0]}-{years[-1]}.csv", index = False)
-    df_hour.to_csv(DATA_SAVE_STRING + f"/ts_hour{years[0]}-{years[-1]}.csv", index = False)
+    df_daily.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{years[0]}-{years[-1]}.csv", index = False)
+    df_hour.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{years[0]}-{years[-1]}.csv", index = False)
 
 # Plots the full daily and hourly ts
 def plot_full_ts(df_daily: pd.DataFrame, years: list[int]):
