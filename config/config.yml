@@ -1,0 +1,57 @@
+# Data file paths
+data:
+  raw_path: "data/raw/"
+  processed_path: "data/processed/"
+  saved_objects_path: "data/saved_objects/"
+  figures_path: "reports/figures/"
+  maps_path: "reports/maps/"
+
+# Default XGBoost model parameters
+xgboost_default:
+  n_estimators: 500
+  learning_rate: 0.05
+  max_depth: 5
+  subsample: 0.8
+  colsample_bytree: 0.8
+
+# Default XGBoost setup parameters
+xgboost_setup:
+  random_state: 37
+  eval_metric: "mae"
+  tree_method: "hist"
+  device: "cuda"  
+
+# Hyperparameter tuning settings
+hyperparameter_tuning:
+  n_splits: 5
+  daily_test_size: 30
+  hourly_test_size: 168
+  max_evals: 100
+
+# Model naming conventions
+model_naming:
+  linear_model_prefix: "linear_order"
+  default_non_linear: "base_non_linear"
+  hybrid_model_prefix: "hybrid_order"
+
+# Model keys
+model_keys:
+  daily_linear: "5_order_linear_daily"
+  hourly_linear: "5_order_linear_hourly"
+  daily_hybrid: "2_order_hybrid_daily"
+  hourly_hybrid: "2_order_hybrid_hourly"
+
+# Saving conventions
+saving:
+  model_file_suffix: "model.pkl"
+  hybrid_file_suffix: "hybrid.pkl"
+  dp_file_suffix: "dp.pkl"
+
+# Misc names
+misc_names:
+  daily_lags: "daily"
+  hourly_lags: "hourly"
+
+# Misc keys
+misc_keys:
+  lags: "eda"

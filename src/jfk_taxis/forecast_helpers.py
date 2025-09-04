@@ -179,6 +179,7 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
                 xrow = cp.asarray(xrow) 
                 y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
                 y_pred = cp.asnumpy(y_pred) # move back to numpy
+                xrow = cp.asnumpy(xrow) # move back to numpy
             else:
                 y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
 

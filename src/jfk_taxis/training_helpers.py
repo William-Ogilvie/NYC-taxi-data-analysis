@@ -1,20 +1,22 @@
 import joblib
 from pathlib import Path
+import yaml
 
 # src/jfk_taxis/ is location of current file so we go two above to get project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+# Path to config
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
 
-# Save dir
-SAVE_DIR_LOC = PROJECT_ROOT / "data" / "saved_objects"
+# Load config
+with open(CONFIG_PATH, "r") as f:
+    config = yaml.safe_load(f)
 
-# Create the directory if it doesn't already exist
-SAVE_DIR_LOC.mkdir(parents= True, exist_ok= True)
+# Saved objects path
+SAVED_OBJECTS_PATH = PROJECT_ROOT / Path(config["data"]["saved_objects_path"])
 
 # Create a string of the path for use when saving
-SAVE_DIR = str(SAVE_DIR_LOC.resolve())
-
- 
+SAVE_DIR = str(SAVED_OBJECTS_PATH.resolve())
 
 # Function saves the design and target matrices, the models themselves and their deterministic processes into .pkl objects using joblib
 def save_models(linear_models: dict, non_linear_models: dict, sig: str):
