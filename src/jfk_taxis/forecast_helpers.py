@@ -112,10 +112,10 @@ def fit_non_linear(X, y):
         max_depth=config["xgboost_default"]["max_depth"],
         subsample=config["xgboost_default"]["subsample"],
         colsample_bytree=config["xgboost_default"]["colsample_bytree"],
-        random_state=config["xgboost_default"]["random_state"],
-        eval_metric=config["xgboost_default"]["eval_metric"],
-        tree_method=config["xgboost_default"]["tree_method"],
-        device=config["xgboost_default"]["device"]
+        random_state=config["xgboost_setup"]["random_state"],
+        eval_metric=config["xgboost_setup"]["eval_metric"],
+        tree_method=config["xgboost_setup"]["tree_method"],
+        device=config["xgboost_setup"]["device"]
     )
     model_xgb.fit(X, y)
     return model_xgb

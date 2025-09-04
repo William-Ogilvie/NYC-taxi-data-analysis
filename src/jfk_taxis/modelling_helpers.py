@@ -35,7 +35,7 @@ def create_design_linear(lags, order, fourier_features, time_step, ts, name):
     """
 
     # Create X,y, dp_linear
-    (X,y, dp_linear) = preprocess(lags, True, order, fourier_features, time_step, ts, name)
+    (X,y, dp_linear) = preprocess(lags, True, order, fourier_features, time_step, ts)
     
     # Save as dict 
     linear_design = {
@@ -69,9 +69,10 @@ def train_linear_models(linear_design):
     linear_models = {}
 
     # Loop through design dict and fit linear_models
-
     for key, value in linear_design.items():
         linear_models[key] = (fit_linear(value[0], value[1]), value[2], None)
+
+    return linear_models
 
 
 # Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
@@ -100,7 +101,7 @@ def create_train_non_linear(names, lags, fourier_features, time_step, ts):
 
         # Store design and model 
         non_linear_design[name] = design[name]
-        non_linear_models[name] = model
+        non_linear_models[name] = model[name]
     
     return non_linear_design, non_linear_models
 
@@ -128,10 +129,11 @@ def create_train_linear(names, order_list, lags, fourier_features, time_step, ts
 
         # Train model
         model = train_linear_models(design)
+        
 
         # Store design and model 
         linear_design[name] = design[name]
-        linear_models[name] = model
+        linear_models[name] = model[name]
     
     return linear_design, linear_models
 
