@@ -74,6 +74,41 @@ def train_linear_models(linear_design):
 
     return linear_models
 
+# Function that trains the hybrid models on the designs and returns a dict in the format: (linear model, deterministic prcoess, hybrid model)
+def train_hybrid_models(linear_design, hybrid_model):
+    """
+    linear_design: dict of design, target and deteriministic process for each linear model 
+    """
+
+ 
+    # Dict for storing hybrid_models
+    hybrid_models = {}
+
+    # Loop through design dict and fit hybrid_models
+    for key, value in linear_design.items():
+        # Unpack X, y and dp 
+        X = value[0]
+        y = value[1]
+        dp = value[2]
+
+        # First fit the linear model
+        linear_model = fit_linear(X, y)
+
+        # Get fitted values (convert X to numpy array for prediction)
+        X_pred = X.to_numpy()
+        y_fit = linear_model.predict(X_pred)
+
+        # Compute resiudals
+        y_resid = y - y_fit
+
+        # Fit the non linear component to the residuals
+        hybrid_model.fit(X, y_resid)
+
+        # Update hybrid models dict, note how we pass the model in two components the linear part and the hybrid part
+        # See src/jfk_taxis/forecast_helpers.py to see why
+        hybrid_models[key] = (linear_model, dp, hybrid_model)
+
+    return hybrid_models
 
 # Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
 def create_train_non_linear(names, lags, fourier_features, time_step, ts):
@@ -108,7 +143,7 @@ def create_train_non_linear(names, lags, fourier_features, time_step, ts):
 # Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
 def create_train_linear(names, order_list, lags, fourier_features, time_step, ts):
     """
-    names: list of names of the non_linear_models
+    names: list of names of the linear_models
     order_list: list of orders to fit 
     lags: list of lags
     fourier_features: list of fourier features
@@ -136,6 +171,38 @@ def create_train_linear(names, order_list, lags, fourier_features, time_step, ts
         linear_models[name] = model[name]
     
     return linear_design, linear_models
+
+# Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
+def create_train_hybrid(names, hybrid, order_list, lags, fourier_features, time_step, ts):
+    """
+    names: list of names of the hybrid_models
+    hybrid: the non linear part of the model (usually xgboost)
+    order_list: list of orders to fit 
+    lags: list of lags
+    fourier_features: list of fourier features
+    time_step: time step of series so "D" or "h"
+    ts: time series itself
+    """
+
+    # Dict of hybrid design, target, dp
+    hybrid_design = {}
+
+    # Dict of hybrid models themselves
+    hybrid_models = {}
+
+    # Loop through names creating design, target and dp. Fit the models as well
+    for name, order in zip(names, order_list):
+        # Create design 
+        design = create_design_linear(lags, order, fourier_features, time_step, ts, name)
+
+        # Train model
+        model = train_hybrid_models(design, hybrid)
+
+        # Store design and model 
+        hybrid_design[name] = design[name]
+        hybrid_models[name] = model[name]
+    
+    return hybrid_design, hybrid_models
 
 # Function will create save and train non linear models and either linear models or hybrid models
 def create_train_save_models(names_linear, names_non_linear, hybrid, sig, order_list, lags, fourier_features, time_step, ts):
@@ -166,6 +233,12 @@ def create_train_save_models(names_linear, names_non_linear, hybrid, sig, order_
     # First do the case of no hybrid models
     if hybrid is None:
         linear_design, linear_models = create_train_linear(names_linear, order_list, lags, fourier_features, time_step, ts)
+    
+    else:
+        # Even though we are in the hybrid case we will still store them in linear_design and linear_models
+        # this is because all "linear models" are actually just hybrid models with None for the hybrid part
+        linear_design, linear_models = create_train_hybrid(names_linear, hybrid, order_list, lags, fourier_features, time_step, ts)
+
     # TODO hybrid case
 
     # Create and train non linear models
