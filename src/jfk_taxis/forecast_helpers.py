@@ -166,6 +166,20 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
 
     return model_xgb
 
+def truncate_lags(lags: list[int], truncate_to: int) -> list[int]:
+    """ Truncates the lags to the length of the historical data if the largest lag is greater than the length of the historical data
+
+    Args:
+        lags (list[int]): list of lags
+        truncate_to (int): length of the historical data
+
+    Returns:
+        list[int]: truncated list of lags
+    """
+
+    lags = [lag for lag in lags if lag <= truncate_to]
+   
+    return lags
 
 def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[int], steps: int, dp: DeterministicProcess, hybrid: XGBRegressor | None, gpu: bool):
     """ Forecast future values using the trained model.
@@ -209,9 +223,16 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     lag_cols = [f'y_lag_{j}' for j in lags]
     feature_cols = det_cols + lag_cols
 
+    # There is a potential issue if the historical data has less points than the largest lag, the solution will have to be to truncate
+    # the lags to the length of the histrical data 
+    if lags[-1] > len(y_hist):
+        lags = truncate_lags(lags, len(y_hist))
+
     # Build lag buffer from last lags[-1] points
     last_lag = lags[-1]
     lag_buf = y_hist.iloc[-last_lag:].tolist()
+
+
 
     # Output array
     preds = np.empty(steps, dtype = np.float64)

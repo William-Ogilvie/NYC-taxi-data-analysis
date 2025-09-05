@@ -9,8 +9,7 @@ Along with a wrapper function to allow passing additional parameters to the obje
 # --- Imports ---
 from hyperopt import STATUS_OK
 import xgboost as xgb
-from .data_processing import preprocess
-from .forecast_helpers import forecast, run_forecasts
+from .forecast_helpers import forecast, run_forecasts, preprocess
 from .loading_helpers import load_config
 from .training_helpers import load_models, load_design
 from sklearn.metrics import mean_absolute_error

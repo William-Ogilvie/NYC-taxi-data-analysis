@@ -8,6 +8,10 @@ data:
   figures_path: "figures"
   maps_path: "maps"
 
+# Constants for EDA
+eda:
+  max_month_2025: 7 # up to and including July 2025
+
 # Default XGBoost model parameters
 xgboost_default:
   n_estimators: 500

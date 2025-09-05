@@ -13,6 +13,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import geopandas as gpd
+from .loading_helpers import load_config
+
+# --- Load config ---
+config, PROJECT_ROOT = load_config()
+
+# --- Constants and Paths ---
+DATA_DIR_MAPS = PROJECT_ROOT / config["data"]["reports_path"] / config["data"]["maps_path"]
+DATA_DIR_RAW = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
 
 # --- Functions ---
 def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list) -> folium.Map:
@@ -202,7 +210,65 @@ def drop_id_df(df: pd.DataFrame, drop: list, trip_type: str) -> pd.DataFrame:
 
     return df
 
+def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, years: list[int], months: list[int], drop_boroughs: list[str], drop_ids: list[int], save_file_suffix: str) -> None:
+    """ Create choropleth maps for each year and month in years and months, these we will be adjusted maps according to drop_boroughs and drop_ids.
+    The maps will be saved as html files in the maps directory.
 
+    Args:
+        geo_data (gpd.GeoDataFrame): geopandas dataframe containing the taxi zones shape data
+        zone_lookup (pd.DataFrame): dataframe containing the taxi zone lookup file (how to match location id to zone name and borough)
+        extra (str): extra string to add to the legend name (e.g. no Manhattan)
+        scale (list): scale to use for the choropleth, if None folium will create its own scale
+        years (list[int]): list of years to create maps for
+        months (list[int]): list of months to create maps for
+        drop_boroughs (list[str]): list of boroughs to drop from the data
+        drop_ids (list[int]): list of location ids to drop from the data
+        save_file_suffix (str): suffix to add to the saved file names
+    """    
+
+    geo_data = geo_data.copy() # To avoid modifying the original data
+
+    # First drop the boroughs from the geo_data 
+    for borough in drop_boroughs:
+        geo_data = make_borough_mask_geo_data(geo_data, borough)
+
+    # Then drop the location ids from the geo_data
+    geo_data = drop_id_geo_data(geo_data, drop_ids)
+
+    for year in years:
+        for month in months:
+            # Skip anything beyond config["eda"]["max_month_2025"] for 2025 (as doesn't exist)
+            if (year == 2025) and (int(month) > config["eda"]["max_month_2025"]):
+                continue
+
+            # Load data frame for this year and month
+            df = pd.read_parquet(DATA_DIR_RAW / f"yellow_tripdata_{year}-{month:02}.parquet")
+
+            # We need two data frames, one where we drop in the pick ups, one where we drop in the drop offs
+            df_pu = df.copy()
+            df_do = df.copy()
+
+            # Drop boroughs from the df
+            for borough in drop_boroughs: 
+                df_pu = make_borough_mask_df(zone_lookup, df_pu, borough, "PU")
+                df_do = make_borough_mask_df(zone_lookup, df_do, borough, "DO")
+
+            # Drop the ids from drop_zones in the df
+            df_pu = drop_id_df(df_pu, drop_ids, "PU")
+            df_do = drop_id_df(df_do, drop_ids, "DO")
+
+            # Create pick up Choropleth
+            m_3 = make_choropleth(df_pu, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+
+            # Export to HTML file
+            m_3.save(DATA_DIR_MAPS / f"PULocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
+
+
+            # Create drop off Choropleth
+            m_4 = make_choropleth(df_do, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+
+            # Export to HTML file
+            m_4.save(DATA_DIR_MAPS / f"DOLocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
 
 def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
     """Creates a rolling average of the daily counts.
@@ -259,3 +325,5 @@ def create_rolling_average_hourly(size: int, hourly_counts: pd.Series) -> None:
     plt.xticks(rotation = 45, ha = "right") 
 
     plt.show()
+
+
