@@ -1,8 +1,14 @@
 import yaml
 from pathlib import Path
 
-# Function to load and return config, will also return the project root
-def load_config():
+def load_config() -> tuple[dict, Path]:
+    """ Loads the configuration from a YAML file and determines the project root path. Returns both.
+
+    Returns:
+        tuple[dict, Path]: A tuple containing the config dictionary and the project root path.
+    """    
+
+
     # src/jfk_taxis is location of current file so we go two above to get project root
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

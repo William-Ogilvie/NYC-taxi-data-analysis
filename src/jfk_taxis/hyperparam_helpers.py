@@ -1,18 +1,30 @@
-from hyperopt import hp, fmin, tpe, hp, STATUS_OK, Trials
-from hyperopt.pyll import scope
+from hyperopt import STATUS_OK
 import xgboost as xgb
-import pickle
-import pandas as pd
-from jfk_taxis import load_design, load_models, load_lags, run_forecasts, preprocess, forecast
+from jfk_taxis import preprocess, forecast
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
 import time
-import numpy as np
 import cupy as cp
+import pandas as pd
+from xgboost import XGBRegressor
 
+def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> dict:
+    """ Creates the folds to be used in cross validation for hyperparameter tuning
 
-# Function to create train and validation data for the objective function
-def create_val_data(n_splits, test_size, lags, constant, order, fourier_features, time_step, ts):
+    Args:
+        n_splits (int): number of splits/folds
+        test_size (int): size of the test set for each fold
+        lags (list[int]): list of lags to use
+        constant (bool): whether the deterministic process should have a constant
+        order (int): order of the linear trend in the deterministic process
+        fourier_features (list[str]): list of fourier features to use
+        time_step (str): time step of the time series (e.g. "h", "D")
+        ts (pd.Series): time series data
+
+    Returns:
+        dict: dictionary containing the folds with keys as fold_0, fold_1, ..., each value is a tuple (X_train, y_train, dp, y_test). dp is the deterministic process fitted on the training data and will be used to create the out of sample features for forecasting
+    """        
+    
     # We will store all of the folds in a dict
     fold_dict = {}
     
@@ -41,20 +53,19 @@ def create_val_data(n_splits, test_size, lags, constant, order, fourier_features
     return fold_dict
 
 
-# Define objective function
+def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: XGBRegressor | None) -> dict:
+    """ Objective function for hyperparameter tuning using hyperopt
 
-# The objective function will take a dictionary of folds of the time series, it will forecast predictions for the test set and compute the MAE
-# The loss returned will be the average MAE across the folds
+    Args:
+        space (dict): hyperparameter space
+        fold_dict (dict): dict containing the folds with keys as fold_0, fold_1, ..., each value is a tuple (X_train, y_train, dp, y_test)
+        lags (list[int]): list of lags
+        steps (list[int]): number of steps to forecast 
+        hybrid (XGBRegressor | None): hybrid model to use, if None then no hybrid model is used
 
-def objective(space, fold_dict, lags, steps, hybrid):
-    """
-        Slightly confusing but the hybrid model will actually be the linear component of the hybrid model and we will just swap them before forecasting 
-        Space: search space of hyperparamters
-        fold_dict: dictionary containg the folds to train/val on 
-        lags: list of lags
-        steps: number of steps to forecast
-        hybrid: the linear component of the hybrid model
-    """
+    Returns:
+        dict: dictionary containing the computed loss (mean MAE across folds) and the status 
+    """     
 
     model = xgb.XGBRegressor(
         n_estimators = space["n_estimators"],
@@ -172,6 +183,13 @@ def objective(space, fold_dict, lags, steps, hybrid):
     return {'loss': mean_mae, 'status': STATUS_OK}
 
 
-# As the objective needs the parameters lags, steps and fold_dict passed we create a wrapper function
-def wrapped_objective(space):
+def wrapped_objective(space: dict) -> dict:
+    """ Wrapper function for the objective to include additional parameters.
+
+    Args:
+        space (dict): hyperparameter space
+
+    Returns:
+        dict: same return as objective function, dict of loss and status
+    """    
     return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid)

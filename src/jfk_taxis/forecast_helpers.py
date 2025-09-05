@@ -15,6 +15,7 @@ import yaml
 import copy
 
 
+
 # src/jfk_taxis/ is location of current file so we go two above to get project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -27,8 +28,21 @@ with open(CONFIG_PATH, "r") as f:
 
 # Preprocess the data for the models:
 
-# Function creates and returns the design matrix with both lags and an underlying deterministic process, the time series, and the deterministic process itself
-def preprocess(lags, constant, order, fourier_features, time_step, ts):
+def preprocess(lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess]:
+    """ Preprocess the time series data for modeling.
+
+    Args:
+        lags (list[int]): list of lags to use
+        constant (bool): bool for whether the deterministic process should have a constant
+        order (int): order of the trend in the deterministic process
+        fourier_features (list[str]): list of fourier features to use
+        time_step (str): time step of the time series (e.g. "h", "D")
+        ts (pd.Series): time series data
+
+    Returns:
+        tuple[pd.DataFrame, pd.Series, DeterministicProcess]: design matrix, target series and the deterministic process fitted on the data
+    """    
+
     y = copy.deepcopy(ts) # Create a separate copy of the time series to avoid any changes to the original
 
     # When forecasting we need the index to have a frequency, for us this is daily
@@ -83,14 +97,32 @@ def preprocess(lags, constant, order, fourier_features, time_step, ts):
 
 # Fit models
 
-# We want to preprocess the design and target matricies into numpy arrays for speed
-def to_numpy(X, y):
+
+def to_numpy(X: pd.DataFrame, y: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+    """ Helper to convert design and target to numpy arrays for model fitting
+
+    Args:
+        X (pd.DataFrame): design matrix
+        y (pd.Series): target vector
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: design matrix and target vector as numpy arrays
+    """
+
     X_np = X.to_numpy(copy = False)
     y_np = y.to_numpy(copy = False)
     return (X_np, y_np)
 
-# Fits linear regression to the design matrix, without an intercept due to the use of deterministic processes already including one
-def fit_linear(X,y):
+def fit_linear(X: pd.DataFrame, y: pd.Series) -> LinearRegression:
+    """ Fits linear regression to the design matrix and time series
+
+    Args:
+        X (pd.DataFrame): design matrix
+        y (pd.Series): target vector
+
+    Returns:
+        LinearRegression: fitted linear regression model
+    """
 
     (X, y) = to_numpy(X, y)
     model = LinearRegression(fit_intercept = False)
@@ -98,8 +130,18 @@ def fit_linear(X,y):
 
     return model
 
-# Fits XGBoost to the design matrix and time series
-def fit_non_linear(X, y):
+def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
+    """ Fits XGBoost to the design matrix and target vector
+
+    Args:
+        X (pd.DataFrame): design matrix
+        y (pd.Series): target vector
+
+    Returns:
+        XGBRegressor: fitted XGBoost model
+    """
+
+    # Convert to numpy arrays
     (X, y) = to_numpy(X, y)
     
     # We need to convert to CuPy arrays as well
@@ -118,22 +160,33 @@ def fit_non_linear(X, y):
         tree_method=config["xgboost_setup"]["tree_method"],
         device=config["xgboost_setup"]["device"]
     )
+    
+    # Fit model
     model_xgb.fit(X, y)
+
     return model_xgb
 
 
-# Creates a forecast for a specifided number of steps
-def forecast(model, y, lags, steps, dp, hybrid, gpu):
+def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[int], steps: int, dp: DeterministicProcess, hybrid: XGBRegressor | None, gpu: bool):
+    """ Forecast future values using the trained model.
+
+    Args:
+        model (LinearRegression | XGBRegressor): trained model for forecasting.
+        y (pd.Series): historical target values.
+        lags (list[int]): list of lagged features to use.
+        steps (int): number of steps to forecast.
+        dp (DeterministicProcess): deterministic process for generating future features.
+        hybrid (XGBRegressor | None): optional hybrid model for boosting predictions.
+        gpu (bool): whether to use GPU for predictions.
+
+    Raises:
+        IndexError: If lag buffer is too short for requested lag.
+
+    Returns:
+        pd.Series: Forecasted values.
     """
-    model  = trained linear regression
-    y      = pandas Series with historical values
-    lags   = list of lags used in training (e.g. [1,2,3])
-    steps  = how many steps ahead to forecast
-    dp     = the deterministic process used
-    hybrid = if not None, the hybrid model to add to the linear model
-    gpu = bool wherether we are using gpu to predict with the model (xgboost) or not (linear regression)
-    """
-    
+ 
+   
     preds = []
     y_hist = y.copy()
 
@@ -209,7 +262,7 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
     return pd.Series(preds, index = X_future_det.index, name = getattr(y, "name"))
 
 
-""" Old method using pandas only
+""" Old method using pandas only removed as inefficient
     # We first store the last lags[-1] of y_hist to use for lags
     lag_vals = list(y_hist.iloc[-lags[-1]:].copy())
 
@@ -260,15 +313,18 @@ def forecast(model, y, lags, steps, dp, hybrid, gpu):
     return preds
 """
 
-# Create forecasts, plot and compare to naive baseline, the key difference is we will now pass two dicts of linear and non linear models for ease of use
-def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags):
-    """
-    steps = array of the step lengths to forecast
-    y_test = pd.Series of the true future values
-    y_hist = pd.Series of historical values
-    linear_models = dict of linear models
-    non_linear_models = dict of non linear models
-    lags = lags used in the models
+def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool, lags: list[int]) -> None:
+    """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
+    creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
+
+    Args:
+        steps (list[int]): list of steps to forecast.
+        y_test (pd.Series): series of true future values.
+        y_hist (pd.Series): series of historical values.
+        linear_models (dict): dictionary of linear models.
+        non_linear_models (dict): dictionary of non-linear models.
+        naive (bool): whether to include naive forecast.
+        lags (list[int]): list of lag values.
     """
 
     # Compute naive predictions
@@ -358,12 +414,25 @@ def test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models
         plt.xticks(rotation=45, ha="right")
         plt.show()
     
-# Runs the forecasts in question, must be passed as pandas series
-def run_forecasts(steps, lags, linear_models, non_linear_models, naive, time_step, old_ts: pd.Series, new_ts: pd.Series):
-    
+
+def run_forecasts(steps: list[int], lags: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+    """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
+
+    Args:
+        steps (list[int]): list of steps to forecast
+        lags (list[int]): list of lags to use
+        linear_models (dict): dict of linear models
+        non_linear_models (dict): dict of non linear models
+        naive (bool): bool of whether to include naive baseline
+        time_step (str): time step for the time series (e.g. "h", "D")
+        old_ts (pd.Series): historical time series
+        new_ts (pd.Series): future time series to compare forecasts against
+    """    
+
+
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
     y_hist = copy.deepcopy(old_ts)
     y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
-    test_forecasts_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags)
-    return 0
+    forecast_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags)
+    

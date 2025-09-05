@@ -1,3 +1,4 @@
+from click import Tuple
 import joblib
 from pathlib import Path
 import yaml
@@ -29,13 +30,14 @@ NON_LINEAR_KEYS = config["saving"]["non_linear_keys_preffix"]
 LAGS_PREFFIX = config["saving"]["lags_preffix"]
 HYPERPARAMS_PREFFIX = config["saving"]["hyperparams_preffix"]
 
-# Function saves the design and target matrices, the models themselves and their deterministic processes into .pkl objects using joblib
-def save_models(linear_models: dict, non_linear_models: dict, sig: str):
-    """
-    linear_models: dict where 0: is the linear model, 1: is the determinsitic process, 2: is the hybrid component (so for boosted residuals this is just an XGBoost)
-    non_linear_models: dict where 0: non linear model (XGBoost), 1: deterministic process, 2: hybrid component if any 
-    sig: str this is a unique signature to the file names to avoid saving to things to the same file, for example for daily hyrbid models use something like hybrid_daily 
-    """
+def save_models(linear_models: dict, non_linear_models: dict, sig: str) -> None:
+    """ Saves the trained models as pkl files in the saved objects path
+
+    Args:
+        linear_models (dict): dictionary containing linear model, deterministic process and hybrid model (or None if purely linear)
+        non_linear_models (dict): dictionary containing non linear model, deterministic process and hybrid model (or None if purely non linear)
+        sig (str): unique signature to the file names
+    """    
 
     # Note that although we call them linear models, they can also be hybrid models as well the dict structure is the same
     # linear models will just have None for the hybrid component if purely linear
@@ -57,14 +59,14 @@ def save_models(linear_models: dict, non_linear_models: dict, sig: str):
     joblib.dump(list(linear_models.keys()), SAVED_OBJECTS_PATH / f"{LINEAR_KEYS}_{sig}_{MODEL}") 
     joblib.dump(list(non_linear_models.keys()), SAVED_OBJECTS_PATH / f"{NON_LINEAR_KEYS}_{sig}_{MODEL}") 
 
-# Function saves the design, target and deterministic process used to train the models
-def save_design(linear_design: dict, non_linear_design: dict, sig: str):
-    """
-    linear_design: dict of design matricies for the model 0: is design matrix, 1: is target vector, 2: is deterministic process   
-    non_linear_design: dict where 0: design matrix, 1: target vector, 2: deterministic process
-    sig: str this is a unique signature to the file names to avoid saving to things to the same file, for example for daily hyrbid models use something like hybrid_daily  
-    """ 
-    
+def save_design(linear_design: dict, non_linear_design: dict, sig: str) -> None:
+    """ Saves the design, target and deterministic process used to train the models
+
+    Args:
+        linear_design (dict): dictionary containing design, target and deterministic process for each linear model
+        non_linear_design (dict): dictionary containing design, target and deterministic process for each non linear model
+        sig (str): unique signature to the file names
+    """    
     # Save design, target and deterministic process matricies
     for key, value in linear_design.items():
         joblib.dump(value[0], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DESIGN}")
@@ -81,8 +83,16 @@ def save_design(linear_design: dict, non_linear_design: dict, sig: str):
     joblib.dump(list(non_linear_design.keys()), SAVED_OBJECTS_PATH / f"{NON_LINEAR_KEYS}_{sig}_{DESIGN}") # same keys for non linear design
 
 
-# Loads the linear and non linear models stored under the signature sig
-def load_models(sig: str):
+def load_models(sig: str) -> tuple[dict, dict]:
+    """ Loads the linear and non linear models stored under the signature sig
+
+    Args:
+        sig (str): unique signature to the file names
+
+    Returns:
+        Tuple[dict, dict]: dictionaries containing the loaded linear and non linear models
+    """    
+
     # Load keys
     linear_keys = joblib.load(SAVED_OBJECTS_PATH / f"{LINEAR_KEYS}_{sig}_{MODEL}")
     non_linear_keys = joblib.load(SAVED_OBJECTS_PATH / f"{NON_LINEAR_KEYS}_{sig}_{MODEL}")
@@ -107,7 +117,15 @@ def load_models(sig: str):
 
     return linear_models_loaded, non_linear_models_loaded 
 
-def load_design(sig: str):
+def load_design(sig: str) -> tuple[dict, dict]:
+    """ Loads the design, target and deterministic process stored under the signature sig
+
+    Args:
+        sig (str): unique signature to the file names
+
+    Returns:
+        Tuple[dict, dict]: dictionaries containing the loaded linear and non linear design, target and deterministic process
+    """    
 
     # Load keys
     linear_keys = joblib.load(SAVED_OBJECTS_PATH / f"{LINEAR_KEYS}_{sig}_{DESIGN}")
@@ -132,27 +150,69 @@ def load_design(sig: str):
 
     return linear_design_loaded, non_linear_design_loaded
 
-# Function to save lags, exists primarily to ensure that everything ends up in the same folder at run time
-def save_lags(lags: list, series_type: str, sig: str):
+def save_lags(lags: list, series_type: str, sig: str) -> None:
+    """ Saves the lags used in the models as a pkl file in the saved objects path
+
+    Args:
+        lags (list): list of lags to save
+        series_type (str): type of the time series (e.g. "hourly", "daily")
+        sig (str): unique signature to the file names
+    """    
     joblib.dump(lags, SAVED_OBJECTS_PATH / f"{LAGS_PREFFIX}_{series_type}_{sig}.pkl")
 
-# Function to load lags
-def load_lags(series_type: str, sig: str):
+
+def load_lags(series_type: str, sig: str) -> list[int]:
+    """ Loads the lags used in the models from a pkl file in the saved objects path
+
+    Args:
+        series_type (str): type of the time series (e.g. "hourly", "daily")
+        sig (str): unique signature to the file names
+
+    Returns:
+        list[int]: list of lags
+    """    
+
     return joblib.load(SAVED_OBJECTS_PATH / f"{LAGS_PREFFIX}_{series_type}_{sig}.pkl")
 
 
-# Function to save hyperparams
-def save_hyperparams(hyperparams: dict, sig: str):
+def save_hyperparams(hyperparams: dict, sig: str) -> None:
+    """ Saves the hyperparameters to a pkl file in the saved objects path
+
+    Args:
+        hyperparams (dict): dictionary containing the hyperparameters
+        sig (str): unique signature to the file names
+    """    
+    
     joblib.dump(hyperparams, SAVED_OBJECTS_PATH / f"{HYPERPARAMS_PREFFIX}_{sig}.pkl")
 
-# Function to load hyperparams
-def load_hyperparams(sig: str):
+def load_hyperparams(sig: str) -> dict:
+    """ Loads the hyperparameters from a pkl file in the saved objects path
+
+    Args:
+        sig (str): unique signature to the file names
+
+    Returns:
+        dict: dictionary containing the hyperparameters
+    """    
+
     return joblib.load(SAVED_OBJECTS_PATH / f"{HYPERPARAMS_PREFFIX}_{sig}.pkl")
 
-# Function to save any object
-def save_obj(obj, sig: str):
+def save_obj(obj: object, sig: str) -> None:
+    """ Saves an object to a pkl file in the saved objects path
+
+    Args:
+        obj (object): object to save
+        sig (str): unique signature to the file names
+    """    
     joblib.dump(obj, SAVED_OBJECTS_PATH / f"{sig}.pkl")
 
-# Function to load any object
-def load_obj(sig: str):
+def load_obj(sig: str) -> object:
+    """ Loads an object from a pkl file in the saved objects path
+
+    Args:
+        sig (str): unique signature to the file names
+
+    Returns:
+        object: loaded object
+    """    
     return joblib.load(SAVED_OBJECTS_PATH / f"{sig}.pkl")

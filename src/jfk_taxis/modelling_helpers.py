@@ -1,16 +1,23 @@
 from .forecast_helpers import fit_non_linear, preprocess, fit_linear 
 from .training_helpers import save_design, save_models
 import copy
+import pandas as pd
+from xgboost import XGBRegressor
 
-# Function will create and return dict of design, target and deterministic process for non linear model
-def create_design_non_linear(lags, fourier_features, time_step, ts, name):
+
+def create_design_non_linear(lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series, name: str) -> dict:
+    """ Create design, target and deterministic process for non linear model and return as dict
+
+    Args:
+        lags (list[int]): list of lags
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+        name (str): name of the model for the dictionary
+
+    Returns:
+        dict: dictionary containing design, target and deterministic process
     """
-    lags: list of lags
-    fourier_features: list of fourier features for dp
-    time_step: time step of series so "D" or "h"
-    ts: time series itself
-    name: name of the model for the dictionary 
-    """ 
     
     # Create non linear design and traget matricies
     (X_non_linear, y_non_linear, dp_non_linear) = preprocess(lags, False, 0, fourier_features, time_step, ts)
@@ -24,15 +31,19 @@ def create_design_non_linear(lags, fourier_features, time_step, ts, name):
 
     return non_linear_design
 
-# Function returns dict of design, target and deterministic process under specified model name
-def create_design_linear(lags, order, fourier_features, time_step, ts, name):
-    """
-    lags: list of lags
-    order: order of trend in dp (deterministic process)
-    fourier_features: list of fourier features for dp
-    time_step: time step of series so "D" or "h"
-    ts: time series itself
-    name: name of the model for the dictionary
+def create_design_linear(lags: list[int], order: int, fourier_features: list[str], time_step: str, ts: pd.Series, name: str) -> dict:
+    """ Create design, target and deterministic process for linear model and return as dict
+
+    Args:
+        lags (list[int]): list of lags
+        order (int): order of the linear trend
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+        name (str): name of the model for the dictionary
+
+    Returns:
+        dict: dictionary containing design, target and deterministic process
     """
 
     # Create X,y, dp_linear
@@ -45,10 +56,14 @@ def create_design_linear(lags, order, fourier_features, time_step, ts, name):
 
     return linear_design 
 
-# Function trains the non linear models on the designs in the dict and returns them
-def train_non_linear_models(non_linear_design):
-    """
-    non_linear_design: dict containing design, target and deterministic process 
+def train_non_linear_models(non_linear_design: dict) -> dict:
+    """ Trains non linear models on the designs in the dict and returns them
+
+    Args:
+        non_linear_design (dict): dictionary containing design, target and deterministic process for each non linear model
+
+    Returns:
+        dict: dictionary containing non linear model, deterministic process and None (for hybrid model)
     """
 
     # Dict for storing non_linear_models
@@ -60,11 +75,15 @@ def train_non_linear_models(non_linear_design):
 
     return non_linear_models 
 
-# Function trains the linear models on the designs in the dict and returns them
-def train_linear_models(linear_design):
-    """
-    linear_design: dict of design, target and deteriministic process for each linear model 
-    """
+def train_linear_models(linear_design: dict) -> dict:
+    """ Trains linear models on the designs in the dict and returns them
+
+    Args:
+        linear_design (dict): dictionary containing design, target and deterministic process for each linear model
+
+    Returns:
+        dict: dictionary containing linear model, deterministic process and None (for hybrid model)
+    """ 
 
     # Dict for storing linear_models
     linear_models = {}
@@ -75,13 +94,18 @@ def train_linear_models(linear_design):
 
     return linear_models
 
-# Function that trains the hybrid models on the designs and returns a dict in the format: (linear model, deterministic prcoess, hybrid model)
-def train_hybrid_models(linear_design, hybrid_model):
-    """
-    linear_design: dict of design, target and deteriministic process for each linear model 
+def train_hybrid_models(linear_design: dict, hybrid_model: XGBRegressor) -> dict:
+    """ Trains hybrid models on the designs in the dict and returns them
+
+    Args:
+        linear_design (dict): dictionary containing design, target and deterministic process for each linear model
+        hybrid_model (XGBRegressor): XGBoost regressor model to be used for the hybrid component
+
+    Returns:
+        dict: dictionary containing linear model, deterministic process and hybrid model
     """
 
- 
+     
     # Dict for storing hybrid_models
     hybrid_models = {}
 
@@ -113,15 +137,19 @@ def train_hybrid_models(linear_design, hybrid_model):
 
     return hybrid_models
 
-# Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
-def create_train_non_linear(names, lags, fourier_features, time_step, ts):
-    """
-    names: list of names of the non_linear_models 
-    lags: list of lags
-    fourier_features: list of fourier features
-    time_step: time step of series so "D" or "h"
-    ts: time series itself
-    """
+def create_train_non_linear(names: list[str], lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[dict, dict]:
+    """ Create design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
+
+    Args:
+        names (list[str]): list of names of the non linear models
+        lags (list[int]): list of lags
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+
+    Returns:
+        tuple[dict, dict]: tuple containing two dicts one of designs one of models
+    """     
 
     # Dict of non_linear design, target, dp
     non_linear_design = {}
@@ -143,16 +171,20 @@ def create_train_non_linear(names, lags, fourier_features, time_step, ts):
     
     return non_linear_design, non_linear_models
 
-# Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
-def create_train_linear(names, order_list, lags, fourier_features, time_step, ts):
-    """
-    names: list of names of the linear_models
-    order_list: list of orders to fit 
-    lags: list of lags
-    fourier_features: list of fourier features
-    time_step: time step of series so "D" or "h"
-    ts: time series itself
-    """
+def create_train_linear(names: list[str], order_list: list[int], lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[dict, dict]:
+    """ Create design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
+
+    Args:
+        names (list[str]): list of names of the linear models
+        order_list (list[int]): list of orders to fit
+        lags (list[int]): list of lags
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+
+    Returns:
+        tuple[dict, dict]: tuple containing two dicts one of designs one of models
+    """      
 
     # Dict of linear design, target, dp
     linear_design = {}
@@ -175,17 +207,21 @@ def create_train_linear(names, order_list, lags, fourier_features, time_step, ts
     
     return linear_design, linear_models
 
-# Function creates design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
-def create_train_hybrid(names, hybrid, order_list, lags, fourier_features, time_step, ts):
-    """
-    names: list of names of the hybrid_models
-    hybrid: the non linear part of the model (usually xgboost)
-    order_list: list of orders to fit 
-    lags: list of lags
-    fourier_features: list of fourier features
-    time_step: time step of series so "D" or "h"
-    ts: time series itself
-    """
+def create_train_hybrid(names: list[str], hybrid: XGBRegressor, order_list: list[int], lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[dict, dict]:
+    """ Create design, target, deterministic process, the model and fits the model. Returning two dicts one of designs one of models
+
+    Args:
+        names (list[str]): list of names of the hybrid models
+        hybrid (XGBRegressor): the non linear part of the model (usually xgboost)
+        order_list (list[int]): list of orders to fit
+        lags (list[int]): list of lags
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+
+    Returns:
+        tuple[dict, dict]: tuple containing two dicts one of designs one of models
+    """      
 
     # Dict of hybrid design, target, dp
     hybrid_design = {}
@@ -207,19 +243,20 @@ def create_train_hybrid(names, hybrid, order_list, lags, fourier_features, time_
     
     return hybrid_design, hybrid_models
 
-# Function will create save and train non linear models and either linear models or hybrid models
-def create_train_save_models(names_linear, names_non_linear, hybrid, sig, order_list, lags, fourier_features, time_step, ts):
-    """
-    names_linear: list of names for the linear models 
-    names_non_linear: list of names for the non linear models
-    hybrid: the hybrid model to be used
-    sig: signature to name the pkl objects when saved (e.g. 5_order_linear_dalily)
-    order_list: the list of orders for the linear trend
-    lags: list of lags
-    fourier features: list of fourier features
-    time_step: time step to use either "D" or "h"
-    ts: time series itself
-    """
+def create_train_save_models(names_linear: list[str], names_non_linear: list[str], hybrid: XGBRegressor | None, sig: str, order_list: list[int], lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series) -> None:
+    """ Creates the designs, trains the models and saves them to pkl files with the given signature
+
+    Args:
+        names_linear (list[str]): list of names of the linear models
+        names_non_linear (list[str]): list of names of the non linear models
+        hybrid (XGBRegressor): the non linear part of the model (usually xgboost)
+        sig (str): signature to name the pkl objects when saved (e.g. 5_order_linear_daily)
+        order_list (list[int]): list of orders to fit
+        lags (list[int]): list of lags
+        fourier_features (list[str]): list of fourier features
+        time_step (str): time step of series so "D" or "h"
+        ts (pd.Series): time series itself
+    """      
 
     # Dict of linear or hybrid designs
     linear_design = {}
@@ -241,8 +278,6 @@ def create_train_save_models(names_linear, names_non_linear, hybrid, sig, order_
         # Even though we are in the hybrid case we will still store them in linear_design and linear_models
         # this is because all "linear models" are actually just hybrid models with None for the hybrid part
         linear_design, linear_models = create_train_hybrid(names_linear, hybrid, order_list, lags, fourier_features, time_step, ts)
-
-    # TODO hybrid case
 
     # Create and train non linear models
     non_linear_design, non_linear_models = create_train_non_linear(names_non_linear, lags, fourier_features, time_step, ts)

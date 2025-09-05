@@ -4,8 +4,7 @@ from IPython.display import display
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-# Function to make a choropleth that counts the trips in each taxi zone, displaying a tooltip with: Zone, Borough, Trips, Service Zone, LocationID
-def make_choropleth(df, count_col, geo_data, zone_lookup, extra, scale):
+def make_choropleth(df: pd.DataFrame, count_col: str, geo_data, zone_lookup, extra, scale):
 
 
     # Count trips in each zone
