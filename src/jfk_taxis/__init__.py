@@ -1,7 +1,7 @@
 # src/__init__.py
 from .forecast_helpers import run_forecasts, preprocess, fit_linear, fit_non_linear, forecast
 from .data_processing import process_taxi_data, taxi_data_visuals, ts_plots, combine_ts, plot_full_ts
-from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mask_geo_data, drop_id_df, drop_id_geo_data, create_rolling_average, create_rolling_average_hourly, create_save_listed_adjusted_choropleths
+from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mask_geo_data, drop_id_df, drop_id_geo_data, create_rolling_average, create_rolling_average_hourly, create_save_listed_adjusted_choropleths, multiplot_choropleths
 from .training_helpers import save_models, save_design, load_models, load_design, save_lags, load_lags, save_hyperparams, load_hyperparams, save_obj, load_obj
 from .hyperparam_helpers import create_val_data, wrapped_objective, split_params, test_hyperparams
 from .modelling_helpers import create_train_save_models
@@ -17,7 +17,7 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "load_models", "load_design", "save_lags", "load_lags", "forecast",
             "create_val_data", "wrapped_objective",  "save_hyperparams", "load_hyperparams",
             "save_obj", "load_obj", "create_train_save_models", "split_params", "test_hyperparams", "load_config",
-            "create_save_listed_adjusted_choropleths"]
+            "create_save_listed_adjusted_choropleths", "multiplot_choropleths"]
 
 
 

@@ -270,6 +270,114 @@ def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_loo
             # Export to HTML file
             m_4.save(DATA_DIR_MAPS / f"DOLocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
 
+def multiplot_choropleths(geo_data: gpd.GeoDataFrame, scale: list[int], years: list[int], months: list[int]) -> None:
+    """ Function creates choropleth maps for pick ups and drop offs for each year and month provided, in the same figure on a fixed scale.
+
+    Args:
+        geo_data (gpd.GeoDataFrame): geopandas dataframe containing the taxi zones shape data
+        scale (list[int]): list of two integers defining the color scale for the choropleth maps
+        years (list[int]): list of years to create maps for
+        months (list[int]): list of months to create maps for
+    """    
+
+    # Set min and max of the scale
+    smin = scale[0]
+    smax = scale[-1]
+
+    # Create two dicts of data frames, one for pick up trip counts and one for drop offs
+    pu_dict = {}
+    do_dict = {}
+
+    # Loop through years and months to load the data frames and add to the dict
+    for year in years:
+        for month in months:
+            # Skip anything beyond config["eda"]["max_month_2025"] for 2025 (as doesn't exist)
+            if (year == 2025) and (int(month) > config["eda"]["max_month_2025"]):
+                continue
+            
+            # Load data frame for this year and month
+            df = pd.read_parquet(DATA_DIR_RAW / f"yellow_tripdata_{year}-{month:02}.parquet")
+
+            # Count trips by pick ups and drop offs 
+            for count_col in ["PULocationID", "DOLocationID"]:
+                # Count trips in each zone
+                trips_count = df[count_col].value_counts().reset_index()
+                trips_count.columns = ["LocationID", "trips"]
+                trips_count = trips_count.sort_values("trips", ascending=False)
+
+                # Exclude rows over the scale max
+                trips_count = trips_count[trips_count["trips"] <= smax]
+
+
+                # Add to dict
+                if count_col == "PULocationID":
+                    pu_dict[f"{year}_{month}"] = trips_count
+                else:
+                    do_dict[f"{year}_{month}"] = trips_count
+
+    # Compute ideal number of rows given we want 3 plots per row
+    if len(pu_dict) % 3 == 0:
+        num_row = len(pu_dict) // 3
+    else:
+        num_row = len(pu_dict) // 3 + 1    
+    
+    # Create the pick up plots
+    fig_pu, axes_pu = plt.subplots(nrows =  num_row, ncols = 3, figsize = (20, num_row * 7))
+    
+    i = 0 # To track which axis we are on
+    for year_month, trips_count in pu_dict.items(): 
+        
+        # Get axis
+        ax = axes_pu[i // 3, i % 3] 
+
+        # Merge this into the orignal GeoPandasDataFrame so that we can use the trips count in the tooltip
+        zones =  geo_data.merge(
+            trips_count,
+            left_on = "LocationID",
+            right_on = "LocationID",
+            how = "left"
+        )
+
+
+        # Drop missing trip counts (this is because for smaller scales we are expecting manhattan for example to have missing trip counts)  
+        zones["trips"] = zones["trips"].dropna()
+
+        zones.plot(column = "trips", ax = ax, vmin = smin, vmax = smax, legend = True, cmap = "YlGnBu", edgecolor = "black")
+        ax.set_title(f"Pick Ups {year_month}")
+
+        # Increment i
+        i += 1
+
+    plt.show()
+
+    fig_do, axes_do = plt.subplots(nrows =  num_row, ncols = 3, figsize = (20, num_row * 7))
+
+    i = 0
+    for year_month, trips_count in do_dict.items():
+
+        # Get axis
+        ax = axes_do[i // 3, i % 3] 
+        
+        # Merge this into the orignal GeoPandasDataFrame so that we can use the trips count in the tooltip
+        zones =  geo_data.merge(
+            trips_count,
+            left_on = "LocationID",
+            right_on = "LocationID",
+            how = "left"
+        )
+
+
+        # Drop missing trip counts (this is because for smaller scales we are expecting manhattan for example to have missing trip counts)  
+        zones["trips"] = zones["trips"].dropna()
+
+        zones.plot(column = "trips", ax = ax, vmin = smin, vmax = smax, legend = True, cmap = "YlGnBu", edgecolor = "black")
+        ax.set_title(f"Drop Offs {year_month}")
+
+        i += 1
+
+    plt.show()
+
+
 def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
     """Creates a rolling average of the daily counts.
 
