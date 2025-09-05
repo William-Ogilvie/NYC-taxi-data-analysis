@@ -71,7 +71,7 @@ saving:
   hyperparams_preffix: "hyperparams"
   ts_prefix: "ts"
   ts_daily: "daily"
-  ts_hourly: "hourly"
+  ts_hourly: "hour"
   original_parquet_prefix: "processed"
   jfk_parquet_prefix: "processed_jfk"
 

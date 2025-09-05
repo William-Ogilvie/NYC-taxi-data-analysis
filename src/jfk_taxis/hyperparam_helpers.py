@@ -1,6 +1,18 @@
+"""
+hyperparam_helpers
+=================
+
+This module contains helper functions for hyperparameter tuning using hyperopt. It includes both functions to make the validation folds and the objective function itself.
+Along with a wrapper function to allow passing additional parameters to the objective function when using fmin from hyperopt.
+"""
+
+# --- Imports ---
 from hyperopt import STATUS_OK
 import xgboost as xgb
-from jfk_taxis import preprocess, forecast
+from .data_processing import preprocess
+from .forecast_helpers import forecast, run_forecasts
+from .loading_helpers import load_config
+from .training_helpers import load_models, load_design
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
 import time
@@ -8,6 +20,10 @@ import cupy as cp
 import pandas as pd
 from xgboost import XGBRegressor
 
+# --- Load config ---
+config, PROJECT_ROOT = load_config()
+
+# --- Functions ---
 def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> dict:
     """ Creates the folds to be used in cross validation for hyperparameter tuning
 
@@ -193,3 +209,200 @@ def wrapped_objective(space: dict) -> dict:
         dict: same return as objective function, dict of loss and status
     """    
     return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid)
+
+def split_params(params: dict) -> tuple[dict, dict, dict, dict]:
+    """ Splits the hyperparam dicts into four dicts, daily_non_linear, daily_hybrid, hourly_non_linear, hourly_hybrid
+
+    Args:
+        params (dict): dict of hyperparameters, keys are the signatures of the model.
+
+    Returns:
+        tuple[dict, dict, dict, dict]: the four specifided dicts from above
+    """    
+    daily_non_linear_dict = {}
+    daily_hybrid_dict = {}
+    hourly_non_linear_dict = {}
+    hourly_hybrid_dict = {}
+
+    # Split into the four dicts
+    for key, value in params.items():
+        if "daily" and "hybrid" in key:
+            daily_hybrid_dict[key] = value
+        elif "daily" in key:
+            daily_non_linear_dict[key] = value
+        elif "hourly" and "hybrid" in key:
+            hourly_hybrid_dict[key] = value
+        elif "hourly" in key:
+            hourly_non_linear_dict[key] = value
+
+    return daily_non_linear_dict, daily_hybrid_dict, hourly_non_linear_dict, hourly_hybrid_dict
+
+
+def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: list[int], ts_daily_train: pd.Series, ts_daily_test: pd.Series, ts_hourly_train: pd.Series, ts_hourly_test: pd.Series, daily_steps: list[int], hourly_steps: list[int]) -> None:
+    """ Tests the hyperparameters by loading the previous models and design matrices, defining a new model with the hyperparameters and fitting it to the training data.
+        Outputs the same forecasts using run_forecasts as in the modelling notebook.
+
+    Args:
+        dict_full (dict): dict of dict of hyperparamters, split into four keys, "daily", "daily_hybrid", "hourly", "hourly_hybrid", then each dict has values of the hyperparameters key of the model signature
+        daily_lags (list[int]): list of daily lags to use for the model
+        used_hourly_lags (list[int]): list of hourly lags to use for the model
+        ts_daily_train (pd.Series): training data for the daily model
+        ts_daily_test (pd.Series): test data for the daily model
+        ts_hourly_train (pd.Series): training data for the hourly model
+        ts_hourly_test (pd.Series): test data for the hourly model
+        daily_steps (list[int]): list of steps to forecast for the daily model
+        hourly_steps (list[int]): list of steps to forecast for the hourly model
+    """    
+
+    for key, value in dict_full.items():
+        if key == "daily":
+            # Load the previous non linear model
+            linear_models_loaded, non_linear_models_loaded = load_models("5_order_linear_daily")
+
+            # Load the previous non linear design matrix
+            linear_design_loaded, non_linear_design_loaded = load_design("5_order_linear_daily")
+
+            # Get design, target and dp
+            X = non_linear_design_loaded["base_non_linear"][0]
+            y = non_linear_design_loaded["base_non_linear"][1]
+            dp = non_linear_design_loaded["base_non_linear"][2]
+
+            # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
+            new_non_linear = xgb.XGBRegressor(
+                **value,
+                eval_metric="mae",
+                n_estimators=500,
+                device = "cuda"
+            )
+
+            # Fit the model
+            new_non_linear.fit(X,y)
+
+            # Add this non linear model to the dict of non linear models
+            non_linear_models_loaded["new_non_linear"] = new_non_linear
+            
+            # We will only include linear_order_2 in this plot
+            linear_order_2 = linear_models_loaded["linear_order_2"]
+            linear_models_loaded = {"linear_order_2": linear_order_2}
+
+            # Steps for the forecast
+            steps = daily_steps
+
+            # Run forecasts
+            run_forecasts(steps, daily_lags, linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+        
+        elif key == "daily_hybrid":
+            # Load the previous non linear model
+            hybrid_models_loaded, non_linear_models_loaded = load_models("2_order_hybrid_daily")
+
+            # Load the previous non linear design matrix
+            hybrid_design_loaded, non_linear_design_loaded = load_design("2_order_hybrid_daily")
+
+            # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
+            new_hybrid = xgb.XGBRegressor(
+                **value,
+                eval_metric="mae",
+                n_estimators=500,
+                device = "cuda"
+            )
+
+            # The difference for hybrid models is that our newly defined model is actually the hybrid component not the model component
+            # The design and target matricies for hybrid_order_1 and hybrid_order_2 are the same
+            X = hybrid_design_loaded["hybrid_order_1"][0]
+            y = hybrid_design_loaded["hybrid_order_1"][1]
+            dp = hybrid_design_loaded["hybrid_order_1"][2]
+
+            # We will need to fit new_hybrid to the residuals of the model
+            for i in [1,2]:
+                # Compute residuals
+                y_fit = hybrid_models_loaded[f"hybrid_order_{i}"][0].predict(X)
+                y_resid = y - y_fit
+
+                # Fit hybrid to residuals
+                new_hybrid.fit(X, y_resid)
+
+                # Add this hybrid model to the dict of hybrid models
+                hybrid_models_loaded[f"new_hybrid_order_{i}"] = (hybrid_models_loaded[f"hybrid_order_{i}"][0], hybrid_models_loaded[f"hybrid_order_{i}"][1], new_hybrid) 
+        
+            # Steps for the forecast
+            steps = daily_steps
+
+            # Run forecasts
+            run_forecasts(steps, daily_lags, linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+
+        elif key == "hourly":
+            # Load the previous non linear model
+            linear_models_loaded, non_linear_models_loaded = load_models("5_order_linear_hourly")
+
+            # Load the previous non linear design matrix
+            linear_design_loaded, non_linear_design_loaded = load_design("5_order_linear_hourly")
+
+            # Get design, target and dp
+            X = non_linear_design_loaded["base_non_linear"][0]
+            y = non_linear_design_loaded["base_non_linear"][1]
+            dp = non_linear_design_loaded["base_non_linear"][2]
+
+            # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor
+            new_non_linear = xgb.XGBRegressor(
+                **value,
+                eval_metric="mae",
+                n_estimators=500,
+                device = "cuda"
+            )
+
+            # Fit the model
+            new_non_linear.fit(X,y)
+
+            # Add this non linear model to the dict of non linear models
+            non_linear_models_loaded["new_non_linear"] = new_non_linear
+
+            # We will only include linear_order_2 in this plot
+            linear_order_2 = linear_models_loaded["linear_order_2"]
+            linear_models_loaded = {"linear_order_2": linear_order_2}
+
+            # Steps for the forecast
+            steps = hourly_steps
+
+            # Run forecasts
+            run_forecasts(steps, used_hourly_lags, linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+        
+        elif key == "hourly_hybrid":
+            # Load the previous non linear model
+            hybrid_models_loaded, non_linear_models_loaded = load_models("2_order_hybrid_hourly")
+
+            # Load the previous non linear design matrix
+            hybrid_design_loaded, non_linear_design_loaded = load_design("2_order_hybrid_hourly")
+
+            # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
+            new_hybrid = xgb.XGBRegressor(
+                **value,
+                eval_metric="mae",
+                n_estimators=500,
+                device = "cuda"
+            )
+
+            # The difference for hybrid models is that our newly defined model is actually the hybrid component not the model component
+            # The design and target matricies for hybrid_order_1 and hybrid_order_2 are the same
+            X = hybrid_design_loaded["hybrid_order_1"][0]
+            y = hybrid_design_loaded["hybrid_order_1"][1]
+            dp = hybrid_design_loaded["hybrid_order_1"][2]
+
+            # We will need to fit new_hybrid to the residuals of the model
+            for i in [1,2]:
+                # Compute residuals
+                y_fit = hybrid_models_loaded[f"hybrid_order_{i}"][0].predict(X)
+                y_resid = y - y_fit
+
+                # Fit hybrid to residuals
+                new_hybrid.fit(X, y_resid)
+
+                # Add this hybrid model to the dict of hybrid models
+                hybrid_models_loaded[f"new_hybrid_order_{i}"] = (hybrid_models_loaded[f"hybrid_order_{i}"][0], hybrid_models_loaded[f"hybrid_order_{i}"][1], new_hybrid) 
+    
+            # Steps for the forecast
+            steps = hourly_steps
+
+            # Run forecasts
+            run_forecasts(steps, used_hourly_lags, linear_models_loaded, non_linear_models_loaded, True, "h", ts_daily_train, ts_daily_test)
+
+

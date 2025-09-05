@@ -1,10 +1,20 @@
+"""
+modelling_helpers
+=================
+
+This module contains helper functions for both creating design matricies, targets, deterministic processes as well as fitting both linear and non linear models to them.
+The key function that will be run in the notebook is create_train_save_models which will create the designs, fit the models and save them to pkl files with a given signature
+for a list of models names (both linear and non linear). See the function docstring for more details.
+"""
+
+# --- Imports ---
 from .forecast_helpers import fit_non_linear, preprocess, fit_linear 
 from .training_helpers import save_design, save_models
 import copy
 import pandas as pd
 from xgboost import XGBRegressor
 
-
+# --- Functions ---
 def create_design_non_linear(lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series, name: str) -> dict:
     """ Create design, target and deterministic process for non linear model and return as dict
 

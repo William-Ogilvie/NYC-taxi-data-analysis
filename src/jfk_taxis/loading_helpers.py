@@ -1,6 +1,16 @@
+"""
+loading_helpers
+=================
+
+This module contains just the load_config function which is used to load the config from config/config.yml and get the project root path.
+"""
+
+
+# --- Imports ---
 import yaml
 from pathlib import Path
 
+# --- Functions ---
 def load_config() -> tuple[dict, Path]:
     """ Loads the configuration from a YAML file and determines the project root path. Returns both.
 

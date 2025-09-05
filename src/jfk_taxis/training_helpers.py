@@ -1,17 +1,21 @@
-from click import Tuple
+"""
+training_helpers
+=================
+
+This module contains helper functions for saving models, design matrices, targets, lags and hyperparameters and misc python objects.
+The files are saves as pkl files using joblib into the data/saved_objects directory as specified in config/config.yml.
+"""
+
+
+# --- Imports ---
 import joblib
 from pathlib import Path
-import yaml
+from .loading_helpers import load_config
 
-# src/jfk_taxis/ is location of current file so we go two above to get project root
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# --- Load config ---
+config, PROJECT_ROOT = load_config()
 
-# Path to config
-CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
-
-# Load config
-with open(CONFIG_PATH, "r") as f:
-    config = yaml.safe_load(f)
+# --- Constants and Paths ---
 
 # Saved objects path
 SAVED_OBJECTS_PATH = PROJECT_ROOT / Path(config["data"]["data_path"]) / Path(config["data"]["saved_objects_path"])
@@ -30,6 +34,8 @@ NON_LINEAR_KEYS = config["saving"]["non_linear_keys_preffix"]
 LAGS_PREFFIX = config["saving"]["lags_preffix"]
 HYPERPARAMS_PREFFIX = config["saving"]["hyperparams_preffix"]
 
+
+# -- Functions ---
 def save_models(linear_models: dict, non_linear_models: dict, sig: str) -> None:
     """ Saves the trained models as pkl files in the saved objects path
 

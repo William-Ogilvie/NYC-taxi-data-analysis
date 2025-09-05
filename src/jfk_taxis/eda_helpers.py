@@ -1,11 +1,34 @@
+"""
+eda_helpers
+=================
+
+This module contains helper functions for exploratory data analysis and visualization of the taxi data. Most functions revolve around make_choropleth
+which creates a choropleth map of the taxi zones with the number of trips in each zone.
+"""
+
+
+# --- Imports ---
 import folium
 import pandas as pd
-from IPython.display import display
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import geopandas as gpd
 
-def make_choropleth(df: pd.DataFrame, count_col: str, geo_data, zone_lookup, extra, scale):
+# --- Functions ---
+def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list) -> folium.Map:
+    """ Creates a choropleth map of the taxi zones with the number of trips in each zone
 
+    Args:
+        df (pd.DataFrame): dataframe containing the taxi trips
+        count_col (str): is the column to count, either PULocationID or DOLocationID
+        geo_data (gpd.GeoDataFrame): geopandas dataframe containing the taxi zones shapefile
+        zone_lookup (pd.DataFrame): dataframe containing the taxi zone lookup file (how to match location id to zone name an borough)
+        extra (str): extra string to add to the legend name
+        scale (list): scale to use for the choropleth, if None folium will create its own scale
+
+    Returns:
+        folium.Map: folium map object
+    """    
 
     # Count trips in each zone
     trips_count = df[count_col].value_counts().reset_index()
@@ -75,8 +98,19 @@ def make_choropleth(df: pd.DataFrame, count_col: str, geo_data, zone_lookup, ext
     # Return map
     return m
 
-# Drops rows in df where either PULocationID or DOLocationID is in the borough given by drop
-def make_borough_mask_df(zone_lookup, df, drop, trip_type):
+def make_borough_mask_df(zone_lookup: pd.DataFrame, df: pd.DataFrame, drop: str, trip_type: str) -> pd.DataFrame:
+    """ Drops rows in df where either PULocationID or DOLocationID is in the borough given by drop
+
+    Args:
+        zone_lookup (pd.DataFrame): dataframe containing the taxi zone lookup file (how to match location id to zone name and borough)
+        df (pd.DataFrame): dataframe containing the taxi trips
+        drop (str): borough to drop, e.g. "Manhattan"
+        trip_type (str): is the column to check, either PULocationID or DOLocationID
+
+    Returns:
+        pd.DataFrame: dataframe with rows dropped
+    """     
+
     # We need to find the location ids of the boroughs from drop
     id_list = zone_lookup.loc[zone_lookup["Borough"] == drop, "LocationID"].unique() 
 
@@ -95,8 +129,17 @@ def make_borough_mask_df(zone_lookup, df, drop, trip_type):
 
     return df
 
-# Drops rows in geo_data where the borough is given by drop
-def make_borough_mask_geo_data(geo_data, drop):
+def make_borough_mask_geo_data(geo_data: gpd.GeoDataFrame, drop: str) -> gpd.GeoDataFrame:
+    """ Drops rows in geo_data where the borough is given by drop
+
+    Args:
+        geo_data (gpd.GeoDataFrame): geoDataFrame containing the geographical data
+        drop (str): borough to drop, e.g. "Manhattan"
+
+    Returns:
+        gpd.GeoDataFrame: geoDataFrame with rows dropped
+    """    
+
     # Drop the rows in geo_data from drop
     mask = geo_data["borough"] == drop
 
@@ -105,8 +148,17 @@ def make_borough_mask_geo_data(geo_data, drop):
    
     return geo_data
 
-# Drops rows in geo_data where the location id is given by drop
-def drop_id_geo_data(geo_data, drop):
+def drop_id_geo_data(geo_data: gpd.GeoDataFrame, drop: list) -> gpd.GeoDataFrame:
+    """ Drops rows in geo_data where the location id is in drop
+
+    Args:
+        geo_data (gpd.GeoDataFrame): geoDataFrame containing the geographical data
+        drop (list): list of location ids to drop
+
+    Returns:
+        gpd.GeoDataFrame: geoDataFrame with rows dropped
+    """    
+
     # Create an empty mask
     combined_mask = pd.Series([False] * len(geo_data), index=geo_data.index)
     
@@ -122,8 +174,19 @@ def drop_id_geo_data(geo_data, drop):
 
     return geo_data
 
-# Drops rows in df where either PULocationID or DOLocationID has a location id in drop
-def drop_id_df(df, drop, trip_type):
+def drop_id_df(df: pd.DataFrame, drop: list, trip_type: str) -> pd.DataFrame:
+    """Drops rows in df where either PULocationID or DOLocationID has a location id in drop
+
+    Args:
+        df (pd.DataFrame): dataframe containing the taxi trips
+        drop (list): list of location ids to drop
+        trip_type (str): is the column to check, either PULocationID or DOLocationID
+
+    Returns:
+        pd.DataFrame: dataframe with rows dropped
+    """    
+
+
     # Create an empty mask
     combined_mask = pd.Series([False] * len(df), index=df.index)
     
@@ -141,7 +204,14 @@ def drop_id_df(df, drop, trip_type):
 
 
 
-def create_rolling_average(size, daily_counts):
+def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
+    """Creates a rolling average of the daily counts.
+
+    Args:
+        size (int): the window size for the rolling average.
+        daily_counts (pd.Series): the daily counts to calculate the rolling average for.
+    """    
+
     # Create rolling average
     moving_average = daily_counts.rolling(
         window = size,
@@ -163,7 +233,14 @@ def create_rolling_average(size, daily_counts):
 
 
 
-def create_rolling_average_hourly(size, hourly_counts):
+def create_rolling_average_hourly(size: int, hourly_counts: pd.Series) -> None:
+    """Creates a rolling average of the hourly counts.
+
+    Args:
+        size (int): the window size for the rolling average.
+        hourly_counts (pd.Series): the hourly counts to calculate the rolling average for.
+    """    
+
     # Create rolling average
     moving_average = hourly_counts.rolling(
         window = size,

@@ -1,29 +1,33 @@
+"""
+data_processing
+=================
+
+This module contains functions for processing the NYC taxi data, including loading, cleaning, filtering for JFK airport,
+creating time series, and saving processed data. It also includes functions for visualizing the data through various plots.
+
+The main function is process_taxi_data which orchestrates the entire data processing workflow.
+"""
+
+
+
+# --- Imports ---
 import pandas as pd
-from pathlib import Path
 from IPython.display import display
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
-import yaml
+from .loading_helpers import load_config
 
-# We need to use the notebook version of tqdm if possible so it renders property in Jupyter Lab
 if __name__ == "__main__":
     from tqdm import tqdm
 else:
     from tqdm.notebook import tqdm
 
+# --- Load config ---
+config, PROJECT_ROOT = load_config()    
 
-# src/jfk_taxis/ is location of current file so we go two above to get project root
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-# Path to config
-CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
-
-# Load config
-with open(CONFIG_PATH, "r") as f:
-    config = yaml.safe_load(f)
-    
-
+# --- Constants and Paths ---
 # Data directories
 DATA_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"] 
 DATA_SAVE = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["processed_path"]
@@ -36,8 +40,16 @@ TS_DAILY = config["saving"]["ts_daily"]
 TS_HOURLY = config["saving"]["ts_hourly"]
 
 
-# Loads all parquets for a specific year (we do it one year at a time because each year already has approx 30 Million rows which is a lot for pandas to process)
+# --- Functions ---
 def load_parquet(year: int) -> pd.DataFrame:
+    """ Loads all parquet files for a specific year and concatenates them into a single dataframe.
+
+    Args:
+        year (int): the year for which to load the parquet files.
+
+    Returns:
+        pd.DataFrame: a dataframe containing all the data for the specified year.
+    """    
  
     # Get all files for that year
     files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
@@ -47,8 +59,18 @@ def load_parquet(year: int) -> pd.DataFrame:
     
     return df
 
-# Does an inital clean of the data frame 
 def init_clean_df(df: pd.DataFrame, year: int) -> pd.DataFrame:
+    """ Initial cleaning of the dataframe.
+
+    Args:
+        df (pd.DataFrame): the dataframe to clean.
+        year (int): the year for which to clean the dataframe.
+
+    Returns:
+        pd.DataFrame: the cleaned dataframe.
+    """    
+
+
     '''
     There are a couple things that can be cleaned almost immideately, the main one is that not all the data
     belongs to the specified year. A lot of these entries are on the overlap from New Years Eve to New Years Day of 
@@ -61,8 +83,17 @@ def init_clean_df(df: pd.DataFrame, year: int) -> pd.DataFrame:
 
     return df
 
-# Selects the JFK data
 def select_jfk(df: pd.DataFrame) -> pd.DataFrame:
+    """ Selects the JFK airport taxi data from the dataframe.
+
+    Args:
+        df (pd.DataFrame): the dataframe to filter.
+
+    Returns:
+        pd.DataFrame: the dataframe containing only JFK airport taxi data.
+    """    
+
+
     '''
     From EDA we know that JFK airport has location ID 132
     Again we look at pickup taxi location rather than drop off 
@@ -70,9 +101,17 @@ def select_jfk(df: pd.DataFrame) -> pd.DataFrame:
 
     return df[df["PULocationID"] == 132].copy()
 
-
-# Creates a time series for a specified feature to group by 
 def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
+    """ Creates a time series dataframe for the specified feature.
+
+    Args:
+        df (pd.DataFrame): the dataframe to create the time series from.
+        feature (str): the feature to create the time series for.
+
+    Returns:
+        pd.DataFrame: the time series dataframe.
+    """
+
     '''
     For now these ts will all be created from the 'tpep_pickup_datetime' column 
     The feature will be passed as a string:
@@ -101,14 +140,19 @@ def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
         df = df.drop(["day"], axis = 1)
         df["dt"] = pd.to_datetime(df["dt"])
 
-
-
         return df
     else:
         print("Invalid feature entered for create_ts.")
 
-# This function will load all the parquets, process them, create time series and save both the cleaned data and the time series to ../data/interim
-def process_taxi_data(years: list[int], features: list[str]):
+def process_taxi_data(years: list[int], features: list[str]) -> None:
+    """ Processes the taxi data for the specified years and features.
+
+    Args:
+        years (list[int]): the years of taxi data to process.
+        features (list[str]): the features to extract for time series.
+    """    
+
+
     '''
     years = years of taxi data to process, list of ints
     features = features to extract for time series, list of str 
@@ -155,8 +199,12 @@ def process_taxi_data(years: list[int], features: list[str]):
 
         bar.close()
 
-# Function to loop through the list of years, produce a head and a basic forecast plot
-def taxi_data_visuals(years: list[int]):
+def taxi_data_visuals(years: list[int]) -> None:
+    """ Generates visualizations for taxi data (head and basic forecast plot).
+
+    Args:
+        years (list[int]): the years of taxi data to visualize.
+    """    
 
     for year in tqdm(years, desc= "Year"):
        
@@ -181,8 +229,16 @@ def taxi_data_visuals(years: list[int]):
         plt.tight_layout()
         plt.show()
 
-# Creates time series plots
-def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]):
+def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> None:
+    """ Creates time series plots for the specified feature and year.
+
+    Args:
+        df (pd.DataFrame): the data frame containing the taxi data.
+        feature (str): the feature to plot (e.g., "daily" or "hourly").
+        year (int): the year of the data.
+        month (list[int]): month split to filter on, e.g. [1, 2] for January and February, if None just plot all
+    """    
+
     sns.set_theme(style="darkgrid") 
     if feature == "daily":
         ax = sns.lineplot(data = df, x = "pickup_date", y = "trips")
@@ -211,16 +267,28 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]):
     else:
         print("Invalid feature")
 
-# Combines all the daily and hourly times series into two individual csvs
-def combine_ts(years: list[int]):
+def combine_ts(years: list[int]) -> None:
+    """ Combines all the daily and hourly time series into two individual CSV files.
+
+    Args:
+        years (list[int]): the years of taxi data to combine.
+    """    
+
+
     df_daily = pd.concat((pd.read_csv(DATA_SAVE /  f"{TS_PREFIX}_{TS_DAILY}{year}.csv") for year in years), ignore_index= True)      
     df_hour = pd.concat((pd.read_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{year}.csv") for year in years), ignore_index= True)
 
     df_daily.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{years[0]}-{years[-1]}.csv", index = False)
     df_hour.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{years[0]}-{years[-1]}.csv", index = False)
 
-# Plots the full daily and hourly ts
-def plot_full_ts(df_daily: pd.DataFrame, years: list[int]):
+def plot_full_ts(df_daily: pd.DataFrame, years: list[int]) -> None:
+    """ Plots the full daily time series.
+
+    Args:
+        df_daily (pd.DataFrame): the data frame containing the daily time series.
+        years (list[int]): the years of the data.
+    """    
+
     sns.set_theme(style="darkgrid")
 
     # Plot the daily ts
@@ -234,7 +302,11 @@ def plot_full_ts(df_daily: pd.DataFrame, years: list[int]):
     plt.show()
 
 
+# --- Testing ---
 def main():
+    """ Main function for testing purposes
+    """    
+
     years = [2024]
     features = ["hour", "daily"]
     process_taxi_data(years, features)

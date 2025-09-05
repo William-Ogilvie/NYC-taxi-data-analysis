@@ -1,4 +1,14 @@
-# Series of helper functions for time series forecasting
+"""
+forecast_helpers
+=================
+
+This module contains helper functions for forecasting the time series. The key ones are preprocess which create the design matrix, target vector and deterministic process.
+Forecast which uses a trained model to forecast future values given a historical time series and a deterministic process.
+Finally run_forecasts which will run forecasts for both linear (or potentially hybrid, meaning residual boosted) and non-linear models and create plots of both the forecasts
+and the MAE scores for each model.
+"""
+
+# --- Imports ---
 from pathlib import Path
 from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
@@ -7,27 +17,17 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from statsmodels.tsa.deterministic import DeterministicProcess
 import seaborn as sns
-from IPython.display import display
 from statsmodels.tsa.deterministic import CalendarFourier, CalendarSeasonality
 import numpy as np
 import cupy as cp
 import yaml
 import copy
+from .loading_helpers import load_config
 
+# --- Load config ---
+config, PROJECT_ROOT = load_config()
 
-
-# src/jfk_taxis/ is location of current file so we go two above to get project root
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-# Path to config
-CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
-
-# Load config
-with open(CONFIG_PATH, "r") as f:
-    config = yaml.safe_load(f)
-
-# Preprocess the data for the models:
-
+# --- Functions ---
 def preprocess(lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess]:
     """ Preprocess the time series data for modeling.
 
