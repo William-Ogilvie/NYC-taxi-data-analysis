@@ -1,3 +1,13 @@
+"""
+setup
+=============
+
+This script will create all the directories we need for the project as specified in config/config.yml.
+This script should be run before get_parquet.py to ensure the data/raw directory exists before trying to
+download the data.
+"""
+
+# --- Imports ---
 from pathlib import Path
 import yaml
 
