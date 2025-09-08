@@ -12,6 +12,7 @@ from .training_helpers import load_design
 from sklearn.linear_model import LinearRegression
 import pandas as pd
 from statsmodels.tsa.deterministic import DeterministicProcess
+from xgboost import XGBRegressor
 
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
@@ -70,11 +71,24 @@ def fit_linear_model(X: pd.DataFrame, y: pd.Series, dp: DeterministicProcess, hy
     X_np = X.to_numpy()
     y_np = y.to_numpy()
 
-    # Fit the model
+    # Define and fit the model
     model = LinearRegression(fit_intercept=False)
     model.fit(X_np, y_np)
 
     return model
+
+def fit_non_linear_model(X: pd.DataFrame, y: pd.Series, dp: DeterministicProcess, hyperparams: dict) -> XGBRegressor:
+
+    # Convert to numpy arrays
+    X_np = X.to_numpy()
+    y_np = y.to_numpy()
+
+    # Define and fit the model
+    model = XGBRegressor(**hyperparams)
+    model.fit(X_np, y_np)
+
+    return model
+
 
 
 def fit_models_for_shap(design_dict: dict, model_type: str) -> dict:
