@@ -18,6 +18,7 @@ import time
 import cupy as cp
 import pandas as pd
 from xgboost import XGBRegressor
+from sklearn.linear_model import LinearRegression
 
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
@@ -68,21 +69,21 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
     return fold_dict
 
 
-def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: XGBRegressor | None) -> dict:
+def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: LinearRegression | None) -> dict:
     """ Objective function for hyperparameter tuning using hyperopt
 
     Args:
         space (dict): hyperparameter space
         fold_dict (dict): dict containing the folds with keys as fold_0, fold_1, ..., each value is a tuple (X_train, y_train, dp, y_test)
         lags (list[int]): list of lags
-        steps (list[int]): number of steps to forecast 
-        hybrid (XGBRegressor | None): hybrid model to use, if None then no hybrid model is used
+        steps (list[int]): number of steps to forecast
+        hybrid (LinearRegression | None): hybrid model to use, if None then no hybrid model is used
 
     Returns:
         dict: dictionary containing the computed loss (mean MAE across folds) and the status 
     """     
 
-    model = xgb.XGBRegressor(
+    model = XGBRegressor(
         n_estimators = space["n_estimators"],
         
         learning_rate = space["learning_rate"],
@@ -110,6 +111,12 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         device = space["device"] # use gpu
         )
 
+    # If we are in the hybrid case then the model above is actually the "hybrid" part used in forecasting, and we have passed the linear regression as the hybrid component of this function
+    # so we need to swap theses two
+    if hybrid is not None:
+        tmp = model
+        model = hybrid
+        hybrid = tmp
 
     maes = []
     for value in fold_dict.values():
@@ -149,31 +156,39 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         # If there is no hybrid model we can just fit the model to the data
         if hybrid is None:
             # Convert to CuPy arrays if using GPU
-            X_train_cp = cp.asarray(X_train_np)
-            y_train_cp = cp.asarray(y_train_np)
+            if config["xgboost_setup"]["device"] == "cuda":
+                X_train_cp = cp.asarray(X_train_np)
+                y_train_cp = cp.asarray(y_train_np)
 
-            # Fit the model
-            model.fit(X_train_cp, y_train_cp)
+                # Fit the model
+                model.fit(X_train_cp, y_train_cp)
+            else:
+                model.fit(X_train_np, y_train_np)
+
         # If we have a hyrid model then this will need to be fit to the data first (as it is the linear part) and then we pass the XGBoost part to the forecast as hybrid
-        else:
-            # Swap model and hybrid
-            tmp = model
-            model = hybrid
-            hybrid = tmp
-
+        else: 
             # Fit model to the data (we fit to the numpy arrays as model is a linear regression)
             model.fit(X_train_np, y_train_np)
+
+            # We now need to compute the residuals and fit the hybrid model to these
+            y_fit = model.predict(X_train_np)
+            y_resid = y_train_np - y_fit
+
+            # Convert to CuPy arrays if using GPU and fit the model
+            if config["xgboost_setup"]["device"] == "cuda":
+                X_train_cp = cp.asarray(X_train_np)
+                y_resid_cp = cp.asarray(y_resid)
+                hybrid.fit(X_train_cp, y_resid_cp)
+            else:
+                hybrid.fit(X_train_np, y_resid)
 
         end_fit = time.time()
 
         # Time forecasting
         start_fore = time.time()
-        
-        # If there is no hybrid model then we want to use the gpu when forecasting otherwise we don't want to use the gpu (because we will get an error when linear regression tries to predict with a CuPy array)
-        if hybrid is not None:
-            gpu = True
-        else:
-            gpu = False
+
+        # We want to use gpu for predictions
+        gpu = True 
 
         # Run the forecast for the required steps
         y_preds = forecast(model, y_train, lags, steps, dp, hybrid, gpu)
@@ -254,17 +269,17 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
     """    
 
     for key, value in dict_full.items():
-        if key == "daily":
+        if key == config["hyperparameter_tuning"]["daily_linear_key"]:
             # Load the previous non linear model
-            linear_models_loaded, non_linear_models_loaded = load_models("5_order_linear_daily")
+            linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear"])
 
             # Load the previous non linear design matrix
-            linear_design_loaded, non_linear_design_loaded = load_design("5_order_linear_daily")
+            linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_linear"])
 
             # Get design, target and dp
-            X = non_linear_design_loaded["base_non_linear"][0]
-            y = non_linear_design_loaded["base_non_linear"][1]
-            dp = non_linear_design_loaded["base_non_linear"][2]
+            X = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][0]
+            y = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][1]
+            dp = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][2]
 
             # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
             new_non_linear = xgb.XGBRegressor(
@@ -289,13 +304,13 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
 
             # Run forecasts
             run_forecasts(steps, daily_lags, linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
-        
-        elif key == "daily_hybrid":
+
+        elif key == config["hyperparameter_tuning"]["daily_hybrid_key"]:
             # Load the previous non linear model
-            hybrid_models_loaded, non_linear_models_loaded = load_models("2_order_hybrid_daily")
+            hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_hybrid"])
 
             # Load the previous non linear design matrix
-            hybrid_design_loaded, non_linear_design_loaded = load_design("2_order_hybrid_daily")
+            hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_hybrid"])
 
             # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
             new_hybrid = xgb.XGBRegressor(
@@ -329,17 +344,17 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
             # Run forecasts
             run_forecasts(steps, daily_lags, linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
-        elif key == "hourly":
+        elif key == config["hyperparameter_tuning"]["hourly_linear_key"]:
             # Load the previous non linear model
-            linear_models_loaded, non_linear_models_loaded = load_models("5_order_linear_hourly")
+            linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear"])
 
             # Load the previous non linear design matrix
-            linear_design_loaded, non_linear_design_loaded = load_design("5_order_linear_hourly")
+            linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_linear"])
 
             # Get design, target and dp
-            X = non_linear_design_loaded["base_non_linear"][0]
-            y = non_linear_design_loaded["base_non_linear"][1]
-            dp = non_linear_design_loaded["base_non_linear"][2]
+            X = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][0]
+            y = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][1]
+            dp = non_linear_design_loaded[config["model_naming"]["default_non_linear"]][2]
 
             # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor
             new_non_linear = xgb.XGBRegressor(
@@ -364,13 +379,13 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
 
             # Run forecasts
             run_forecasts(steps, used_hourly_lags, linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
-        
-        elif key == "hourly_hybrid":
+
+        elif key == config["hyperparameter_tuning"]["hourly_hybrid_key"]:
             # Load the previous non linear model
-            hybrid_models_loaded, non_linear_models_loaded = load_models("2_order_hybrid_hourly")
+            hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_hybrid"])
 
             # Load the previous non linear design matrix
-            hybrid_design_loaded, non_linear_design_loaded = load_design("2_order_hybrid_hourly")
+            hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_hybrid"])
 
             # Define the model, **value will pass the dict of hyperparamters to the XGBRegressor 
             new_hybrid = xgb.XGBRegressor(

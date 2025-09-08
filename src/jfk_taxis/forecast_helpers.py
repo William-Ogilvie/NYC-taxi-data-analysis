@@ -144,10 +144,6 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
     # Convert to numpy arrays
     (X, y) = to_numpy(X, y)
     
-    # We need to convert to CuPy arrays as well
-    X = cp.asarray(X)
-    y = cp.asarray(y)
-
     # XGBoost:
     model_xgb = XGBRegressor(
         n_estimators=config["xgboost_default"]["n_estimators"],
@@ -161,6 +157,11 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
         device=config["xgboost_setup"]["device"]
     )
     
+    # If using GPU convert to CUPy arrays 
+    if config["xgboost_setup"]["device"] == "cuda":
+        X = cp.asarray(X)
+        y = cp.asarray(y)
+
     # Fit model
     model_xgb.fit(X, y)
 
@@ -215,9 +216,9 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     det_cols = X_future_det.columns.tolist()
     det_vals = X_future_det.to_numpy(copy = False) # shape : (steps, n_det)
 
-    # Convert det vals to CuPy if using gpu
-    if gpu:
-        det_vals = cp.asarray(det_vals)
+    # # Convert det vals to CuPy if using gpu
+    # if gpu:
+    #     det_vals = cp.asarray(det_vals)
 
     # Create lag column names
     lag_cols = [f'y_lag_{j}' for j in lags]
@@ -227,6 +228,7 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     # the lags to the length of the histrical data 
     if lags[-1] > len(y_hist):
         lags = truncate_lags(lags, len(y_hist))
+        
 
     # Build lag buffer from last lags[-1] points
     last_lag = lags[-1]
@@ -243,9 +245,9 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     # Create array to hold one row of features
     xrow = np.empty(n_det + len(lags), dtype = np.float64)
 
-    # Convert xrow to CuPy if using gpu
-    if gpu:
-       xrow = cp.asarray(xrow) 
+    # # Convert xrow to CuPy if using gpu
+    # if gpu:
+    #    xrow = cp.asarray(xrow) 
 
     for i in range(steps):
         # Deterministic part
@@ -263,15 +265,16 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
 
         # Add hybrid prediction if applicable
         if hybrid is not None:
+            y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
 
-            # Check whether xrow is currently on the GPU if it isn't move it to GPU and then move back after predictions
-            if not (type(xrow)  == cp.ndarray):
-                xrow = cp.asarray(xrow) 
-                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
-                y_pred = cp.asnumpy(y_pred) # move back to numpy
-                xrow = cp.asnumpy(xrow) # move back to numpy
-            else:
-                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+            # # Check whether xrow is currently on the GPU if it isn't move it to GPU and then move back after predictions
+            # if not (type(xrow)  == cp.ndarray):
+            #     xrow = cp.asarray(xrow) 
+            #     y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+            #     y_pred = cp.asnumpy(y_pred) # move back to numpy
+            #     xrow = cp.asnumpy(xrow) # move back to numpy
+            # else:
+            #     y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
 
         # Store prediction
         preds[i] = y_pred

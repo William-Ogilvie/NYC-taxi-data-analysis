@@ -25,7 +25,7 @@ xgboost_setup:
   random_state: 37
   eval_metric: "mae"
   tree_method: "hist"
-  device: "cuda" 
+  device: "cuda" # "cuda" for GPU, "cpu" for CPU
 
 # Modelling constants
 modelling:
@@ -41,10 +41,20 @@ modelling:
 
 # Hyperparameter tuning settings
 hyperparameter_tuning:
-  n_splits: 5
+  n_splits: 4
   daily_test_size: 30
   hourly_test_size: 168
-  max_evals: 100
+  max_evals: 3
+  daily_linear_key: "daily"
+  hourly_linear_key: "hourly"
+  daily_hybrid_key: "daily_hybrid"
+  hourly_hybrid_key: "hourly_hybrid"
+
+  # SHAP settings
+shap: 
+  daily_key: "daily"
+  hourly_key: "hourly"
+
 
 # Model naming conventions
 model_naming:
