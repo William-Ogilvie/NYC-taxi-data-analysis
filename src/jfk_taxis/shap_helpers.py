@@ -13,6 +13,7 @@ from sklearn.linear_model import LinearRegression
 import pandas as pd
 from statsmodels.tsa.deterministic import DeterministicProcess
 from xgboost import XGBRegressor
+import cupy as cp
 
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
@@ -54,17 +55,15 @@ def load_design_for_shap(hyper_dict: dict, type: str) -> dict:
 
     return result_dict
 
-def fit_linear_model(X: pd.DataFrame, y: pd.Series, dp: DeterministicProcess, hyperparams: dict) -> LinearRegression:
+def fit_linear_model(X: pd.DataFrame, y: pd.Series) -> LinearRegression:
     """ Fit a linear regression model to the data and return the fitted model.
 
     Args:
-        X (pd.DataFrame): The design matrix.
-        y (pd.Series): The target variable.
-        dp (DeterministicProcess): The deterministic process object.
-        hyperparams (dict): Hyperparameters for the model (in the linear case these will actually just be empty).
+        X (pd.DataFrame): the design matrix.
+        y (pd.Series): the target vecotor.
 
     Returns:
-        LinearRegression: The fitted linear regression model.
+        LinearRegression: the fitted linear regression model.
     """
 
     # Convert to numpy arrays
@@ -77,15 +76,34 @@ def fit_linear_model(X: pd.DataFrame, y: pd.Series, dp: DeterministicProcess, hy
 
     return model
 
-def fit_non_linear_model(X: pd.DataFrame, y: pd.Series, dp: DeterministicProcess, hyperparams: dict) -> XGBRegressor:
+def fit_non_linear_model(X: pd.DataFrame, y: pd.Series, hyperparams: dict) -> XGBRegressor:
+    """Fit a non-linear model to the data and return the fitted model.
+
+    Args:
+        X (pd.DataFrame): design matrix
+        y (pd.Series): target vector
+        hyperparams (dict): hyperparameters for the model
+
+    Returns:
+        XGBRegressor: the fitted non-linear model
+    """    
+
 
     # Convert to numpy arrays
     X_np = X.to_numpy()
     y_np = y.to_numpy()
 
-    # Define and fit the model
-    model = XGBRegressor(**hyperparams)
-    model.fit(X_np, y_np)
+    # If using GPU convert to CuPy arrays
+    if config["xgboost_setup"]["device"] == "gpu":
+        X_cp = cp.asarray(X_np)
+        y_cp = cp.asarray(y_np)
+
+        model = XGBRegressor(**hyperparams)
+        model.fit(X_cp, y_cp)
+    else:
+        # Define and fit the model
+        model = XGBRegressor(**hyperparams)
+        model.fit(X_np, y_np)
 
     return model
 

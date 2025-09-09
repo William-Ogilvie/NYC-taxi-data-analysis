@@ -29,15 +29,22 @@ xgboost_setup:
 
 # Modelling constants
 modelling:
-  daily_steps: [1, 2, 3, 7, 14, 30, 60, 180, 365, 500, 546]
+  daily_steps: [7, 30] # [1, 2, 3, 7, 14, 30, 60, 180, 365, 500, 546]
   daily_fourier_features: ["YE", "W"] # Yearly, weekly
   daily_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
   daily_hybrid_trends: [1, 2]
-  hourly_steps: [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 336, 720]
+  hourly_steps: [24, 168]    # [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 336, 720]
   hourly_fourier_features: ["WE", "D"] # Weekly, daily
   hourly_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
   hourly_hybrid_trends: [1, 2] 
-  hourly_num_lags: 168 # number of lags to use for the hourly models (there are around 4710)
+  hourly_num_lags: 336 # number of lags to use for the hourly models (there are around 4710) (note even values like 720 (one month) cause memory crashes on my machine when using the GPU, along with 40 second fits, although I only have about 3GB vram on older GPU)
+  ts_daily_train_boundary: "2023-12-31"
+  ts_daily_test_boundary: "2024-01-01"
+  ts_hourly_train_boundary: "2023-12-31"
+  ts_hourly_test_boundary: "2024-01-01"
+
+
+
 
 # Hyperparameter tuning settings
 hyperparameter_tuning:
@@ -50,7 +57,7 @@ hyperparameter_tuning:
   daily_hybrid_key: "daily_hybrid"
   hourly_hybrid_key: "hourly_hybrid"
 
-  # SHAP settings
+# SHAP settings
 shap: 
   daily_key: "daily"
   hourly_key: "hourly"
@@ -88,5 +95,6 @@ saving:
   ts_hourly: "hour"
   original_parquet_prefix: "processed"
   jfk_parquet_prefix: "processed_jfk"
-
+  daily_ts_file_name: "ts_daily2011-2025.csv"
+  hourly_ts_file_name: "ts_hour2011-2025.csv"
 
