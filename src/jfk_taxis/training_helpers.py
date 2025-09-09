@@ -8,6 +8,7 @@ The files are saves as pkl files using joblib into the data/saved_objects direct
 
 
 # --- Imports ---
+import pandas as pd
 import joblib
 from pathlib import Path
 from .loading_helpers import load_config
@@ -23,6 +24,9 @@ SAVED_OBJECTS_PATH = PROJECT_ROOT / Path(config["data"]["data_path"]) / Path(con
 # Create a string of the path for use when saving
 SAVE_DIR = str(SAVED_OBJECTS_PATH.resolve())
 
+# Data paths
+DATA_DIR_PROCESSED = PROJECT_ROOT / Path(config["data"]["data_path"]) / Path(config["data"]["processed_path"])
+
 # Name saving conventions
 MODEL = config["saving"]["model_file_suffix"]
 HYBRID = config["saving"]["hybrid_file_suffix"]
@@ -36,6 +40,72 @@ HYPERPARAMS_PREFFIX = config["saving"]["hyperparams_preffix"]
 
 
 # -- Functions ---
+def load_ts_data() -> tuple[pd.Series, pd.Series]:
+    """Load the time series data.
+
+    Returns:
+        tuple[pd.Series, pd.Series]: daily and hourly time series as pandas Series inxeded by datetime objects
+    """    
+
+    # Get both the full daily and hourly time series
+    df_daily = pd.read_csv(DATA_DIR_PROCESSED / config["saving"]["daily_ts_file_name"])
+    df_hourly = pd.read_csv(DATA_DIR_PROCESSED / config["saving"]["hourly_ts_file_name"])
+
+    # Convert dates to datetime objects
+    df_daily["pickup_date"] = pd.to_datetime(df_daily["pickup_date"])
+    df_hourly["dt"] = pd.to_datetime(df_hourly["dt"])
+
+    # To pass the time series through our helper functions they need to be a pandas series indexed by a datetime object:
+    ts_hourly = df_hourly["trips"]
+    ts_hourly.index = df_hourly["dt"]
+
+    ts_daily = df_daily["trips"]
+    ts_daily.index = df_daily["pickup_date"]
+
+    return ts_daily, ts_hourly
+
+def split_test_train_sets(ts_daily: pd.Series, ts_hourly: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    """Splits the time series into test training sets based on the boundaries specified in config.yml
+
+    Args:
+        ts_daily (pd.Series): daily time series data
+        ts_hourly (pd.Series): hourly time series data
+
+    Returns:
+        tuple[pd.Series, pd.Series, pd.Series, pd.Series]: training and testing sets for daily and hourly time series
+    """    
+    
+    # We now need to split into test and train data, we will train on the pre 2024 data and test on 2024 onwards, approx a 90:10 split
+    ts_daily_train = ts_daily[:config["modelling"]["ts_daily_train_boundary"]]
+    ts_daily_test = ts_daily[config["modelling"]["ts_daily_test_boundary"]:]
+
+    ts_hourly_train = ts_hourly[:config["modelling"]["ts_hourly_train_boundary"]]
+    ts_hourly_test = ts_hourly[config["modelling"]["ts_hourly_test_boundary"]:]
+
+    return ts_daily_train, ts_daily_test, ts_hourly_train, ts_hourly_test
+
+def load_process_lags() -> tuple[list[int], list[int]]:
+    """Load and process lag features for the time series data.
+
+    Returns:
+        tuple[list[int], list[int]]: lists of lag features for daily and hourly time series
+    """     
+    # First reload the significant lags
+    daily_lags = load_lags(config["saving"]["daily_lags"], config["saving"]["lags_sig"])
+
+    hourly_lags = load_lags(config["saving"]["hourly_lags"], config["saving"]["lags_sig"])
+
+    used_hourly_lags = hourly_lags[:config["modelling"]["hourly_num_lags"]]
+
+    # Add any extra lags specified in the config file
+    extra_lags = config["modelling"]["hourly_extra_lags"]
+
+    for lag in extra_lags:
+        if lag not in used_hourly_lags:
+            used_hourly_lags.append(lag)
+
+    return daily_lags, used_hourly_lags
+
 def save_models(linear_models: dict, non_linear_models: dict, sig: str) -> None:
     """ Saves the trained models as pkl files in the saved objects path
 
