@@ -6,6 +6,7 @@ from .training_helpers import save_models, save_design, load_models, load_design
 from .hyperparam_helpers import create_val_data, wrapped_objective, split_params, test_hyperparams
 from .modelling_helpers import create_train_save_models
 from .loading_helpers import load_config
+from .shap_helpers import compute_shap_values, shap_plots, return_top_30_SHAP
 
 # What can be imported from src
 __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
@@ -18,7 +19,8 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "create_val_data", "wrapped_objective",  "save_hyperparams", "load_hyperparams",
             "save_obj", "load_obj", "create_train_save_models", "split_params", "test_hyperparams", "load_config",
             "create_save_listed_adjusted_choropleths", "multiplot_choropleths", 
-            "load_ts_data", "split_test_train_sets", "load_process_lags"]
+            "load_ts_data", "split_test_train_sets", "load_process_lags",
+            "compute_shap_values", "shap_plots", "return_top_30_SHAP"]
 
 
 
