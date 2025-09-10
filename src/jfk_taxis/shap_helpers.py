@@ -124,11 +124,19 @@ def extract_features_from_top_x(top_x: list) -> tuple[list, list, list]:
             lag = int(feature.split("_")[-1]) # strings are formatted as y_lag_x
             lags.append(lag)
         elif "cos" in feature or "sin" in feature:
-            match = re.search(r'=(.*?)-', feature) # strings are formatted as cos(x,freq=YE-DEC)
+            # Search for daily ts
+            match = re.search(r'=(.*?)-', feature) # strings in daily are formatted as cos(x,freq=YE-DEC)
 
             if match:
                 result = match.group(1)
                 fourier_features.append(result)
+            else:
+                # Search for hourly ts
+                match = re.search(r'=(.*?)\)', feature) # strings in hourly are formatted as cos(x,freq=D)
+
+                if match:
+                    result = match.group(1)
+                    fourier_features.append(result)
         elif "trend" in feature or "const" in feature:
             trends.append(feature)
 
@@ -136,6 +144,7 @@ def extract_features_from_top_x(top_x: list) -> tuple[list, list, list]:
     if len(lags) + len(fourier_features) + len(trends)!= len(top_x):
         print(lags)
         print(fourier_features)
+        print(trends)
         print(top_x)
         raise ValueError("Mismatch in number of features extracted.")
     

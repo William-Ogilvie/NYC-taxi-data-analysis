@@ -100,5 +100,5 @@ saving:
   jfk_parquet_prefix: "processed_jfk"
   daily_ts_file_name: "ts_daily2011-2025.csv"
   hourly_ts_file_name: "ts_hour2011-2025.csv"
-  shap_values_file: "shap_values.pkl"
+  shap_values_file: "shap_values"
 
