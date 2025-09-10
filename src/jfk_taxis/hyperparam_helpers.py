@@ -9,9 +9,9 @@ Along with a wrapper function to allow passing additional parameters to the obje
 # --- Imports ---
 from hyperopt import STATUS_OK
 import xgboost as xgb
-from .forecast_helpers import forecast, run_forecasts, preprocess
+from .forecast_helpers import forecast, run_forecasts, preprocess, add_lags_to_dict, run_forecasts_diff_lags
 from .loading_helpers import load_config
-from .training_helpers import load_models, load_design
+from .training_helpers import load_models, load_design, load_process_lags
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
 import time
@@ -26,8 +26,11 @@ config, PROJECT_ROOT = load_config()
 
 # --- Constants ---
 LINEAR_MODEL_PREFIX = config["model_naming"]["linear_model_prefix"]
-DEFAULT_NON_LINEAR = config["model_naming"]["default_non_linear"]
-HYBRID_MODEL_PREFIX = config["model_naming"]["hybrid_model_prefix"]
+REDUCED_DAILY_DEFAULT_NON_LINEAR = config["model_naming"]["reduced_daily_non_linear_model_prefix"]
+REDUCED_HYBRID_DAILY_MODEL_PREFIX = config["model_naming"]["reduced_daily_hybrid_model_prefix"]
+REDUCED_HOURLY_DEFAULT_NON_LINEAR = config["model_naming"]["reduced_hourly_non_linear_model_prefix"]
+REDUCED_HYBRID_HOURLY_MODEL_PREFIX = config["model_naming"]["reduced_hourly_hybrid_model_prefix"]
+
 
 # --- Functions ---
 def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> dict:
@@ -273,19 +276,24 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
         hourly_steps (list[int]): list of steps to forecast for the hourly model
     """    
 
+    # We will need the lags for the older models
+    old_daily_lags, old_hourly_lags = load_process_lags()
+
+
+
     for key, value in dict_full.items():
         for key2, value2 in value.items():
             if key == config["hyperparameter_tuning"]["daily_linear_key"]:
                 # Load the previous non linear model
-                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear"])
+                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear_reduced"])
 
                 # Load the previous non linear design matrix
-                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_linear"])
+                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_linear_reduced"])
 
                 # Get design, target and dp
-                X = non_linear_design_loaded[DEFAULT_NON_LINEAR][0]
-                y = non_linear_design_loaded[DEFAULT_NON_LINEAR][1]
-                dp = non_linear_design_loaded[DEFAULT_NON_LINEAR][2]
+                X = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][0]
+                y = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][1]
+                dp = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][2]
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor 
                 new_non_linear = xgb.XGBRegressor(
@@ -301,35 +309,49 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
 
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None)
-                
-                # We will only include linear_order_2 in this plot
-                linear_order_2 = linear_models_loaded[f"{LINEAR_MODEL_PREFIX}2"]
-                linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}2": linear_order_2}
+
+
+                # Because we have two sets of lags we need to use run_forecasts_diff_lags, which means we have to add the lags to the loaded dicts
+
+                # Now we want to load the full linear models (not the reduced ones)
+                full_linear_models_loaded, full_non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear"])    
+
+                # Add lags to full linear models 
+                full_linear_models_loaded = add_lags_to_dict(full_linear_models_loaded, old_daily_lags)
+
+                # Add lags to reduced non linear models
+                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["daily_base_non_linear"]["extracted_lags"])
+               
+                # We will only include linear_order_0 in this plot
+                linear_order_0 = full_linear_models_loaded[f"{LINEAR_MODEL_PREFIX}0"]
+                full_linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}0": linear_order_0}
 
                 # Steps for the forecast
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts(steps, daily_lags, linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts_diff_lags(steps, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["daily_hybrid_key"]:
                 # Load the previous non linear model
-                hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_hybrid"])
+                hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_hybrid_reduced"])
 
                 # Load the previous non linear design matrix
-                hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_hybrid"])
+                hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_hybrid_reduced"])
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor 
                 new_hybrid = xgb.XGBRegressor(
                     **value2
                 )
 
+                plotting_hybrid_models_loaded = {}
+
                 # We will need to fit new_hybrid to the residuals of the model
-                for i in [1,2]:
+                for i in [config["shap"]["daily_hybrid_order"]]: # We only fit to the order specified in the config file
                     # Unpack design, target and dp, we make deep copies to avoid any potential issues with references
-                    X = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0])
-                    y = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][1])
-                    dp = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][2])
+                    X = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0])
+                    y = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][1])
+                    dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][2])
 
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
@@ -338,7 +360,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     X_pred = X.to_numpy(copy = True)
 
                     # Compute residuals
-                    y_fit = hybrid_models_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0].predict(X_pred)
+                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_pred)
                     y_resid = y - y_fit
 
                     # If using GPU convert to CuPy arrays and fit the model
@@ -350,26 +372,31 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                         # Fit hybrid to residuals
                         tmp_hybrid.fit(X, y_resid)
                     
-                    # Add this hybrid model to the dict of hybrid models
-                    hybrid_models_loaded[f"{key2}_{HYBRID_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+                    # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
+                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+                    plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"]
+
+                # Add lags to both dicts
+                plotting_hybrid_models_loaded = add_lags_to_dict(plotting_hybrid_models_loaded, config["shap"]["daily_hybrid_order2"]["extracted_lags"])
+                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["daily_base_non_linear"]["extracted_lags"])
 
                 # Steps for the forecast
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts(steps, daily_lags, hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts_diff_lags(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_linear_key"]:
                 # Load the previous non linear model
-                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear"])
+                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear_reduced"])
 
                 # Load the previous non linear design matrix
-                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_linear"])
+                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_linear_reduced"])
 
                 # Get design, target and dp
-                X = non_linear_design_loaded[DEFAULT_NON_LINEAR][0]
-                y = non_linear_design_loaded[DEFAULT_NON_LINEAR][1]
-                dp = non_linear_design_loaded[DEFAULT_NON_LINEAR][2]
+                X = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][0]
+                y = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][1]
+                dp = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][2]
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor
                 new_non_linear = xgb.XGBRegressor(
@@ -386,35 +413,51 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None)
 
-                # We will only include linear_order_2 in this plot
-                linear_order_2 = linear_models_loaded[f"{LINEAR_MODEL_PREFIX}2"]
-                linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}2": linear_order_2}
 
+
+
+                # Because we have two sets of lags we need to use run_forecasts_diff_lags, which means we have to add the lags to the loaded dicts
+
+                # Now we want to load the full linear models (not the reduced ones)
+                full_linear_models_loaded, full_non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear"])    
+
+                # Add lags to full linear models 
+                full_linear_models_loaded = add_lags_to_dict(full_linear_models_loaded, old_hourly_lags)
+
+                # Add lags to reduced non linear models
+                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["hourly_base_non_linear"]["extracted_lags"])
+
+                # We will only include linear_order_0 in this plot
+                linear_order_0 = full_linear_models_loaded[f"{LINEAR_MODEL_PREFIX}0"]
+                full_linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}0": linear_order_0}
 
                 # Steps for the forecast
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts(steps, used_hourly_lags, linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts_diff_lags(steps, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_hybrid_key"]:
                 # Load the previous non linear model
-                hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_hybrid"])
+                hybrid_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_hybrid_reduced"])
 
                 # Load the previous non linear design matrix
-                hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_hybrid"])
+                hybrid_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_hybrid_reduced"])
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor 
                 new_hybrid = xgb.XGBRegressor(
                     **value2
                 )
 
+
+                plotting_hybrid_models_loaded = {}
+
                 # We will need to fit new_hybrid to the residuals of the model
-                for i in [1,2]:
+                for i in [config["shap"]["hourly_hybrid_order"]]:
                     # Unpack design, target and dp, we make deep copies to avoid any potential issues with references
-                    X = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0])
-                    y = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][1])
-                    dp = copy.deepcopy(hybrid_design_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][2])
+                    X = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0])
+                    y = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][1])
+                    dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][2])
 
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
@@ -423,7 +466,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     X_pred = X.to_numpy(copy = True)
 
                     # Compute residuals
-                    y_fit = hybrid_models_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0].predict(X_pred)
+                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0].predict(X_pred)
                     y_resid = y - y_fit
 
                     # If using GPU convert to CuPy arrays and fit the model
@@ -434,15 +477,19 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     else:
                         # Fit hybrid to residuals
                         tmp_hybrid.fit(X, y_resid)
+                    
+                    # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
+                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+                    plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"]
 
-                    # Add this hybrid model to the dict of hybrid models
-                    hybrid_models_loaded[f"{key2}_{HYBRID_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{HYBRID_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+
 
                 # Steps for the forecast
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts(steps, used_hourly_lags, hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts_diff_lags(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+
             else:
                 raise ValueError("Key must be one of 'daily', 'daily_hybrid', 'hourly', 'hourly_hybrid'")
 
