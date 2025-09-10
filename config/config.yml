@@ -64,6 +64,7 @@ hyperparameter_tuning:
 shap: 
   daily_prefix: "daily"
   hourly_prefix: "hourly"
+  num_features_to_extract: 30
 
 # Model naming conventions
 model_naming:
