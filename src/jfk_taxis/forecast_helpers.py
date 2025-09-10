@@ -597,3 +597,4 @@ def add_lags_to_dict(models: dict, lags: list[int]) -> dict:
         models[name] = new_value
 
     return models
+

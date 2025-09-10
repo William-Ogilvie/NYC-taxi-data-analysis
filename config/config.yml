@@ -31,12 +31,12 @@ xgboost_setup:
 modelling:
   daily_steps: [7, 30, 365] # [1, 2, 3, 7, 14, 30, 60, 180, 365, 500, 546]
   daily_fourier_features: ["YE", "W"] # Yearly, weekly
-  daily_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
-  daily_hybrid_trends: [1, 2]
+  daily_linear_trends: [0, 1, 2, 3, 4, 5] # trends for the first linear forecast
+  daily_hybrid_trends: [0, 1, 2, 3]
   hourly_steps: [24, 168, 720]    # [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 336, 720]
   hourly_fourier_features: ["WE", "D"] # Weekly, daily
-  hourly_linear_trends: [1, 2, 3, 4, 5] # trends for the first linear forecast
-  hourly_hybrid_trends: [1, 2] 
+  hourly_linear_trends: [0, 1, 2, 3, 4, 5] # trends for the first linear forecast
+  hourly_hybrid_trends: [0, 1, 2, 3] 
   hourly_num_lags: 336 # number of lags to use for the hourly models (there are around 4710) (note even values like 720 (one month) cause memory crashes on my machine when using the GPU, along with 40 second fits, although I only have about 3GB vram on older GPU)
   hourly_extra_lags: [4316, 4317, 4318, 4319, 4320, 4321, 4322, 4323, 4337, 4338, 4339, 4340, 8733, 8734, 8735, 8736, 8757, 8758, 8759, 8760, 8781, 8782, 8783, 8784] # These are lags around 4320 hours (half a year) and 8760 hours (full year) to try and capture yearly or half anual seasonality
   ts_daily_train_boundary: "2023-12-31"
@@ -65,6 +65,7 @@ shap:
   daily_prefix: "daily"
   hourly_prefix: "hourly"
   num_features_to_extract: 30
+  daily_order_list: [0, 1, 2, 3, 4, 5]
 
 # Model naming conventions
 model_naming:
