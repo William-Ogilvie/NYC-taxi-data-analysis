@@ -71,6 +71,8 @@ model_naming:
   linear_model_prefix: "linear_order"
   default_non_linear: "base_non_linear"
   hybrid_model_prefix: "hybrid_order"
+  reduced_daily_linear_model_prefix: "reduced_daily_linear_order"
+  reduced_daily_non_linear_model_prefix: "reduced_daily_non_linear"
 
 # Model signatures 
 model_sigs:
@@ -78,6 +80,8 @@ model_sigs:
   hourly_linear: "5_order_linear_hourly"
   daily_hybrid: "2_order_hybrid_daily"
   hourly_hybrid: "2_order_hybrid_hourly"
+  daily_linear_reduced: "reduced_daily_linear"
+  daily_non_linear_reduced: "reduced_daily_non_linear"
 
 # Saving conventions
 saving:

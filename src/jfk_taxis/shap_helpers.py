@@ -193,6 +193,34 @@ def extract_top_x_features_dict(shap_values_dict: dict, x: int) -> dict:
 
         lags, fourier_features, trends = top_x_feature_extraction(shap_values, feature_names, x)
 
+        # For the lag bufffer we need to ensure that lags is in ascending order
+        lags = sorted(lags)
+
         features_dict[key] = (lags, fourier_features, trends)
 
     return features_dict
+
+def convert_trend_list(trend: list) -> tuple[bool, int]:
+    """Convert a list of trend features to a bool and an int, the bool is whether we need a constant in the deterministic process, the int contains the max order we need.
+
+    Args:
+        trend (list): list of trend features
+
+    Returns:
+        tuple[bool, int]: bool indicating if constant is needed, int for max order
+    """   
+
+    constant = False
+    max_order = 0
+
+    for feature in trend:
+        if feature == "const":
+            constant = True
+        elif "squared" in feature:
+            max_order = 2
+        elif "trend" in feature:
+            max_order = 1
+        else:
+            raise ValueError(f"Unknown trend feature: {feature}")
+
+    return constant, max_order 
