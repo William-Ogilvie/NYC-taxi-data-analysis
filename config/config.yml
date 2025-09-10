@@ -133,6 +133,8 @@ saving:
   ts_hourly: hour
   ts_prefix: ts
 shap:
+  daily_hybrid_order: 3
+  hourly_hybrid_order: 0
   daily_base_non_linear:
     extracted_fourier_features:
     - YE
