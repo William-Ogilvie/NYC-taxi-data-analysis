@@ -25,10 +25,12 @@ model_naming:
   default_non_linear: base_non_linear
   hybrid_model_prefix: hybrid_order
   linear_model_prefix: linear_order
+  reduced_daily_hybrid_model_prefix: reduced_daily_hybrid_order
   reduced_daily_linear_model_prefix: reduced_daily_linear_order
   reduced_daily_non_linear_model_prefix: reduced_daily_non_linear
 model_sigs:
   daily_hybrid: 2_order_hybrid_daily
+  daily_hybrid_reduced: reduced_daily_hybrid
   daily_linear: 5_order_linear_daily
   daily_linear_reduced: reduced_daily_linear
   daily_non_linear_reduced: reduced_daily_non_linear
@@ -184,6 +186,11 @@ shap:
     - 371
     extracted_trends:
     - trend
+  daily_hybrid_order_list:
+  - 0
+  - 1
+  - 2
+  - 3
   daily_linear_order2:
     extracted_fourier_features:
     - W
