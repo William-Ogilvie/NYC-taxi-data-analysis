@@ -201,11 +201,12 @@ def extract_top_x_features_dict(shap_values_dict: dict, x: int) -> dict:
 
     return features_dict
 
-def save_extracted_features_to_config(features_dict: dict) -> dict:
+def save_extracted_features_to_config(features_dict: dict, config: dict) -> dict:
     """Save extracted features to the config.
 
     Args:
         features_dict (dict): dictionary of extracted features
+        config (dict): configuration dictionary to update
     """   
 
     # TODO save locally to config
@@ -214,6 +215,9 @@ def save_extracted_features_to_config(features_dict: dict) -> dict:
         lags, fourier_features, trends = value
 
         # Save to config dict
+
+        # Create a new key
+        config["shap"][key] = {}
         config["shap"][key]["extracted_lags"] = lags
         config["shap"][key]["extracted_fourier_features"] = fourier_features
         config["shap"][key]["extracted_trends"] = trends

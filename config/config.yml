@@ -1,109 +1,343 @@
-# Data file paths
 data:
-  data_path: "data"
-  raw_path: "raw"
-  processed_path: "processed"
-  saved_objects_path: "saved_objects"
-  reports_path: "reports"
-  figures_path: "figures"
-  maps_path: "maps"
-
-# Constants for EDA
+  data_path: data
+  figures_path: figures
+  maps_path: maps
+  processed_path: processed
+  raw_path: raw
+  reports_path: reports
+  saved_objects_path: saved_objects
 eda:
-  max_month_2025: 7 # up to and including July 2025
-
-# Default XGBoost model parameters
-xgboost_default:
-  n_estimators: 500
-  learning_rate: 0.05
-  max_depth: 5
-  subsample: 0.8
-  colsample_bytree: 0.8
-
-# Default XGBoost setup parameters
-xgboost_setup:
-  random_state: 37
-  eval_metric: "mae"
-  tree_method: "hist"
-  device: "cuda" # "cuda" for GPU, "cpu" for CPU
-
-# Modelling constants
-modelling:
-  daily_steps: [7, 30, 365] # [1, 2, 3, 7, 14, 30, 60, 180, 365, 500, 546]
-  daily_fourier_features: ["YE", "W"] # Yearly, weekly
-  daily_linear_trends: [0, 1, 2, 3, 4, 5] # trends for the first linear forecast
-  daily_hybrid_trends: [0, 1, 2, 3]
-  hourly_steps: [24, 168, 720]    # [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 336, 720]
-  hourly_fourier_features: ["WE", "D"] # Weekly, daily
-  hourly_linear_trends: [0, 1, 2, 3, 4, 5] # trends for the first linear forecast
-  hourly_hybrid_trends: [0, 1, 2, 3] 
-  hourly_num_lags: 336 # number of lags to use for the hourly models (there are around 4710) (note even values like 720 (one month) cause memory crashes on my machine when using the GPU, along with 40 second fits, although I only have about 3GB vram on older GPU)
-  hourly_extra_lags: [4316, 4317, 4318, 4319, 4320, 4321, 4322, 4323, 4337, 4338, 4339, 4340, 8733, 8734, 8735, 8736, 8757, 8758, 8759, 8760, 8781, 8782, 8783, 8784] # These are lags around 4320 hours (half a year) and 8760 hours (full year) to try and capture yearly or half anual seasonality
-  ts_daily_train_boundary: "2023-12-31"
-  ts_daily_test_boundary: "2024-01-01"
-  ts_hourly_train_boundary: "2023-12-31"
-  ts_hourly_test_boundary: "2024-01-01"
-
-
-
-
-# Hyperparameter tuning settings
+  max_month_2025: 7
 hyperparameter_tuning:
-  n_splits: 4
+  daily_hybrid_key: daily_hybrid
+  daily_linear_key: daily
+  daily_steps:
+  - 30
   daily_test_size: 30
+  hourly_hybrid_key: hourly_hybrid
+  hourly_linear_key: hourly
+  hourly_steps:
+  - 168
   hourly_test_size: 168
   max_evals: 3
-  daily_linear_key: "daily"
-  hourly_linear_key: "hourly"
-  daily_hybrid_key: "daily_hybrid"
-  hourly_hybrid_key: "hourly_hybrid"
-  daily_steps: [30]
-  hourly_steps: [168]
-
-# SHAP settings
-shap: 
-  daily_prefix: "daily"
-  hourly_prefix: "hourly"
-  num_features_to_extract: 30
-  daily_order_list: [0, 1, 2, 3, 4, 5]
-
-# Model naming conventions
+  n_splits: 4
 model_naming:
-  linear_model_prefix: "linear_order"
-  default_non_linear: "base_non_linear"
-  hybrid_model_prefix: "hybrid_order"
-  reduced_daily_linear_model_prefix: "reduced_daily_linear_order"
-  reduced_daily_non_linear_model_prefix: "reduced_daily_non_linear"
-
-# Model signatures 
+  default_non_linear: base_non_linear
+  hybrid_model_prefix: hybrid_order
+  linear_model_prefix: linear_order
+  reduced_daily_linear_model_prefix: reduced_daily_linear_order
+  reduced_daily_non_linear_model_prefix: reduced_daily_non_linear
 model_sigs:
-  daily_linear: "5_order_linear_daily" # if you change the number of daily linear trends you may want to change the 5 here
-  hourly_linear: "5_order_linear_hourly"
-  daily_hybrid: "2_order_hybrid_daily"
-  hourly_hybrid: "2_order_hybrid_hourly"
-  daily_linear_reduced: "reduced_daily_linear"
-  daily_non_linear_reduced: "reduced_daily_non_linear"
-
-# Saving conventions
+  daily_hybrid: 2_order_hybrid_daily
+  daily_linear: 5_order_linear_daily
+  daily_linear_reduced: reduced_daily_linear
+  daily_non_linear_reduced: reduced_daily_non_linear
+  hourly_hybrid: 2_order_hybrid_hourly
+  hourly_linear: 5_order_linear_hourly
+modelling:
+  daily_fourier_features:
+  - YE
+  - W
+  daily_hybrid_trends:
+  - 0
+  - 1
+  - 2
+  - 3
+  daily_linear_trends:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  daily_steps:
+  - 7
+  - 30
+  - 365
+  hourly_extra_lags:
+  - 4316
+  - 4317
+  - 4318
+  - 4319
+  - 4320
+  - 4321
+  - 4322
+  - 4323
+  - 4337
+  - 4338
+  - 4339
+  - 4340
+  - 8733
+  - 8734
+  - 8735
+  - 8736
+  - 8757
+  - 8758
+  - 8759
+  - 8760
+  - 8781
+  - 8782
+  - 8783
+  - 8784
+  hourly_fourier_features:
+  - WE
+  - D
+  hourly_hybrid_trends:
+  - 0
+  - 1
+  - 2
+  - 3
+  hourly_linear_trends:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  hourly_num_lags: 336
+  hourly_steps:
+  - 24
+  - 168
+  - 720
+  ts_daily_test_boundary: '2024-01-01'
+  ts_daily_train_boundary: '2023-12-31'
+  ts_hourly_test_boundary: '2024-01-01'
+  ts_hourly_train_boundary: '2023-12-31'
 saving:
-  model_file_suffix: "model.pkl"
-  hybrid_file_suffix: "hybrid.pkl"
-  dp_file_suffix: "dp.pkl"
-  design_file_suffix: "design.pkl"
-  target_file_suffix: "target.pkl"
-  linear_keys_preffix: "linear_keys"
-  non_linear_keys_preffix: "non_linear_keys"
-  daily_lags: "daily"
-  hourly_lags: "hourly"
-  lags_sig: "eda"
-  lags_preffix: "sig_lags"
-  hyperparams_preffix: "hyperparams"
-  ts_prefix: "ts"
-  ts_daily: "daily"
-  ts_hourly: "hour"
-  original_parquet_prefix: "processed"
-  jfk_parquet_prefix: "processed_jfk"
-  daily_ts_file_name: "ts_daily2011-2025.csv"
-  hourly_ts_file_name: "ts_hour2011-2025.csv"
-  shap_values_file: "shap_values"
-
+  daily_lags: daily
+  daily_ts_file_name: ts_daily2011-2025.csv
+  design_file_suffix: design.pkl
+  dp_file_suffix: dp.pkl
+  hourly_lags: hourly
+  hourly_ts_file_name: ts_hour2011-2025.csv
+  hybrid_file_suffix: hybrid.pkl
+  hyperparams_preffix: hyperparams
+  jfk_parquet_prefix: processed_jfk
+  lags_preffix: sig_lags
+  lags_sig: eda
+  linear_keys_preffix: linear_keys
+  model_file_suffix: model.pkl
+  non_linear_keys_preffix: non_linear_keys
+  original_parquet_prefix: processed
+  shap_values_file: shap_values
+  target_file_suffix: target.pkl
+  ts_daily: daily
+  ts_hourly: hour
+  ts_prefix: ts
+shap:
+  daily_base_non_linear:
+    extracted_fourier_features:
+    - YE
+    - W
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 10
+    - 14
+    - 21
+    - 23
+    - 26
+    - 28
+    - 35
+    - 98
+    - 100
+    - 163
+    - 294
+    - 330
+    - 364
+    - 371
+    extracted_trends: []
+  daily_hybrid_order2:
+    extracted_fourier_features:
+    - YE
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 8
+    - 10
+    - 26
+    - 39
+    - 41
+    - 157
+    - 224
+    - 261
+    - 264
+    - 266
+    - 278
+    - 281
+    - 294
+    - 297
+    - 308
+    - 310
+    - 325
+    - 329
+    - 350
+    - 357
+    - 364
+    - 371
+    extracted_trends:
+    - trend
+  daily_linear_order2:
+    extracted_fourier_features:
+    - W
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 6
+    - 7
+    - 10
+    - 14
+    - 23
+    - 26
+    - 40
+    - 43
+    - 46
+    - 48
+    - 53
+    - 64
+    - 70
+    - 98
+    - 122
+    - 123
+    - 212
+    - 213
+    - 244
+    - 250
+    - 298
+    - 309
+    - 326
+    - 357
+    - 364
+    - 371
+    extracted_trends: []
+  daily_order_list:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  daily_prefix: daily
+  hourly_base_non_linear:
+    extracted_fourier_features:
+    - D
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 16
+    - 23
+    - 24
+    - 25
+    - 48
+    - 72
+    - 73
+    - 96
+    - 120
+    - 144
+    - 168
+    - 169
+    - 193
+    - 194
+    - 216
+    - 240
+    - 264
+    - 336
+    - 337
+    - 8735
+    - 8736
+    extracted_trends: []
+  hourly_hybrid_order2:
+    extracted_fourier_features: []
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 18
+    - 23
+    - 24
+    - 37
+    - 48
+    - 96
+    - 145
+    - 167
+    - 168
+    - 173
+    - 264
+    - 288
+    - 335
+    - 336
+    - 8734
+    - 8735
+    - 8736
+    - 8757
+    - 8758
+    - 8760
+    - 8783
+    - 8784
+    extracted_trends: []
+  hourly_linear_order2:
+    extracted_fourier_features: []
+    extracted_lags:
+    - 1
+    - 2
+    - 3
+    - 6
+    - 7
+    - 8
+    - 23
+    - 24
+    - 25
+    - 48
+    - 49
+    - 72
+    - 73
+    - 96
+    - 120
+    - 121
+    - 144
+    - 145
+    - 167
+    - 168
+    - 170
+    - 192
+    - 240
+    - 264
+    - 288
+    - 312
+    - 336
+    - 8735
+    - 8736
+    - 8759
+    extracted_trends: []
+  hourly_prefix: hourly
+  num_features_to_extract: 30
+xgboost_default:
+  colsample_bytree: 0.8
+  learning_rate: 0.05
+  max_depth: 5
+  n_estimators: 500
+  subsample: 0.8
+xgboost_setup:
+  device: cuda
+  eval_metric: mae
+  random_state: 37
+  tree_method: hist
