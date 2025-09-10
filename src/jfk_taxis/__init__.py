@@ -5,8 +5,8 @@ from .eda_helpers import make_choropleth, make_borough_mask_df, make_borough_mas
 from .training_helpers import save_models, save_design, load_models, load_design, save_lags, load_lags, save_hyperparams, load_hyperparams, save_obj, load_obj, load_ts_data, split_test_train_sets, load_process_lags
 from .hyperparam_helpers import create_val_data, wrapped_objective, split_params, test_hyperparams
 from .modelling_helpers import create_train_save_models
-from .loading_helpers import load_config
-from .shap_helpers import compute_shap_values, shap_plots, extract_top_x_features_dict 
+from .loading_helpers import load_config, save_config
+from .shap_helpers import compute_shap_values, shap_plots, extract_top_x_features_dict, save_extracted_features_to_config 
 
 # What can be imported from src
 __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
@@ -21,7 +21,7 @@ __all__ = ["run_forecasts", "process_taxi_data", "taxi_data_visuals",
             "create_save_listed_adjusted_choropleths", "multiplot_choropleths", 
             "load_ts_data", "split_test_train_sets", "load_process_lags",
             "compute_shap_values", "shap_plots", "extract_top_x_features_dict", "run_forecasts_diff_lags",
-            "add_lags_to_dict"]
+            "add_lags_to_dict", "save_config", "save_extracted_features_to_config"]
 
 
 

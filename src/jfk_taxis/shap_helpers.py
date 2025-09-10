@@ -7,7 +7,7 @@ This module contains helper functions for working with SHAP values for our model
 """
 
 # --- Imports ---
-from .loading_helpers import load_config
+from .loading_helpers import load_config, save_config
 from .training_helpers import load_design, load_models
 import pandas as pd
 import numpy as np  
@@ -18,6 +18,7 @@ import re
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
 
+# --- Functions ---
 def compute_shap_values(design_sig: str, model_sig: str, model_prefix: str, linear: bool, hybrid: bool) -> tuple[shap.Explainer, pd.DataFrame]:
     """Compute SHAP values for a given model.
 
@@ -200,27 +201,29 @@ def extract_top_x_features_dict(shap_values_dict: dict, x: int) -> dict:
 
     return features_dict
 
-def convert_trend_list(trend: list) -> tuple[bool, int]:
-    """Convert a list of trend features to a bool and an int, the bool is whether we need a constant in the deterministic process, the int contains the max order we need.
+def save_extracted_features_to_config(features_dict: dict) -> dict:
+    """Save extracted features to the config.
 
     Args:
-        trend (list): list of trend features
-
-    Returns:
-        tuple[bool, int]: bool indicating if constant is needed, int for max order
+        features_dict (dict): dictionary of extracted features
     """   
 
-    constant = False
-    max_order = 0
+    # TODO save locally to config
 
-    for feature in trend:
-        if feature == "const":
-            constant = True
-        elif "squared" in feature:
-            max_order = 2
-        elif "trend" in feature:
-            max_order = 1
-        else:
-            raise ValueError(f"Unknown trend feature: {feature}")
+    for key, value in features_dict.items():
+        lags, fourier_features, trends = value
 
-    return constant, max_order 
+        # Save to config dict
+        config["shap"][key]["extracted_lags"] = lags
+        config["shap"][key]["extracted_fourier_features"] = fourier_features
+        config["shap"][key]["extracted_trends"] = trends
+
+    # Save changes to the yml file
+    save_config(config)
+
+    # Load this new config
+    config, PROJECT_ROOT = load_config()
+
+    return config 
+
+
