@@ -9,11 +9,7 @@ This module contains helper functions for working with SHAP values for our model
 # --- Imports ---
 from .loading_helpers import load_config
 from .training_helpers import load_design, load_models
-from sklearn.linear_model import LinearRegression
 import pandas as pd
-from statsmodels.tsa.deterministic import DeterministicProcess
-from xgboost import XGBRegressor
-import cupy as cp
 import numpy as np  
 import shap
 import matplotlib.pyplot as plt
