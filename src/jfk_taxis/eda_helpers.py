@@ -377,6 +377,76 @@ def multiplot_choropleths(geo_data: gpd.GeoDataFrame, scale: list[int], years: l
 
     plt.show()
 
+def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, year: int, month: int, pickup_or_drop_off: str, drop_boroughs: list[str], drop_ids: list[int]) -> folium.Map:
+    """ Create choropleth maps for the app using the same approach as create_save_listed_adjusted_choropleths, now year and month will be singular values. 
+
+    Args:
+        geo_data (gpd.GeoDataFrame): geopandas dataframe containing the taxi zones shape data
+        zone_lookup (pd.DataFrame): dataframe containing the taxi zone lookup file (how to match location id to zone name and borough)
+        extra (str): extra string to add to the legend name (e.g. no Manhattan)
+        scale (list): scale to use for the choropleth, if None folium will create its own scale
+        year (int): year to create maps for
+        month (int): month to create maps for
+        pickup_or_drop_off (str): either "PU" for pick up or "DO" for drop off to indicate which map to create
+        drop_boroughs (list[str]): list of boroughs to drop from the data
+        drop_ids (list[int]): list of location ids to drop from the data
+       
+
+    Returns:
+        folium.Map: the choropleth map to be displayed in the app
+    """    
+
+    geo_data = geo_data.copy() # To avoid modifying the original data
+
+    # Drop any rows over the scale 
+    mask = geo_data["trips"] <= scale[-1]
+    geo_data = geo_data[mask]
+
+    # First drop the boroughs from the geo_data 
+    for borough in drop_boroughs:
+        geo_data = make_borough_mask_geo_data(geo_data, borough)
+
+    # Then drop the location ids from the geo_data
+    geo_data = drop_id_geo_data(geo_data, drop_ids)
+
+    # Load data frame for this year and month
+    df = pd.read_parquet(DATA_DIR_RAW / f"yellow_tripdata_{year}-{month:02}.parquet")
+
+    # Drop boroughs from the df
+    for borough in drop_boroughs: 
+        df = make_borough_mask_df(zone_lookup, df, borough, pickup_or_drop_off)
+    
+    # Drop the ids from drop_zones in the df
+    df = drop_id_df(df, drop_ids, pickup_or_drop_off)
+
+    # Create Choropleth
+    if pickup_or_drop_off == "PU":
+        M = make_choropleth(df, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+    elif pickup_or_drop_off == "DO":
+        M = make_choropleth(df, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+    else:
+        raise ValueError("pickup_or_drop_off must be either 'PU' or 'DO'")
+
+    return M
+
+def load_geo_data_and_zone_lookup() -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
+    """ Loads the geo data and zone lookup data from the data directory
+
+    Returns:
+        tuple[gpd.GeoDataFrame, pd.DataFrame]: tuple containing the geo data and zone lookup data
+    """    
+
+    # Load the taxi zones shapefile using geopandas
+    geo_data = gpd.read_file(DATA_DIR_RAW / "taxi_zones.shp")
+
+    # Reproject to EPSG 4326 for folium
+    geo_data = geo_data.to_crs(epsg = 4326)
+
+    # Load the taxi zone lookup file using pandas
+    zone_lookup = pd.read_csv(DATA_DIR_RAW / "taxi_zone_lookup.csv")
+
+    return geo_data, zone_lookup
+
 
 def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
     """Creates a rolling average of the daily counts.
@@ -404,6 +474,7 @@ def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
     plt.xticks(rotation = 45, ha = "right") 
 
     plt.show()
+
 
 
 
