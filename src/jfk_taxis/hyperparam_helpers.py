@@ -285,10 +285,10 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
         for key2, value2 in value.items():
             if key == config["hyperparameter_tuning"]["daily_linear_key"]:
                 # Load the previous non linear model
-                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear_reduced"])
+                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["daily_non_linear_reduced"])
 
                 # Load the previous non linear design matrix
-                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_linear_reduced"])
+                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["daily_non_linear_reduced"])
 
                 # Get design, target and dp
                 X = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][0]
@@ -388,10 +388,10 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
 
             elif key == config["hyperparameter_tuning"]["hourly_linear_key"]:
                 # Load the previous non linear model
-                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear_reduced"])
+                linear_models_loaded, non_linear_models_loaded = load_models(config["model_sigs"]["hourly_non_linear_reduced"])
 
                 # Load the previous non linear design matrix
-                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_linear_reduced"])
+                linear_design_loaded, non_linear_design_loaded = load_design(config["model_sigs"]["hourly_non_linear_reduced"])
 
                 # Get design, target and dp
                 X = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][0]
@@ -481,6 +481,10 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
                     plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"]
+
+                # Add lags to both dicts
+                plotting_hybrid_models_loaded = add_lags_to_dict(plotting_hybrid_models_loaded, config["shap"]["hourly_hybrid_order2"]["extracted_lags"])
+                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["hourly_base_non_linear"]["extracted_lags"])
 
 
 

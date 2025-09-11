@@ -19,8 +19,8 @@ hyperparameter_tuning:
   hourly_steps:
   - 168
   hourly_test_size: 168
-  max_evals: 3
-  n_splits: 4
+  max_evals: 100
+  n_splits: 5
 model_naming:
   default_non_linear: base_non_linear
   hybrid_model_prefix: hybrid_order
