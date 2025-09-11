@@ -23,7 +23,7 @@ DATA_DIR_MAPS = PROJECT_ROOT / config["data"]["reports_path"] / config["data"]["
 DATA_DIR_RAW = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
 
 # --- Functions ---
-def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list) -> folium.Map:
+def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, drop_rows: bool) -> folium.Map:
     """ Creates a choropleth map of the taxi zones with the number of trips in each zone
 
     Args:
@@ -33,6 +33,7 @@ def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame
         zone_lookup (pd.DataFrame): dataframe containing the taxi zone lookup file (how to match location id to zone name an borough)
         extra (str): extra string to add to the legend name
         scale (list): scale to use for the choropleth, if None folium will create its own scale
+        drop_rows (bool): whether to drop rows in geo_data with trips over the scale max
 
     Returns:
         folium.Map: folium map object
@@ -43,6 +44,11 @@ def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame
     trips_count.columns = ["LocationID", "trips"]
     trips_count = trips_count.sort_values("trips", ascending=False)
     #display(trips_count.head())
+
+    if drop_rows:
+        smax = scale[-1]
+        # Exclude rows over the scale max
+        trips_count = trips_count[trips_count["trips"] <= smax]
     
     # Merge this into the orignal GeoPandasDataFrame so that we can use the trips count in the tooltip
     zones =  geo_data.merge(
@@ -52,8 +58,13 @@ def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame
         how = "left"
     )
 
-    # Fill missing trip counts with 0 
-    zones["trips"] = zones["trips"].fillna(0)
+    # Either fill missing trips with 0 or drop rows with missing trips
+    if drop_rows:
+        # Drop missing trip counts   
+        zones["trips"] = zones["trips"].dropna()
+    else:
+        # Fill missing trips with 0 
+        zones["trips"] = zones["trips"].fillna(0)
 
     # We would also like to see the taxi service zone on the tooltip: Yellow, Green etc
     # To do this we will merge the taxi_zone_lookup onto zones as well
@@ -210,7 +221,7 @@ def drop_id_df(df: pd.DataFrame, drop: list, trip_type: str) -> pd.DataFrame:
 
     return df
 
-def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, years: list[int], months: list[int], drop_boroughs: list[str], drop_ids: list[int], save_file_suffix: str) -> None:
+def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, years: list[int], months: list[int], drop_boroughs: list[str], drop_ids: list[int], save_file_suffix: str, drop_over_scale: bool) -> None:
     """ Create choropleth maps for each year and month in years and months, these we will be adjusted maps according to drop_boroughs and drop_ids.
     The maps will be saved as html files in the maps directory.
 
@@ -224,6 +235,7 @@ def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_loo
         drop_boroughs (list[str]): list of boroughs to drop from the data
         drop_ids (list[int]): list of location ids to drop from the data
         save_file_suffix (str): suffix to add to the saved file names
+        drop_over_scale (bool): whether to drop rows in geo_data with trips over the scale max
     """    
 
     geo_data = geo_data.copy() # To avoid modifying the original data
@@ -258,14 +270,14 @@ def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_loo
             df_do = drop_id_df(df_do, drop_ids, "DO")
 
             # Create pick up Choropleth
-            m_3 = make_choropleth(df_pu, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+            m_3 = make_choropleth(df_pu, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale, drop_over_scale)
 
             # Export to HTML file
             m_3.save(DATA_DIR_MAPS / f"PULocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
 
 
             # Create drop off Choropleth
-            m_4 = make_choropleth(df_do, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+            m_4 = make_choropleth(df_do, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale, drop_over_scale)
 
             # Export to HTML file
             m_4.save(DATA_DIR_MAPS / f"DOLocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
@@ -401,6 +413,7 @@ def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame
     # Drop any rows over the scale 
     mask = geo_data["trips"] <= scale[-1]
     geo_data = geo_data[mask]
+
 
     # First drop the boroughs from the geo_data 
     for borough in drop_boroughs:
