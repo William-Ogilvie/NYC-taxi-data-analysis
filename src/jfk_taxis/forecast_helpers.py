@@ -216,10 +216,6 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     det_cols = X_future_det.columns.tolist()
     det_vals = X_future_det.to_numpy(copy = False) # shape : (steps, n_det)
 
-    # # Convert det vals to CuPy if using gpu
-    # if gpu:
-    #     det_vals = cp.asarray(det_vals)
-
     # Create lag column names
     lag_cols = [f'y_lag_{j}' for j in lags]
     feature_cols = det_cols + lag_cols
@@ -245,10 +241,6 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     # Create array to hold one row of features
     xrow = np.empty(n_det + len(lags), dtype = np.float64)
 
-    # # Convert xrow to CuPy if using gpu
-    # if gpu:
-    #    xrow = cp.asarray(xrow) 
-
     for i in range(steps):
         # Deterministic part
         xrow[:n_det] = det_vals[i, :]
@@ -259,22 +251,27 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
                 print(f"lag_buf length: {len(lag_buf)}, lag: {lag}, lags: {lags}")
                 raise IndexError("lag_buf too short for requested lag")
             xrow[n_det + j] = lag_buf[-lag]
- 
-        # Predict
-        y_pred = model.predict(xrow.reshape(1, -1))[0]
 
+        # Predict
+        if gpu:
+            xrow = cp.asarray(xrow)
+            y_pred = model.predict(xrow.reshape(1, -1))[0]
+            xrow = cp.asnumpy(xrow) # move back to numpy
+        else:
+            y_pred = model.predict(xrow.reshape(1, -1))[0]
+             
         # Add hybrid prediction if applicable
         if hybrid is not None:
-            y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
 
-            # # Check whether xrow is currently on the GPU if it isn't move it to GPU and then move back after predictions
-            # if not (type(xrow)  == cp.ndarray):
-            #     xrow = cp.asarray(xrow) 
-            #     y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
-            #     y_pred = cp.asnumpy(y_pred) # move back to numpy
-            #     xrow = cp.asnumpy(xrow) # move back to numpy
-            # else:
-            #     y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+            # Check whether we are using GPU for hybrid model
+            if config["xgboost_setup"]["device"] == "cuda":
+                xrow = cp.asarray(xrow) 
+                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+                y_pred = cp.asnumpy(y_pred) # move back to numpy
+                xrow = cp.asnumpy(xrow) # move back to numpy
+            else:
+                y_pred += hybrid.predict(xrow.reshape(1, -1))[0]
+
 
         # Store prediction
         preds[i] = y_pred
@@ -397,9 +394,15 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
                 dp = value[1]
                 hybrid = value[2]
 
-                # Get forecast (use gpu hence gpu = True)
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, True)
-              
+                # Check whether using gpu
+                if config["xgboost_setup"]["device"] == "cuda":
+                    gpu = True
+                else:
+                    gpu = False
+
+                # Get forecast
+                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, gpu)
+
                 # Compute MAE non linear
                 mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                 mae_scores[name] = mae_non_linear
@@ -520,9 +523,15 @@ def forecast_dicts_diff_lags(steps: list[int], y_test: pd.Series, y_hist: pd.Ser
                 hybrid = value[2]
                 lags = value[3]
 
+                # Check whether using gpu
+                if config["xgboost_setup"]["device"] == "cuda":
+                    gpu = True
+                else:
+                    gpu = False
+
                 # Get forecast (use gpu hence gpu = True)
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, True)
-              
+                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, gpu)
+
                 # Compute MAE non linear
                 mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                 mae_scores[name] = mae_non_linear
