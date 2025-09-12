@@ -410,9 +410,6 @@ def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame
 
     geo_data = geo_data.copy() # To avoid modifying the original data
 
-    # Drop any rows over the scale 
-    mask = geo_data["trips"] <= scale[-1]
-    geo_data = geo_data[mask]
 
 
     # First drop the boroughs from the geo_data 
@@ -434,9 +431,9 @@ def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame
 
     # Create Choropleth
     if pickup_or_drop_off == "PU":
-        M = make_choropleth(df, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+        M = make_choropleth(df, "PULocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale, True)
     elif pickup_or_drop_off == "DO":
-        M = make_choropleth(df, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale)
+        M = make_choropleth(df, "DOLocationID", geo_data, zone_lookup, f" {extra} {month} {year}", scale, True)
     else:
         raise ValueError("pickup_or_drop_off must be either 'PU' or 'DO'")
 
