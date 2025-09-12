@@ -294,6 +294,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 X = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][0]
                 y = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][1]
                 dp = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][2]
+                lags = non_linear_design_loaded[REDUCED_DAILY_DEFAULT_NON_LINEAR][3]
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor 
                 new_non_linear = xgb.XGBRegressor(
@@ -308,7 +309,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 new_non_linear.fit(X_cp,y_cp)
 
                 # Add this non linear model to the dict of non linear models
-                non_linear_models_loaded[key2] = (new_non_linear, dp, None)
+                non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)
 
 
                 # Because we have two sets of lags we need to use run_forecasts_diff_lags, which means we have to add the lags to the loaded dicts
@@ -346,6 +347,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     X = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0])
                     y = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][1])
                     dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][2])
+                    lags = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][3])
 
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
@@ -367,7 +369,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                         tmp_hybrid.fit(X, y_resid)
                     
                     # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
-                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid, lags)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"]
 
                 # Steps for the forecast
@@ -387,6 +389,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 X = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][0]
                 y = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][1]
                 dp = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][2]
+                lags = non_linear_design_loaded[REDUCED_HOURLY_DEFAULT_NON_LINEAR][3]
 
                 # Define the model, **value2 will pass the dict of hyperparamters to the XGBRegressor
                 new_non_linear = xgb.XGBRegressor(
@@ -401,7 +404,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 new_non_linear.fit(X_cp,y_cp)
 
                 # Add this non linear model to the dict of non linear models
-                non_linear_models_loaded[key2] = (new_non_linear, dp, None)
+                non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)
 
 
 
@@ -442,6 +445,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     X = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0])
                     y = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][1])
                     dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][2])
+                    lags = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][3])
 
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
@@ -463,7 +467,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                         tmp_hybrid.fit(X, y_resid)
                     
                     # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
-                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
+                    plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid, lags)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"]
 
 

@@ -119,9 +119,9 @@ saving:
   hourly_lags: hourly
   hourly_ts_file_name: ts_hour2011-2025.csv
   hybrid_file_suffix: hybrid.pkl
-  lags_file_suffix: lags.pkl
   hyperparams_preffix: hyperparams
   jfk_parquet_prefix: processed_jfk
+  lags_file_suffix: lags.pkl
   lags_preffix: sig_lags
   lags_sig: eda
   linear_keys_preffix: linear_keys
@@ -134,8 +134,6 @@ saving:
   ts_hourly: hour
   ts_prefix: ts
 shap:
-  daily_hybrid_order: 3
-  hourly_hybrid_order: 0
   daily_base_non_linear:
     extracted_fourier_features:
     - YE
@@ -164,6 +162,7 @@ shap:
     - 364
     - 371
     extracted_trends: []
+  daily_hybrid_order: 3
   daily_hybrid_order2:
     extracted_fourier_features:
     - YE
@@ -276,6 +275,7 @@ shap:
     - 8735
     - 8736
     extracted_trends: []
+  hourly_hybrid_order: 0
   hourly_hybrid_order2:
     extracted_fourier_features: []
     extracted_lags:
