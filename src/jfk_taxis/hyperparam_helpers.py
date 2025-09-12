@@ -9,7 +9,7 @@ Along with a wrapper function to allow passing additional parameters to the obje
 # --- Imports ---
 from hyperopt import STATUS_OK
 import xgboost as xgb
-from .forecast_helpers import forecast, run_forecasts, preprocess, add_lags_to_dict, run_forecasts_diff_lags
+from .forecast_helpers import forecast, run_forecasts, preprocess
 from .loading_helpers import load_config
 from .training_helpers import load_models, load_design, load_process_lags
 from sklearn.metrics import mean_absolute_error
@@ -315,13 +315,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
 
                 # Now we want to load the full linear models (not the reduced ones)
                 full_linear_models_loaded, full_non_linear_models_loaded = load_models(config["model_sigs"]["daily_linear"])    
-
-                # Add lags to full linear models 
-                full_linear_models_loaded = add_lags_to_dict(full_linear_models_loaded, old_daily_lags)
-
-                # Add lags to reduced non linear models
-                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["daily_base_non_linear"]["extracted_lags"])
-               
+ 
                 # We will only include linear_order_0 in this plot
                 linear_order_0 = full_linear_models_loaded[f"{LINEAR_MODEL_PREFIX}0"]
                 full_linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}0": linear_order_0}
@@ -330,7 +324,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts_diff_lags(steps, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts(steps, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["daily_hybrid_key"]:
                 # Load the previous non linear model
@@ -376,15 +370,11 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"]
 
-                # Add lags to both dicts
-                plotting_hybrid_models_loaded = add_lags_to_dict(plotting_hybrid_models_loaded, config["shap"]["daily_hybrid_order2"]["extracted_lags"])
-                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["daily_base_non_linear"]["extracted_lags"])
-
                 # Steps for the forecast
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts_diff_lags(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_linear_key"]:
                 # Load the previous non linear model
@@ -421,12 +411,6 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 # Now we want to load the full linear models (not the reduced ones)
                 full_linear_models_loaded, full_non_linear_models_loaded = load_models(config["model_sigs"]["hourly_linear"])    
 
-                # Add lags to full linear models 
-                full_linear_models_loaded = add_lags_to_dict(full_linear_models_loaded, old_hourly_lags)
-
-                # Add lags to reduced non linear models
-                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["hourly_base_non_linear"]["extracted_lags"])
-
                 # We will only include linear_order_0 in this plot
                 linear_order_0 = full_linear_models_loaded[f"{LINEAR_MODEL_PREFIX}0"]
                 full_linear_models_loaded = {f"{LINEAR_MODEL_PREFIX}0": linear_order_0}
@@ -435,7 +419,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts_diff_lags(steps, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts(steps, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_hybrid_key"]:
                 # Load the previous non linear model
@@ -482,17 +466,13 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                     plotting_hybrid_models_loaded[f"{key2}_{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"]
 
-                # Add lags to both dicts
-                plotting_hybrid_models_loaded = add_lags_to_dict(plotting_hybrid_models_loaded, config["shap"]["hourly_hybrid_order2"]["extracted_lags"])
-                non_linear_models_loaded = add_lags_to_dict(non_linear_models_loaded, config["shap"]["hourly_base_non_linear"]["extracted_lags"])
-
 
 
                 # Steps for the forecast
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts_diff_lags(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
 
             else:
                 raise ValueError("Key must be one of 'daily', 'daily_hybrid', 'hourly', 'hourly_hybrid'")

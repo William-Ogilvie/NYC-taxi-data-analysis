@@ -31,6 +31,7 @@ DATA_DIR_PROCESSED = PROJECT_ROOT / Path(config["data"]["data_path"]) / Path(con
 MODEL = config["saving"]["model_file_suffix"]
 HYBRID = config["saving"]["hybrid_file_suffix"]
 DP = config["saving"]["dp_file_suffix"]
+LAGS =  config["saving"]["lags_file_suffix"]
 DESIGN = config["saving"]["design_file_suffix"]
 TARGET = config["saving"]["target_file_suffix"]
 LINEAR_KEYS = config["saving"]["linear_keys_preffix"]
@@ -110,7 +111,7 @@ def save_models(linear_models: dict, non_linear_models: dict, sig: str) -> None:
     """ Saves the trained models as pkl files in the saved objects path
 
     Args:
-        linear_models (dict): dictionary containing linear model, deterministic process and hybrid model (or None if purely linear)
+        linear_models (dict): dictionary containing linear model, deterministic process, hybrid model (or None if purely linear) and lags
         non_linear_models (dict): dictionary containing non linear model, deterministic process and hybrid model (or None if purely non linear)
         sig (str): unique signature to the file names
     """    
@@ -123,13 +124,14 @@ def save_models(linear_models: dict, non_linear_models: dict, sig: str) -> None:
         joblib.dump(value[0], SAVED_OBJECTS_PATH / f"{key}_{sig}_{MODEL}")  
         joblib.dump(value[1], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
         joblib.dump(value[2], SAVED_OBJECTS_PATH / f"{key}_{sig}_{HYBRID}")
+        joblib.dump(value[3], SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")  
 
 
     for key, value in non_linear_models.items():
         joblib.dump(value[0], SAVED_OBJECTS_PATH / f"{key}_{sig}_{MODEL}")
         joblib.dump(value[1], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
         joblib.dump(value[2], SAVED_OBJECTS_PATH / f"{key}_{sig}_{HYBRID}")
-
+        joblib.dump(value[3], SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
 
     # Save the keys so we can reload easily
     joblib.dump(list(linear_models.keys()), SAVED_OBJECTS_PATH / f"{LINEAR_KEYS}_{sig}_{MODEL}") 
@@ -148,11 +150,13 @@ def save_design(linear_design: dict, non_linear_design: dict, sig: str) -> None:
         joblib.dump(value[0], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DESIGN}")
         joblib.dump(value[1], SAVED_OBJECTS_PATH / f"{key}_{sig}_{TARGET}")
         joblib.dump(value[2], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
+        joblib.dump(value[3], SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
 
     for key, value in non_linear_design.items():
         joblib.dump(value[0], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DESIGN}")
         joblib.dump(value[1], SAVED_OBJECTS_PATH / f"{key}_{sig}_{TARGET}")
         joblib.dump(value[2], SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
+        joblib.dump(value[3], SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
 
     # Save the keys so we can reload easily
     joblib.dump(list(linear_design.keys()), SAVED_OBJECTS_PATH / f"{LINEAR_KEYS}_{sig}_{DESIGN}") # same keys for linear design
@@ -182,13 +186,15 @@ def load_models(sig: str) -> tuple[dict, dict]:
         model = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{MODEL}")
         dp = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
         hybrid = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{HYBRID}")
-        linear_models_loaded[key] = (model, dp, hybrid)
+        lags = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
+        linear_models_loaded[key] = (model, dp, hybrid, lags)
 
     for key in non_linear_keys:
         model = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{MODEL}")
         dp = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
         hybrid = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{HYBRID}")
-        non_linear_models_loaded[key] = (model, dp, hybrid)
+        lags = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
+        non_linear_models_loaded[key] = (model, dp, hybrid, lags)
 
 
     return linear_models_loaded, non_linear_models_loaded 
@@ -216,13 +222,15 @@ def load_design(sig: str) -> tuple[dict, dict]:
         X = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DESIGN}")
         y = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{TARGET}")
         dp = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
-        linear_design_loaded[key] = (X, y, dp)
+        lags = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
+        linear_design_loaded[key] = (X, y, dp, lags)
 
     for key in non_linear_keys:
         X = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DESIGN}")
         y = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{TARGET}")
         dp = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{DP}")
-        non_linear_design_loaded[key] = (X, y, dp)
+        lags = joblib.load(SAVED_OBJECTS_PATH / f"{key}_{sig}_{LAGS}")
+        non_linear_design_loaded[key] = (X, y, dp, lags)
 
     return linear_design_loaded, non_linear_design_loaded
 

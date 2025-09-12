@@ -92,7 +92,7 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
     # X = df.iloc[:, :-1] # features all but last col
 
 
-    return (X, y, dp)
+    return (X, y, dp, lags)
         
 
 # Fit models
@@ -334,7 +334,7 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     return preds
 """
 
-def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool, lags: list[int]) -> None:
+def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool) -> None:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
     creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
 
@@ -345,7 +345,6 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
         linear_models (dict): dictionary of linear models.
         non_linear_models (dict): dictionary of non-linear models.
         naive (bool): whether to include naive forecast.
-        lags (list[int]): list of lag values.
     """
 
     # Compute naive predictions
@@ -372,6 +371,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
                 model = value[0]
                 dp = value[1]
                 hybrid = value[2]
+                lags = value[3]
                 
                 # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
                 y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid, False)
@@ -393,6 +393,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
                 model = value[0]
                 dp = value[1]
                 hybrid = value[2]
+                lags = value[3]
 
                 # Check whether using gpu
                 if config["xgboost_setup"]["device"] == "cuda":
@@ -442,12 +443,11 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
         plt.show()
     
 
-def run_forecasts(steps: list[int], lags: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+def run_forecasts(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
 
     Args:
         steps (list[int]): list of steps to forecast
-        lags (list[int]): list of lags to use
         linear_models (dict): dict of linear models
         non_linear_models (dict): dict of non linear models
         naive (bool): bool of whether to include naive baseline
@@ -461,149 +461,5 @@ def run_forecasts(steps: list[int], lags: list[int], linear_models: dict, non_li
     y_hist = copy.deepcopy(old_ts)
     y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
-    forecast_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive, lags)
-
-def forecast_dicts_diff_lags(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool) -> None:
-    """ Modifided version of forecast_dicts that doesn't require lags as an input. 
-
-    Args:
-        steps (list[int]): list of steps to forecast.
-        y_test (pd.Series): series of true future values.
-        y_hist (pd.Series): series of historical values.
-        linear_models (dict): dictionary of linear models.
-        non_linear_models (dict): dictionary of non-linear models.
-        naive (bool): whether to include naive forecast. 
-    """
-
-    # Compute naive predictions
-    # Today = yesterday
-    y_pred_naive = y_test.shift(1)
-    y_pred_naive.iloc[0] = y_hist.iloc[-1]
-    
-   
-    for step in steps:
-
-        # Store MAE scores for barplot
-        mae_scores = {}
-        
-        # Get real values
-        y_real = y_test.iloc[0:step]
-        
-        # Plot
-        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}")
-        
-        # Check if there are any linear models to forecast
-        if len(linear_models) != 0:
-            # Forecast the linear models:
-            for name, value in linear_models.items():
-                model = value[0]
-                dp = value[1]
-                hybrid = value[2]
-                lags = value[3]
-                
-                # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
-                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid, False)
-
-                
-                # Compute MAE linear
-                mae_linear = mean_absolute_error(y_fore_linear, y_real)
-                mae_scores[name] = mae_linear
-                print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
-
-                # Add to plot
-                ax = y_fore_linear.plot(ax = ax, label = name)
-        
-
-        # check if there are any non linear models to forecast
-        if len(non_linear_models) != 0:
-            # Forecast the non linear models::
-            for name, value in non_linear_models.items():
-                model = value[0]
-                dp = value[1]
-                hybrid = value[2]
-                lags = value[3]
-
-                # Check whether using gpu
-                if config["xgboost_setup"]["device"] == "cuda":
-                    gpu = True
-                else:
-                    gpu = False
-
-                # Get forecast (use gpu hence gpu = True)
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, gpu)
-
-                # Compute MAE non linear
-                mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
-                mae_scores[name] = mae_non_linear
-                print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
-
-                # Add to plot
-                ax = y_fore_non_linear.plot(ax = ax, label = name)
-       
-
-        
-        if naive == True:
-            # Compute naive MAE
-            y_step_pred_naive = y_pred_naive.loc[y_real.index]
-         
-            mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
-            mae_scores["Naive"] = mae_naive
-            print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
-
-            # Plot forecasts
-            ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
-            
-           
-            
-
-        # Add legend
-        ax.legend()
-        plt.xticks(rotation = 90, ha = "right")
-        plt.show()
-        # Plot MAE bar plots:
-        df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
-
-        plt.figure(figsize=(8,5))
-        sns.barplot(data=df_mae, x="Model", y="MAE")
-
-        plt.title(f"Model Comparison by MAE, steps = {step}")
-        plt.xticks(rotation=45, ha="right")
-        plt.show()
-
-def run_forecasts_diff_lags(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
-    """ Modified version of run_forecasts that doesn't require lags as an input. 
-
-    Args:
-        steps (list[int]): list of steps to forecast 
-        linear_models (dict): dict of linear models
-        non_linear_models (dict): dict of non linear models
-        naive (bool): bool of whether to include naive baseline
-        time_step (str): time step for the time series (e.g. "h", "D")
-        old_ts (pd.Series): historical time series
-        new_ts (pd.Series): future time series to compare forecasts against
-    """    
-
-
-    y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
-    y_hist = copy.deepcopy(old_ts)
-    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
-    
-    forecast_dicts_diff_lags(steps, y_test, y_hist, linear_models, non_linear_models, naive)
-
-def add_lags_to_dict(models: dict, lags: list[int]) -> dict:
-    """ Adds the lags to the model dictionary for use in forecast_dicts_diff_lags
-
-    Args:
-        models (dict): dictionary of models
-        lags (list[int]): list of lags
-
-    Returns:
-        dict: updated dictionary of models with lags added
-    """
-
-    for name, value in models.items():
-        new_value = (value[0], value[1], value[2], lags)
-        models[name] = new_value
-
-    return models
+    forecast_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive)
 

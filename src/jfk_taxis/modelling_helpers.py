@@ -30,13 +30,13 @@ def create_design_non_linear(lags: list[int], fourier_features: list[str], time_
     """
     
     # Create non linear design and traget matricies
-    (X_non_linear, y_non_linear, dp_non_linear) = preprocess(lags, False, 0, fourier_features, time_step, ts)
+    (X_non_linear, y_non_linear, dp_non_linear, lags) = preprocess(lags, False, 0, fourier_features, time_step, ts)
 
     # For the preprocess function the parameters are: lags, constant, order, fourier features, time_step (for the target series), time series
 
     # Store non linear design matricies
     non_linear_design = {
-        name: (X_non_linear, y_non_linear, dp_non_linear)
+        name: (X_non_linear, y_non_linear, dp_non_linear, lags)
     }
 
     return non_linear_design
@@ -57,11 +57,11 @@ def create_design_linear(lags: list[int], order: int, fourier_features: list[str
     """
 
     # Create X,y, dp_linear
-    (X,y, dp_linear) = preprocess(lags, True, order, fourier_features, time_step, ts)
+    (X,y, dp_linear, lags) = preprocess(lags, True, order, fourier_features, time_step, ts)
     
     # Save as dict 
     linear_design = {
-        name: (X, y, dp_linear)
+        name: (X, y, dp_linear, lags)
     }
 
     return linear_design 
@@ -81,7 +81,7 @@ def train_non_linear_models(non_linear_design: dict) -> dict:
 
     # Loop through design dict and fit non_linear_models
     for key, value in non_linear_design.items():
-        non_linear_models[key] = (fit_non_linear(value[0], value[1]), value[2], None)
+        non_linear_models[key] = (fit_non_linear(value[0], value[1]), value[2], None, value[3])
 
     return non_linear_models 
 
@@ -100,7 +100,7 @@ def train_linear_models(linear_design: dict) -> dict:
 
     # Loop through design dict and fit linear_models
     for key, value in linear_design.items():
-        linear_models[key] = (fit_linear(value[0], value[1]), value[2], None)
+        linear_models[key] = (fit_linear(value[0], value[1]), value[2], None, value[3])
 
     return linear_models
 
@@ -125,6 +125,7 @@ def train_hybrid_models(linear_design: dict, hybrid_model: XGBRegressor) -> dict
         X = value[0]
         y = value[1]
         dp = value[2]
+        lags = value[3]
 
         # First fit the linear model
         linear_model = fit_linear(X, y)
@@ -143,7 +144,7 @@ def train_hybrid_models(linear_design: dict, hybrid_model: XGBRegressor) -> dict
 
         # Update hybrid models dict, note how we pass the model in two components the linear part and the hybrid part
         # See src/jfk_taxis/forecast_helpers.py to see why
-        hybrid_models[key] = (linear_model, dp, hybrid_model_copy)
+        hybrid_models[key] = (linear_model, dp, hybrid_model_copy, lags)
 
     return hybrid_models
 

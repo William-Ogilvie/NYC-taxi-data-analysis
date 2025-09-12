@@ -119,6 +119,7 @@ saving:
   hourly_lags: hourly
   hourly_ts_file_name: ts_hour2011-2025.csv
   hybrid_file_suffix: hybrid.pkl
+  lags_file_suffix: lags.pkl
   hyperparams_preffix: hyperparams
   jfk_parquet_prefix: processed_jfk
   lags_preffix: sig_lags

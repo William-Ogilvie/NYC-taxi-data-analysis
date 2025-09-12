@@ -1,3 +1,10 @@
+"""
+home.py
+===========
+
+The home page of the JFK Taxis Streamlit app.
+"""
+
 import streamlit as st
 
 st.set_page_config(page_title="JFK Taxis", layout="wide")
