@@ -1,4 +1,10 @@
-# app/streamlit_app.py
+"""
+eda.py
+===========
+
+The EDA page of the JFK Taxis Streamlit app. Creates an interactive choropleth map.
+"""
+
 import streamlit as st
 from streamlit_folium import folium_static
 from jfk_taxis import load_geo_data_and_zone_lookup, create_app_choropleths, load_config
