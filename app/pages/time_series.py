@@ -494,11 +494,13 @@ st.session_state.setdefault("custom_lags_daily_widget", [])
 
 
 # Outside form for dynamic UI
-st.radio("Time series type", options = ["Daily", "Hourly"], index = 0, key = "ts_type_widget")
-st.radio("Fourier features", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "fourier_input_widget")
-st.radio("Lags", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "lags_input_widget")
-
-
+col_ts_type, col_fourier, col_lags = st.columns([1,1,1])
+with col_ts_type:
+    st.radio("Time series type", options = ["Daily", "Hourly"], index = 0, key = "ts_type_widget")
+with col_fourier:
+    st.radio("Fourier features", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "fourier_input_widget")
+with col_lags:
+    st.radio("Lags", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "lags_input_widget")
 
 with st.form("model_form"):
     st.subheader("Add a daily time series model")
@@ -525,49 +527,58 @@ if submitted:
     add_model()
 
 # --- Display models ---
-st.write("Daily linear/hybrid models:")
-st.write(st.session_state.daily_linear_models)
-st.write("Daily non-linear models:")
-st.write(st.session_state.daily_non_linear_models)
-st.write("Hourly linear/hybrid models:")
-st.write(st.session_state.hourly_linear_models)
-st.write("Hourly non-linear models:")
-st.write(st.session_state.hourly_non_linear_models)
+
+col_daily_models, col_hourly_models = st.columns([1,1])
+with col_daily_models:
+    st.write("Daily linear/hybrid models:")
+    st.write(st.session_state.daily_linear_models)
+    st.write("Daily non-linear models:")
+    st.write(st.session_state.daily_non_linear_models)
+with col_hourly_models:
+    st.write("Hourly linear/hybrid models:")
+    st.write(st.session_state.hourly_linear_models)
+    st.write("Hourly non-linear models:")
+    st.write(st.session_state.hourly_non_linear_models)
 
 # --- Train models ---
-st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models)
-st.button("Train daily non-linear models", on_click = train_daily_non_linear_models)
-st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models)
-st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models)
+col_daily_train, col_hourly_train = st.columns([1,1])
+with col_daily_train:
+    st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models)
+    st.button("Train daily non-linear models", on_click = train_daily_non_linear_models)
+with col_hourly_train:
+    st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models)
+    st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models)
 
 
 # --- Plot models ---
-st.multiselect("Select daily linear/hybrid models to plot", options = st.session_state.daily_trained_linear_models, key = "daily_linear_models_to_plot_widget")
-st.multiselect("Select daily non-linear models to plot", options = st.session_state.daily_trained_non_linear_models, key = "daily_non_linear_models_to_plot_widget")
-st.number_input("Number of steps to forecast", min_value = 1, max_value = 365, value = 30, step = 1, key = "daily_steps_widget")
-st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget")
+col_daily_plotting, col_hourly_plotting = st.columns([1,1])
+with col_daily_plotting:
+    st.multiselect("Select daily linear/hybrid models to plot", options = st.session_state.daily_trained_linear_models, key = "daily_linear_models_to_plot_widget")
+    st.multiselect("Select daily non-linear models to plot", options = st.session_state.daily_trained_non_linear_models, key = "daily_non_linear_models_to_plot_widget")
+    st.number_input("Number of steps (days) to forecast", min_value = 1, max_value = 365, value = 30, step = 1, key = "daily_steps_widget")
+    st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget")
 
-st.button("Plot selected daily models", on_click=plot_selected_daily_models)
+    st.button("Plot selected daily models", on_click=plot_selected_daily_models)
+with col_hourly_plotting:
+    st.multiselect("Select hourly linear/hybrid models to plot", options = st.session_state.hourly_trained_linear_models, key = "hourly_linear_models_to_plot_widget")
+    st.multiselect("Select hourly non-linear models to plot", options = st.session_state.hourly_trained_non_linear_models, key = "hourly_non_linear_models_to_plot_widget")
+    st.number_input("Number of steps (hours) to forecast", min_value = 1, max_value = 8760, value = 168, step = 1, key = "hourly_steps_widget")
+    st.radio("Naive", options = [True, False], index = 0, key = "hourly_naive_widget")
 
-st.multiselect("Select hourly linear/hybrid models to plot", options = st.session_state.hourly_trained_linear_models, key = "hourly_linear_models_to_plot_widget")
-st.multiselect("Select hourly non-linear models to plot", options = st.session_state.hourly_trained_non_linear_models, key = "hourly_non_linear_models_to_plot_widget")
-st.number_input("Number of steps to forecast", min_value = 1, max_value = 8760, value = 30, step = 1, key = "hourly_steps_widget")
-st.radio("Naive", options = [True, False], index = 0, key = "hourly_naive_widget")
-
-st.button("Plot selected hourly models", on_click=plot_selected_hourly_models)
+    st.button("Plot selected hourly models", on_click=plot_selected_hourly_models)
 
 
 
 # --- Display plots if available ---
-col1, col2 = st.columns([1,1])
-with col1:
+col_daily_figures, col_hourly_figures = st.columns([1,1])
+with col_daily_figures:
     if st.session_state.get("daily_forecast_fig", None) is not None:
         st.pyplot(st.session_state.daily_forecast_fig)
 
     if st.session_state.get("daily_bar_plot_fig", None) is not None:
         st.pyplot(st.session_state.daily_bar_plot_fig)
 
-with col2: 
+with col_hourly_figures: 
     if st.session_state.get("hourly_forecast_fig", None) is not None:
         st.pyplot(st.session_state.hourly_forecast_fig)
 
