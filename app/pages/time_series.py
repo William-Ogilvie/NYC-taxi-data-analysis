@@ -1,33 +1,37 @@
 import streamlit as st
-from jfk_taxis import load_config
+from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models
+from xgboost import XGBRegressor
 
 
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
 
+# --- Constants ---
+DAILY_LINEAR_SIG = "daily_linear_models"
+DAILY_NON_LINEAR_SIG = "daily_non_linear_models"
+HOURLY_LINEAR_SIG = "hourly_linear_models"
+HOURLY_NON_LINEAR_SIG = "hourly_non_linear_models"
+
 
 
 st.set_page_config(page_title="Time series", layout="wide")
 
-# --- Initialize session state ---
-if "daily_linear_models" not in st.session_state:
-    st.session_state.daily_linear_models = {}
-
-if "daily_non_linear_models" not in st.session_state:
-    st.session_state.daily_non_linear_models = {}
-
-if "hourly_linear_models" not in st.session_state: 
-    st.session_state.hourly_linear_models = {}
-
-if "hourly_non_linear_models" not in st.session_state:
-    st.session_state.hourly_non_linear_models = {}
-
-# Safe defaults for conditional widgets
-st.session_state.setdefault("custom_fourier_daily_widget", [])
-st.session_state.setdefault("custom_lags_daily_widget", [])
 
 
 # --- Data processing functions ---
+def get_training_test_data():
+    """Load and split the time series data into training and testing sets, store in session state.
+    """    
+
+    ts_daily, ts_hourly = load_ts_data()
+
+    ts_daily_train, ts_daily_test, ts_hourly_train, ts_hourly_test = split_test_train_sets(ts_daily, ts_hourly)
+
+    st.session_state.ts_daily_train = ts_daily_train
+    st.session_state.ts_daily_test = ts_daily_test
+    st.session_state.ts_hourly_train = ts_hourly_train
+    st.session_state.ts_hourly_test = ts_hourly_test
+
 def add_model():
     """Add a new model to the session state.
     """    
@@ -252,8 +256,74 @@ def filter_hybrid_input() -> tuple[list[int], list[int]]:
 
     return lags, fourier_features
     
-# # --- Modelling functions ---
-# def train_models():
+# --- Modelling functions ---
+def hybrid_model():
+    """ The default hybrid model using XGBoost for the non-linear component.
+
+    Returns:
+        _type_: the XGBoost regressor instance.
+    """    
+
+
+    return XGBRegressor(
+        n_estimators=config["xgboost_default"]["n_estimators"],
+        learning_rate=config["xgboost_default"]["learning_rate"],
+        max_depth=config["xgboost_default"]["max_depth"],
+        subsample=config["xgboost_default"]["subsample"],
+        colsample_bytree=config["xgboost_default"]["colsample_bytree"],
+        random_state=config["xgboost_setup"]["random_state"],
+        eval_metric=config["xgboost_setup"]["eval_metric"],
+        tree_method=config["xgboost_setup"]["tree_method"],
+        device=config["xgboost_setup"]["device"]
+    )
+
+def train_linear_models():
+
+    # File signature
+    sig = DAILY_LINEAR_SIG
+
+    for model_name, (order, lags, fourier_features, model_type) in st.session_state.daily_linear_models.items():
+
+        # Check if hybrid or linear
+        if model_type == "Linear":
+            hybrid = None
+        elif model_type == "Hybrid":
+            hybrid = hybrid_model()
+
+        time_step = "D"
+
+        order_list = [order]
+
+        ts_train = st.session_state.ts_daily_train
+       
+        # Because each model potentially has different lags/fourier features we need to train/save them separately even though this function is designed to do several models at a time
+        create_train_save_models([model_name], [], hybrid, sig, order_list, lags, fourier_features, time_step, ts_train)
+
+        
+
+             
+        
+
+# --- Initialize session state ---
+if "daily_linear_models" not in st.session_state:
+    st.session_state.daily_linear_models = {}
+
+if "daily_non_linear_models" not in st.session_state:
+    st.session_state.daily_non_linear_models = {}
+
+if "hourly_linear_models" not in st.session_state: 
+    st.session_state.hourly_linear_models = {}
+
+if "hourly_non_linear_models" not in st.session_state:
+    st.session_state.hourly_non_linear_models = {}
+
+if "ts_daily_train" not in st.session_state:
+    get_training_test_data()
+
+# Safe defaults for conditional widgets
+st.session_state.setdefault("custom_fourier_daily_widget", [])
+st.session_state.setdefault("custom_lags_daily_widget", [])
+
 
 
 # Outside form for dynamic UI
@@ -296,4 +366,7 @@ st.write("Hourly linear/hybrid models:")
 st.write(st.session_state.hourly_linear_models)
 st.write("Hourly non-linear models:")
 st.write(st.session_state.hourly_non_linear_models)
+
+# --- Train models ---
+st.button("Train daily linear/hybrid models", on_click = train_linear_models)
 
