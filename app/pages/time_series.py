@@ -120,24 +120,14 @@ def process_custom_fourier_input() -> list[int]:
             if feature == "Yearly":
                 fourier_features.append("YE")
             elif feature == "Weekly":
-                fourier_features.append("W")
-            elif feature == "Monthly":
-                fourier_features.append("M")
-            elif feature == "Quarterly":
-                fourier_features.append("Q")
-            elif feature == "Daily":
-                fourier_features.append("D")
+                fourier_features.append("W")  
 
     elif st.session_state.ts_type_widget == "Hourly":
         for feature in st.session_state.get("custom_fourier_hourly_widget", []):
             if feature == "Yearly":
                 fourier_features.append("YE")
             elif feature == "Weekly":
-                fourier_features.append("W")
-            elif feature == "Monthly":
-                fourier_features.append("M")
-            elif feature == "Quarterly":
-                fourier_features.append("Q")
+                fourier_features.append("W") 
             elif feature == "Daily":
                 fourier_features.append("D")
 
@@ -174,18 +164,14 @@ def filter_input_template(daily_reduced_model: str, hourly_reduced_model: str) -
         if st.session_state.lags_input_widget == "Full default":
             lags = config["modelling"]["daily_lags"]
         elif st.session_state.lags_input_widget == "Reduced default":
-            lags = config["shap"][daily_reduced_model]["extracted_lags"]
-        elif st.session_state.lags_input_widget == "None":
-            lags = []
+            lags = config["shap"][daily_reduced_model]["extracted_lags"] 
         elif st.session_state.lags_input_widget == "Custom":
             lags = process_custom_lags_input()
 
         if st.session_state.fourier_input_widget == "Full default":
             fourier_features = config["modelling"]["daily_fourier_features"]
         elif st.session_state.fourier_input_widget == "Reduced default":
-            fourier_features = config["shap"][daily_reduced_model]["extracted_fourier_features"]
-        elif st.session_state.fourier_input_widget == "None":
-            fourier_features = []
+            fourier_features = config["shap"][daily_reduced_model]["extracted_fourier_features"] 
         elif st.session_state.fourier_input_widget == "Custom":
             fourier_features = process_custom_fourier_input()
 
@@ -193,18 +179,14 @@ def filter_input_template(daily_reduced_model: str, hourly_reduced_model: str) -
         if st.session_state.lags_input_widget == "Full default":
             lags = config["modelling"]["hourly_lags"]
         elif st.session_state.lags_input_widget == "Reduced default":
-            lags = config["shap"][hourly_reduced_model]["extracted_lags"]
-        elif st.session_state.lags_input_widget == "None":
-            lags = []
+            lags = config["shap"][hourly_reduced_model]["extracted_lags"] 
         elif st.session_state.lags_input_widget == "Custom":
             lags = process_custom_lags_input()
 
         if st.session_state.fourier_input_widget == "Full default":
             fourier_features = config["modelling"]["hourly_fourier_features"]
         elif st.session_state.fourier_input_widget == "Reduced default":
-            fourier_features = config["shap"][hourly_reduced_model]["extracted_fourier_features"]
-        elif st.session_state.fourier_input_widget == "None":
-            fourier_features = []
+            fourier_features = config["shap"][hourly_reduced_model]["extracted_fourier_features"] 
         elif st.session_state.fourier_input_widget == "Custom":
             fourier_features = process_custom_fourier_input()
 
@@ -313,6 +295,10 @@ def train_daily_linear_models():
 
     for model_name, (order, lags, fourier_features, model_type) in st.session_state.daily_linear_models.items():
 
+        # Check the model name isn't already in the training set to avoid retraining
+        if model_name in st.session_state.daily_trained_linear_models:
+            continue
+
         # Check if hybrid or linear
         if model_type == "Linear":
             hybrid = None
@@ -339,6 +325,11 @@ def train_daily_non_linear_models():
     """
 
     for model_name, (order, lags, fourier_features, model_type) in st.session_state.daily_non_linear_models.items():
+
+        # Check the model name isn't already in the training set to avoid retraining
+        if model_name in st.session_state.daily_trained_non_linear_models:
+            continue
+
 
         hybrid = None
 
@@ -404,6 +395,10 @@ def train_hourly_linear_models():
 
     for model_name, (order, lags, fourier_features, model_type) in st.session_state.hourly_linear_models.items():
 
+        # Check the model name isn't already in the training set to avoid retraining
+        if model_name in st.session_state.hourly_trained_linear_models:
+            continue
+
         # Check if hybrid or linear
         if model_type == "Linear":
             hybrid = None
@@ -431,6 +426,10 @@ def train_hourly_non_linear_models():
 
     for model_name, (order, lags, fourier_features, model_type) in st.session_state.hourly_non_linear_models.items():
 
+        # Check the model name isn't already in the training set to avoid retraining
+        if model_name in st.session_state.hourly_trained_non_linear_models:
+            continue
+
         hybrid = None
 
         time_step = "h"
@@ -447,6 +446,7 @@ def train_hourly_non_linear_models():
 
         # Append to hourly non linear trained models
         st.session_state.hourly_trained_non_linear_models.append(model_name)
+
 
 def plot_selected_hourly_models():
     """Plot selected hourly models.
@@ -593,6 +593,7 @@ if "hourly_trained_linear_models" not in st.session_state:
 if "hourly_trained_non_linear_models" not in st.session_state:
     st.session_state.hourly_trained_non_linear_models = []
 
+
 if "ts_daily_train" not in st.session_state:
     get_training_test_data()
 
@@ -607,9 +608,9 @@ col_ts_type, col_fourier, col_lags = st.columns([1,1,1])
 with col_ts_type:
     st.radio("Time series type", options = ["Daily", "Hourly"], index = 0, key = "ts_type_widget")
 with col_fourier:
-    st.radio("Fourier features", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "fourier_input_widget")
+    st.radio("Fourier features", options = ["Full default", "Reduced default", "Custom"], index = 0, key = "fourier_input_widget")
 with col_lags:
-    st.radio("Lags", options = ["Full default", "Reduced default", "Custom", "None"], index = 0, key = "lags_input_widget")
+    st.radio("Lags", options = ["Full default", "Reduced default", "Custom"], index = 0, key = "lags_input_widget")
 
 with st.form("model_form"):
     st.subheader("Add a daily time series model")
@@ -622,9 +623,9 @@ with st.form("model_form"):
 
     if st.session_state.fourier_input_widget == "Custom":
         if st.session_state.ts_type_widget == "Daily":
-            st.multiselect("Fourier features", options = ["Yearly", "Weekly", "Monthly", "Quarterly"], key = "custom_fourier_daily_widget")
+            st.multiselect("Fourier features", options = ["Yearly", "Weekly"], key = "custom_fourier_daily_widget")
         elif st.session_state.ts_type_widget == "Hourly":
-            st.multiselect("Fourier features", options = ["Yearly", "Weekly", "Daily", "Quarterly"], key = "custom_fourier_hourly_widget")
+            st.multiselect("Fourier features", options = ["Yearly", "Weekly", "Daily"], key = "custom_fourier_hourly_widget")
     
 
     submitted = st.form_submit_button("Add model") 
@@ -707,6 +708,7 @@ with col_daily_shap:
     st.selectbox("Select daily model for SHAP values", options = st.session_state.daily_trained_linear_models + st.session_state.daily_trained_non_linear_models, key = "daily_shap_model_widget")
     st.button("Compute SHAP values for selected daily model", on_click = compute_daily_shap_values)
 with col_hourly_shap:
+    st.write("Be warned that computing SHAP values for hourly models can take a long time due to the size of the dataset. Potentially in the region of 24 minutes at least on my machine.")
     st.selectbox("Select hourly model for SHAP values", options = st.session_state.hourly_trained_linear_models + st.session_state.hourly_trained_non_linear_models, key = "hourly_shap_model_widget")
     st.button("Compute SHAP values for selected hourly model", on_click = compute_hourly_shap_values)
 
