@@ -1,5 +1,5 @@
 import streamlit as st
-from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models, load_models, run_forecasts
+from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models, load_models, run_forecasts_app
 from xgboost import XGBRegressor
 
 
@@ -278,7 +278,7 @@ def hybrid_model():
     )
 
 def train_daily_linear_models():
-    """Train daily linear models.
+    """Train daily linear models. Models are saved using the signature file format as in the notebooks. We save the model names to session state.
     """
 
     for model_name, (order, lags, fourier_features, model_type) in st.session_state.daily_linear_models.items():
@@ -304,8 +304,31 @@ def train_daily_linear_models():
         # Append to daily linear trained models
         st.session_state.daily_trained_linear_models.append(model_name)
 
-def plot_daily_linear_models():
-    """Plot daily linear models.
+def train_daily_non_linear_models():
+    """Train daily non linear models. Models are saved using the signature file format as in the notebooks. We save the model names to session state.
+    """
+
+    for model_name, (order, lags, fourier_features, model_type) in st.session_state.daily_non_linear_models.items():
+
+        hybrid = None
+
+        time_step = "D"
+
+        order_list = [order]
+
+        ts_train = st.session_state.ts_daily_train
+
+        # As we are having to train and save each model separtely we are going to need several model signautres, to avoid confusion these will be standarised by a universal prefix and then the model name
+        sig = DAILY_NON_LINEAR_SIG + f"_{model_name}"
+
+        # Because each model potentially has different lags/fourier features we need to train/save them separately even though this function is designed to do several models at a time
+        create_train_save_models([], [model_name], hybrid, sig, order_list, lags, fourier_features, time_step, ts_train)
+
+        # Append to daily non linear trained models
+        st.session_state.daily_trained_non_linear_models.append(model_name)
+
+def plot_selected_daily_models():
+    """Plot selected daily models.
     """  
 
     full_linear_models = {}
@@ -316,7 +339,7 @@ def plot_daily_linear_models():
     ts_test = st.session_state.ts_daily_test
     time_step = "D"
     naive = st.session_state.daily_naive_widget
-    steps = st.session_state.daily_steps_widget
+    steps = [st.session_state.daily_steps_widget]
 
     for model_name in st.session_state.daily_linear_models_to_plot_widget:
 
@@ -328,13 +351,22 @@ def plot_daily_linear_models():
         full_linear_models = {**full_linear_models, **linear_models_loaded}
         full_non_linear_models = {**full_non_linear_models, **non_linear_models_loaded}
 
+    for model_name in st.session_state.daily_non_linear_models_to_plot_widget:
+
+        sig = DAILY_NON_LINEAR_SIG + f"_{model_name}"
+
+        linear_models_loaded, non_linear_models_loaded = load_models(sig)
+
+        full_linear_models = {**full_linear_models, **linear_models_loaded}
+        full_non_linear_models = {**full_non_linear_models, **non_linear_models_loaded}
+
     
     # Run forecasts
-    run_forecasts(steps, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
-
-
-     
-
+    forecast_fig, bar_plot_fig = run_forecasts_app(steps, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
+ 
+    # Update session state with forecasts
+    st.session_state.daily_forecast_fig = forecast_fig
+    st.session_state.daily_bar_plot_fig = bar_plot_fig
              
         
 
@@ -415,11 +447,20 @@ st.write(st.session_state.hourly_non_linear_models)
 
 # --- Train models ---
 st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models)
+st.button("Train daily non-linear models", on_click = train_daily_non_linear_models)
 
 # --- Plot models ---
 st.multiselect("Select daily linear/hybrid models to plot", options = st.session_state.daily_trained_linear_models, key = "daily_linear_models_to_plot_widget")
+st.multiselect("Select daily non-linear models to plot", options = st.session_state.daily_trained_non_linear_models, key = "daily_non_linear_models_to_plot_widget")
 st.number_input("Number of steps to forecast", min_value = 1, max_value = 365, value = 30, step = 1, key = "daily_steps_widget")
 st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget")
 
-st.button("Plot daily linear/hybrid models", on_click=plot_daily_linear_models)
+st.button("Plot selected daily models", on_click=plot_selected_daily_models)
+
+# --- Display plots if available ---
+if st.session_state.get("daily_forecast_fig", None) is not None:
+    st.pyplot(st.session_state.daily_forecast_fig)
+
+if st.session_state.get("daily_bar_plot_fig", None) is not None:
+    st.pyplot(st.session_state.daily_bar_plot_fig)
 
