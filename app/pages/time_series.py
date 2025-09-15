@@ -368,7 +368,96 @@ def plot_selected_daily_models():
     st.session_state.daily_forecast_fig = forecast_fig
     st.session_state.daily_bar_plot_fig = bar_plot_fig
              
-        
+def train_hourly_linear_models():
+    """Train hourly linear models. Models are saved using the signature file format as in the notebooks. We save the model names to session state.
+    """
+
+    for model_name, (order, lags, fourier_features, model_type) in st.session_state.hourly_linear_models.items():
+
+        # Check if hybrid or linear
+        if model_type == "Linear":
+            hybrid = None
+        elif model_type == "Hybrid":
+            hybrid = hybrid_model()
+
+        time_step = "h"
+
+        order_list = [order]
+
+        ts_train = st.session_state.ts_hourly_train
+
+        # As we are having to train and save each model separtely we are going to need several model signautres, to avoid confusion these will be standarised by a universal prefix and then the model name
+        sig = HOURLY_LINEAR_SIG + f"_{model_name}"
+
+        # Because each model potentially has different lags/fourier features we need to train/save them separately even though this function is designed to do several models at a time
+        create_train_save_models([model_name], [], hybrid, sig, order_list, lags, fourier_features, time_step, ts_train)
+
+        # Append to hourly linear trained models
+        st.session_state.hourly_trained_linear_models.append(model_name)
+
+def train_hourly_non_linear_models():
+    """Train hourly non linear models. Models are saved using the signature file format as in the notebooks. We save the model names to session state.
+    """
+
+    for model_name, (order, lags, fourier_features, model_type) in st.session_state.hourly_non_linear_models.items():
+
+        hybrid = None
+
+        time_step = "h"
+
+        order_list = [order]
+
+        ts_train = st.session_state.ts_hourly_train
+
+        # As we are having to train and save each model separtely we are going to need several model signautres, to avoid confusion these will be standarised by a universal prefix and then the model name
+        sig = HOURLY_NON_LINEAR_SIG + f"_{model_name}"
+
+        # Because each model potentially has different lags/fourier features we need to train/save them separately even though this function is designed to do several models at a time
+        create_train_save_models([], [model_name], hybrid, sig, order_list, lags, fourier_features, time_step, ts_train)
+
+        # Append to hourly non linear trained models
+        st.session_state.hourly_trained_non_linear_models.append(model_name)
+
+def plot_selected_hourly_models():
+    """Plot selected hourly models.
+    """  
+
+    full_linear_models = {}
+    full_non_linear_models = {}
+
+
+    ts_train = st.session_state.ts_hourly_train
+    ts_test = st.session_state.ts_hourly_test
+    time_step = "h"
+    naive = st.session_state.hourly_naive_widget
+    steps = [st.session_state.hourly_steps_widget]
+
+    for model_name in st.session_state.hourly_linear_models_to_plot_widget:
+
+        sig = HOURLY_LINEAR_SIG + f"_{model_name}"
+
+
+        linear_models_loaded, non_linear_models_loaded = load_models(sig)
+
+        full_linear_models = {**full_linear_models, **linear_models_loaded}
+        full_non_linear_models = {**full_non_linear_models, **non_linear_models_loaded}
+
+    for model_name in st.session_state.hourly_non_linear_models_to_plot_widget:
+
+        sig = HOURLY_NON_LINEAR_SIG + f"_{model_name}"
+
+        linear_models_loaded, non_linear_models_loaded = load_models(sig)
+
+        full_linear_models = {**full_linear_models, **linear_models_loaded}
+        full_non_linear_models = {**full_non_linear_models, **non_linear_models_loaded}
+
+    
+    # Run forecasts
+    forecast_fig, bar_plot_fig = run_forecasts_app(steps, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
+ 
+    # Update session state with forecasts
+    st.session_state.hourly_forecast_fig = forecast_fig
+    st.session_state.hourly_bar_plot_fig = bar_plot_fig
 
 # --- Initialize session state ---
 if "daily_linear_models" not in st.session_state:
@@ -448,6 +537,9 @@ st.write(st.session_state.hourly_non_linear_models)
 # --- Train models ---
 st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models)
 st.button("Train daily non-linear models", on_click = train_daily_non_linear_models)
+st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models)
+st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models)
+
 
 # --- Plot models ---
 st.multiselect("Select daily linear/hybrid models to plot", options = st.session_state.daily_trained_linear_models, key = "daily_linear_models_to_plot_widget")
@@ -457,10 +549,28 @@ st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget"
 
 st.button("Plot selected daily models", on_click=plot_selected_daily_models)
 
-# --- Display plots if available ---
-if st.session_state.get("daily_forecast_fig", None) is not None:
-    st.pyplot(st.session_state.daily_forecast_fig)
+st.multiselect("Select hourly linear/hybrid models to plot", options = st.session_state.hourly_trained_linear_models, key = "hourly_linear_models_to_plot_widget")
+st.multiselect("Select hourly non-linear models to plot", options = st.session_state.hourly_trained_non_linear_models, key = "hourly_non_linear_models_to_plot_widget")
+st.number_input("Number of steps to forecast", min_value = 1, max_value = 8760, value = 30, step = 1, key = "hourly_steps_widget")
+st.radio("Naive", options = [True, False], index = 0, key = "hourly_naive_widget")
 
-if st.session_state.get("daily_bar_plot_fig", None) is not None:
-    st.pyplot(st.session_state.daily_bar_plot_fig)
+st.button("Plot selected hourly models", on_click=plot_selected_hourly_models)
+
+
+
+# --- Display plots if available ---
+col1, col2 = st.columns([1,1])
+with col1:
+    if st.session_state.get("daily_forecast_fig", None) is not None:
+        st.pyplot(st.session_state.daily_forecast_fig)
+
+    if st.session_state.get("daily_bar_plot_fig", None) is not None:
+        st.pyplot(st.session_state.daily_bar_plot_fig)
+
+with col2: 
+    if st.session_state.get("hourly_forecast_fig", None) is not None:
+        st.pyplot(st.session_state.hourly_forecast_fig)
+
+    if st.session_state.get("hourly_bar_plot_fig", None) is not None:
+        st.pyplot(st.session_state.hourly_bar_plot_fig)
 
