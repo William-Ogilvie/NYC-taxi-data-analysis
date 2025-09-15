@@ -362,7 +362,8 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
         y_real = y_test.iloc[0:step]
         
         # Plot
-        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}")
+        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}") 
+        
         
         # Check if there are any linear models to forecast
         if len(linear_models) != 0:
@@ -430,6 +431,8 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
 
         # Add legend
         ax.legend()
+        ax.set_ylabel("Trip counts")
+        ax.set_xlabel("Pickup datetime")
         plt.xticks(rotation = 90, ha = "right")
         plt.show()
         # Plot MAE bar plots:
@@ -516,6 +519,7 @@ def forecast_dicts_app(steps: list[int], y_test: pd.Series, y_hist: pd.Series, l
         ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}", figsize = (6, 3))
         fig = ax.get_figure()
         
+        
         # Check if there are any linear models to forecast
         if len(linear_models) != 0:
             # Forecast the linear models:
@@ -581,6 +585,8 @@ def forecast_dicts_app(steps: list[int], y_test: pd.Series, y_hist: pd.Series, l
             
 
         # Add legend
+        ax.set_ylabel("Trip counts")
+        ax.set_xlabel("Pickup datetime")
         ax.legend()
         plt.xticks(rotation = 90, ha = "right")
 

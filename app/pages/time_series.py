@@ -1,6 +1,8 @@
 import streamlit as st
-from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models, load_models, run_forecasts_app
+from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models, load_models, run_forecasts_app, compute_shap_values
 from xgboost import XGBRegressor
+import shap
+import matplotlib.pyplot as plt
 
 
 # --- Load config ---
@@ -255,7 +257,35 @@ def filter_hybrid_input() -> tuple[list[int], list[int]]:
     lags, fourier_features = filter_input_template("daily_hybrid_order2", "hourly_hybrid_order2")
 
     return lags, fourier_features
+
+def remove_daily():
+    for model_name in st.session_state.daily_linear_models_to_remove_widget:
+        if model_name in st.session_state.daily_linear_models:
+            del st.session_state.daily_linear_models[model_name]
+            # Also remove from trained models if present
+            if model_name in st.session_state.daily_trained_linear_models:
+                st.session_state.daily_trained_linear_models.remove(model_name) 
+    for model_name in st.session_state.daily_non_linear_models_to_remove_widget:
+        if model_name in st.session_state.daily_non_linear_models:
+            del st.session_state.daily_non_linear_models[model_name]
+            # Also remove from trained models if present
+            if model_name in st.session_state.daily_trained_non_linear_models:
+                st.session_state.daily_trained_non_linear_models.remove(model_name)
     
+def remove_hourly():
+    for model_name in st.session_state.hourly_linear_models_to_remove_widget:
+        if model_name in st.session_state.hourly_linear_models:
+            del st.session_state.hourly_linear_models[model_name]
+            # Also remove from trained models if present
+            if model_name in st.session_state.hourly_trained_linear_models:
+                st.session_state.hourly_trained_linear_models.remove(model_name)
+    for model_name in st.session_state.hourly_non_linear_models_to_remove_widget:
+        if model_name in st.session_state.hourly_non_linear_models:
+            del st.session_state.hourly_non_linear_models[model_name]
+            # Also remove from trained models if present
+            if model_name in st.session_state.hourly_trained_non_linear_models:
+                st.session_state.hourly_trained_non_linear_models.remove(model_name)
+
 # --- Modelling functions ---
 def hybrid_model():
     """ The default hybrid model using XGBoost for the non-linear component.
@@ -459,6 +489,85 @@ def plot_selected_hourly_models():
     st.session_state.hourly_forecast_fig = forecast_fig
     st.session_state.hourly_bar_plot_fig = bar_plot_fig
 
+# --- SHAP functions ---
+def compute_daily_shap_values():
+    """Compute SHAP values for the selected daily model. Save this in session state.
+    """    
+
+    model_name = st.session_state.daily_shap_model_widget
+
+    if model_name in st.session_state.daily_linear_models:
+        sig = DAILY_LINEAR_SIG + f"_{model_name}"
+    elif model_name in st.session_state.daily_non_linear_models:
+        sig = DAILY_NON_LINEAR_SIG + f"_{model_name}"
+    else:
+        st.error("Selected model not found.")
+        return
+
+    linear_models_loaded, non_linear_models_loaded = load_models(sig)
+
+    # To use compute_shap_values we need to know if model is linear, hybrid or non-linear  
+    if len(non_linear_models_loaded) > 0:
+        linear = False
+        hybrid = False
+    else:
+        linear = True
+
+        # Check if hybrid 
+        if linear_models_loaded[model_name][2] is not None:
+            hybrid = True
+        else:
+            hybrid = False
+    
+    
+    # We can only compute SHAP values for one model at a time
+    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid) 
+
+    # Create SHAP summary plot
+    shap_summary = shap.summary_plot(shap_values, X, max_display = 30, show = False)
+    plt.title(f"SHAP summary plot for {model_name} (top 30 features)")
+    fig = plt.gcf() 
+    st.session_state.daily_shap_summary_fig = fig
+
+def compute_hourly_shap_values():
+    """Compute SHAP values for the selected hourly model. Save this in session state.
+    """    
+
+    model_name = st.session_state.hourly_shap_model_widget
+
+    if model_name in st.session_state.hourly_linear_models:
+        sig = HOURLY_LINEAR_SIG + f"_{model_name}"
+    elif model_name in st.session_state.hourly_non_linear_models:
+        sig = HOURLY_NON_LINEAR_SIG + f"_{model_name}"
+    else:
+        st.error("Selected model not found.")
+        return
+
+    linear_models_loaded, non_linear_models_loaded = load_models(sig)
+
+    # To use compute_shap_values we need to know if model is linear, hybrid or non-linear  
+    if len(non_linear_models_loaded) > 0:
+        linear = False
+        hybrid = False
+    else:
+        linear = True
+
+        # Check if hybrid 
+        if linear_models_loaded[model_name][2] is not None:
+            hybrid = True
+        else:
+            hybrid = False
+    
+    
+    # We can only compute SHAP values for one model at a time
+    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid) 
+
+    # Create SHAP summary plot
+    shap_summary = shap.summary_plot(shap_values, X, max_display = 30, show = False)
+    plt.title(f"SHAP summary plot for {model_name} (top 30 features)") 
+    fig = plt.gcf()
+    st.session_state.hourly_shap_summary_fig = fig
+
 # --- Initialize session state ---
 if "daily_linear_models" not in st.session_state:
     st.session_state.daily_linear_models = {}
@@ -527,7 +636,6 @@ if submitted:
     add_model()
 
 # --- Display models ---
-
 col_daily_models, col_hourly_models = st.columns([1,1])
 with col_daily_models:
     st.write("Daily linear/hybrid models:")
@@ -540,6 +648,17 @@ with col_hourly_models:
     st.write("Hourly non-linear models:")
     st.write(st.session_state.hourly_non_linear_models)
 
+# --- Remove models ---
+col_remove_daily, col_remove_hourly = st.columns([1,1])
+with col_remove_daily:
+    st.multiselect("Select daily linear/hybrid models to remove", options = list(st.session_state.daily_linear_models.keys()), key = "daily_linear_models_to_remove_widget")
+    st.multiselect("Select daily non-linear models to remove", options = list(st.session_state.daily_non_linear_models.keys()), key = "daily_non_linear_models_to_remove_widget")
+    st.button("Remove selected daily models", on_click = remove_daily) 
+with col_remove_hourly:
+    st.multiselect("Select hourly linear/hybrid models to remove", options = list(st.session_state.hourly_linear_models.keys()), key = "hourly_linear_models_to_remove_widget")
+    st.multiselect("Select hourly non-linear models to remove", options = list(st.session_state.hourly_non_linear_models.keys()), key = "hourly_non_linear_models_to_remove_widget")
+    st.button("Remove selected hourly models", on_click = remove_hourly)
+
 # --- Train models ---
 col_daily_train, col_hourly_train = st.columns([1,1])
 with col_daily_train:
@@ -548,7 +667,6 @@ with col_daily_train:
 with col_hourly_train:
     st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models)
     st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models)
-
 
 # --- Plot models ---
 col_daily_plotting, col_hourly_plotting = st.columns([1,1])
@@ -567,8 +685,6 @@ with col_hourly_plotting:
 
     st.button("Plot selected hourly models", on_click=plot_selected_hourly_models)
 
-
-
 # --- Display plots if available ---
 col_daily_figures, col_hourly_figures = st.columns([1,1])
 with col_daily_figures:
@@ -585,3 +701,20 @@ with col_hourly_figures:
     if st.session_state.get("hourly_bar_plot_fig", None) is not None:
         st.pyplot(st.session_state.hourly_bar_plot_fig)
 
+# --- SHAP values ---
+col_daily_shap, col_hourly_shap = st.columns([1,1])
+with col_daily_shap:
+    st.selectbox("Select daily model for SHAP values", options = st.session_state.daily_trained_linear_models + st.session_state.daily_trained_non_linear_models, key = "daily_shap_model_widget")
+    st.button("Compute SHAP values for selected daily model", on_click = compute_daily_shap_values)
+with col_hourly_shap:
+    st.selectbox("Select hourly model for SHAP values", options = st.session_state.hourly_trained_linear_models + st.session_state.hourly_trained_non_linear_models, key = "hourly_shap_model_widget")
+    st.button("Compute SHAP values for selected hourly model", on_click = compute_hourly_shap_values)
+
+# --- Display SHAP plots if available ---
+col_daily_shap_fig, col_hourly_shap_fig = st.columns([1,1])
+with col_daily_shap_fig:
+    if st.session_state.get("daily_shap_summary_fig", None) is not None:
+        st.pyplot(st.session_state.daily_shap_summary_fig)
+with col_hourly_shap_fig: 
+    if st.session_state.get("hourly_shap_summary_fig", None) is not None:
+        st.pyplot(st.session_state.hourly_shap_summary_fig)
