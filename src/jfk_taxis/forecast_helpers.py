@@ -23,6 +23,7 @@ import cupy as cp
 import yaml
 import copy
 from .loading_helpers import load_config
+from IPython.display import display
 
 # --- Load config ---
 config, PROJECT_ROOT = load_config()
@@ -182,7 +183,19 @@ def truncate_lags(lags: list[int], truncate_to: int) -> list[int]:
    
     return lags
 
-def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[int], steps: int, dp: DeterministicProcess, hybrid: XGBRegressor | None, gpu: bool):
+def to_NYC_hourly(s: pd.Series) -> pd.Series:
+    """Convert a pandas Series to NYC hourly, so we can convert back to local time for display.
+
+    Args:
+        s (pd.Series): the input time series.
+
+    Returns:
+        pd.Series: the converted time series.
+    """    
+
+    return s.tz_convert("America/New_York").asfreq("h")
+
+def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[int], steps: int, offset: int, dp: DeterministicProcess, hybrid: XGBRegressor | None, gpu: bool):
     """ Forecast future values using the trained model.
 
     Args:
@@ -190,6 +203,7 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
         y (pd.Series): historical target values.
         lags (list[int]): list of lagged features to use.
         steps (int): number of steps to forecast.
+        offset (int): offset to start the forecast from in the test values.
         dp (DeterministicProcess): deterministic process for generating future features.
         hybrid (XGBRegressor | None): optional hybrid model for boosting predictions.
         gpu (bool): whether to use GPU for predictions.
@@ -206,11 +220,13 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     y_hist = y.copy()
 
     # Create the deterministic features for the forecast
-    X_future_det = dp.out_of_sample(steps = steps)
+    X_future_det = dp.out_of_sample(steps = steps + offset)
 
-    # Convert index to pd.DateTimeIndex if not already
-    if not isinstance(X_future_det.index, pd.DatetimeIndex):
-        X_future_det.index = pd.to_datetime(X_future_det.index)
+    # Apply offset to X_future_det
+    X_future_det = X_future_det.iloc[offset:]
+
+    # display(X_future_det.head())
+    # display(y_hist.tail())
 
     # Deteriministic features
     det_cols = X_future_det.columns.tolist()
@@ -334,7 +350,7 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     return preds
 """
 
-def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool) -> None:
+def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> None:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
     creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
 
@@ -342,129 +358,158 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linea
         steps (list[int]): list of steps to forecast.
         y_test (pd.Series): series of true future values.
         y_hist (pd.Series): series of historical values.
+        offset (list[int]): offsets to start the forecast from in the test values.
         linear_models (dict): dictionary of linear models.
         non_linear_models (dict): dictionary of non-linear models.
         naive (bool): whether to include naive forecast.
+        time_step (str): time step of the time series (e.g. "h", "D")
     """
 
-    # Compute naive predictions
-    # Today = yesterday
-    y_pred_naive = y_test.shift(1)
-    y_pred_naive.iloc[0] = y_hist.iloc[-1]
-    
-   
-    for step in steps:
+    # Loop over offsets
+    for offset in offset_list:
+        # Create a copy of y_hist and y_test to avoid any changes to the original
+        y_test_copy = copy.deepcopy(y_test)
+        y_hist_copy = copy.deepcopy(y_hist)
 
-        # Store MAE scores for barplot
-        mae_scores = {}
-        
-        # Get real values
-        y_real = y_test.iloc[0:step]
-        
-        # Plot
-        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}") 
-        
-        
-        # Check if there are any linear models to forecast
-        if len(linear_models) != 0:
-            # Forecast the linear models:
-            for name, value in linear_models.items():
-                model = value[0]
-                dp = value[1]
-                hybrid = value[2]
-                lags = value[3]
-                
-                # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
-                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid, False)
+        # Apply offset to y_hist_copy and y_test_copy 
+        y_hist_copy = pd.concat([y_hist_copy, y_test_copy.iloc[:offset]])
+        y_test_copy = y_test_copy.iloc[offset:]
 
-                
-                # Compute MAE linear
-                mae_linear = mean_absolute_error(y_fore_linear, y_real)
-                mae_scores[name] = mae_linear
-                print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
 
-                # Add to plot
-                ax = y_fore_linear.plot(ax = ax, label = name)
-        
 
-        # check if there are any non linear models to forecast
-        if len(non_linear_models) != 0:
-            # Forecast the non linear models::
-            for name, value in non_linear_models.items():
-                model = value[0]
-                dp = value[1]
-                hybrid = value[2]
-                lags = value[3]
+        # Compute naive predictions
+        # Today = yesterday
+        y_pred_naive = y_test_copy.shift(1)
+        y_pred_naive.iloc[0] = y_hist_copy.iloc[-1]
 
-                # Check whether using gpu
-                if config["xgboost_setup"]["device"] == "cuda":
-                    gpu = True
-                else:
-                    gpu = False
 
-                # Get forecast
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, gpu)
+        # Loop over steps
+        for step in steps:
 
-                # Compute MAE non linear
-                mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
-                mae_scores[name] = mae_non_linear
-                print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
-
-                # Add to plot
-                ax = y_fore_non_linear.plot(ax = ax, label = name)
-       
-
-        
-        if naive == True:
-            # Compute naive MAE
-            y_step_pred_naive = y_pred_naive.loc[y_real.index]
-         
-            mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
-            mae_scores["Naive"] = mae_naive
-            print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
-
-            # Plot forecasts
-            ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+            # Store MAE scores for barplot
+            mae_scores = {}
             
-           
+            # Get real values
+            y_real = y_test_copy.iloc[0:step]
+            
+            # Plot
+            if time_step == "h":
+                # Convert to NYC time for plotting
+                y_test_NYC = to_NYC_hourly(y_test_copy)
+                display(y_test_NYC.head())
+                display(y_test_copy.head())
+                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_test_NYC.index[0]}, offset: {offset}")
+            else:
+                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_test_copy.index[0]}, offset: {offset}")
+            # Check if there are any linear models to forecast
+            if len(linear_models) != 0:
+                # Forecast the linear models:
+                for name, value in linear_models.items():
+                    model = value[0]
+                    dp = value[1]
+                    hybrid = value[2]
+                    lags = value[3]
+                    
+                    # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
+                    y_fore_linear = forecast(model, y_hist_copy, lags, step, offset, dp, hybrid, False)
+
+                    
+                    # Compute MAE linear
+                    mae_linear = mean_absolute_error(y_fore_linear, y_real)
+                    mae_scores[name] = mae_linear
+                    print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
+
+                    # Add to plot
+                    ax = y_fore_linear.plot(ax = ax, label = name)
             
 
-        # Add legend
-        ax.legend()
-        ax.set_ylabel("Trip counts")
-        ax.set_xlabel("Pickup datetime")
-        plt.xticks(rotation = 90, ha = "right")
-        plt.show()
-        # Plot MAE bar plots:
-        df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
+            # check if there are any non linear models to forecast
+            if len(non_linear_models) != 0:
+                # Forecast the non linear models::
+                for name, value in non_linear_models.items():
+                    model = value[0]
+                    dp = value[1]
+                    hybrid = value[2]
+                    lags = value[3]
 
-        plt.figure(figsize=(8,5))
-        sns.barplot(data=df_mae, x="Model", y="MAE")
+                    # Check whether using gpu
+                    if config["xgboost_setup"]["device"] == "cuda":
+                        gpu = True
+                    else:
+                        gpu = False
 
-        plt.title(f"Model Comparison by MAE, steps = {step}")
-        plt.xticks(rotation=45, ha="right")
-        plt.show()
+                    # Get forecast
+                    y_fore_non_linear = forecast(model, y_hist_copy, lags, step, offset, dp, hybrid, gpu)
+
+                    # Compute MAE non linear
+                    mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
+                    mae_scores[name] = mae_non_linear
+                    print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
+
+                    # Add to plot
+                    ax = y_fore_non_linear.plot(ax = ax, label = name)
+        
+
+            
+            if naive == True:
+                # Compute naive MAE
+                y_step_pred_naive = y_pred_naive.loc[y_real.index]
+            
+                mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
+                mae_scores["Naive"] = mae_naive
+                print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
+
+                # Plot forecasts
+                ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+                
+            
+                
+
+            # Add legend
+            ax.legend()
+            ax.set_ylabel("Trip counts")
+            ax.set_xlabel("Pickup datetime")
+            plt.xticks(rotation = 90, ha = "right")
+            plt.show()
+            # Plot MAE bar plots:
+            df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
+
+            plt.figure(figsize=(8,5))
+            sns.barplot(data=df_mae, x="Model", y="MAE")
+
+            plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_test_copy.index[0]}, offset = {offset}")
+            plt.xticks(rotation=45, ha="right")
+            plt.show()
     
 
-def run_forecasts(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+
+
+def run_forecasts(steps: list[int], offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
 
     Args:
         steps (list[int]): list of steps to forecast
+        offset (list[int]): offset to start the forecast from in the test values.
         linear_models (dict): dict of linear models
         non_linear_models (dict): dict of non linear models
         naive (bool): bool of whether to include naive baseline
         time_step (str): time step for the time series (e.g. "h", "D")
         old_ts (pd.Series): historical time series
         new_ts (pd.Series): future time series to compare forecasts against
-    """    
-
+    """   
 
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
-    y_hist = copy.deepcopy(old_ts)
-    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
-    
-    forecast_dicts(steps, y_test, y_hist, linear_models, non_linear_models, naive)
+    y_hist = copy.deepcopy(old_ts) 
+
+    if time_step == "h":
+        # Ensure both time series are in UTC and hourly
+        y_test = to_utc_hourly(y_test)
+        y_hist = to_utc_hourly(y_hist)
+    else:
+        # Just ensure datetime index
+        y_hist.index = pd.to_datetime(y_hist.index)
+        y_test.index = pd.to_datetime(y_test.index)
+    forecast_dicts(steps, y_test, y_hist, offset_list, linear_models, non_linear_models, naive, time_step)
 
 def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline, this is the app version the only differnece is we return the figure rather than showing it.
@@ -482,7 +527,8 @@ def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: 
 
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
     y_hist = copy.deepcopy(old_ts)
-    y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
+    y_hist.index = pd.to_datetime(y_hist.index) 
+   # y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
     forecast_fig, bar_plot_fig = forecast_dicts_app(steps, y_test, y_hist, linear_models, non_linear_models, naive)
 

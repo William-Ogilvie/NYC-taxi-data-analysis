@@ -41,6 +41,42 @@ HYPERPARAMS_PREFFIX = config["saving"]["hyperparams_preffix"]
 
 
 # -- Functions ---
+def to_utc_hourly(s: pd.Series, source_tz: str = "America/New_York", enforce_hourly: bool = True) -> pd.Series:
+    """Convert a pandas Series to UTC hourly.
+
+    Args:
+        s (pd.Series): the input time series.
+        source_tz (str, optional): the source timezone. Defaults to "America/New_York".
+        enforce_hourly (bool, optional): whether to enforce hourly frequency. Defaults to True.
+
+    Returns:
+        pd.Series: the converted time series.
+    """     
+    s = s.copy()
+
+    # Parse the index into a DatetimeIndex (still tz-naive at this point)
+    s.index = pd.to_datetime(s.index)
+
+    # If tz-naive, we tell pandas what these times mean (NYC by default)
+    if s.index.tz is None:
+        s.index = s.index.tz_localize(
+            source_tz,
+            ambiguous="infer",          # handles the duplicated hour on fall-back
+            nonexistent="shift_forward" # handles the missing hour on spring-forward
+        )
+    else:
+        # If it already had a tz, normalize to the source tz first (rare, but safe)
+        s.index = s.index.tz_convert(source_tz)
+
+    # Convert to UTC for modeling (no DST problems)
+    s.index = s.index.tz_convert("UTC")
+
+    # Make the index strictly hourly (so shift(1) truly = 1 hour)
+    if enforce_hourly:
+        s = s.asfreq("h")  
+
+    return s
+
 def load_ts_data() -> tuple[pd.Series, pd.Series]:
     """Load the time series data.
 
@@ -56,12 +92,17 @@ def load_ts_data() -> tuple[pd.Series, pd.Series]:
     df_daily["pickup_date"] = pd.to_datetime(df_daily["pickup_date"])
     df_hourly["dt"] = pd.to_datetime(df_hourly["dt"])
 
+    
+
     # To pass the time series through our helper functions they need to be a pandas series indexed by a datetime object:
     ts_hourly = df_hourly["trips"]
     ts_hourly.index = df_hourly["dt"]
 
     ts_daily = df_daily["trips"]
     ts_daily.index = df_daily["pickup_date"]
+
+    # Convert hourly index to UTC (this is to ensure consitency and to avoid any DST issues)
+    dt_hourly = to_utc_hourly(ts_hourly.index.to_series(), source_tz="America/New_York", enforce_hourly=True)
 
     return ts_daily, ts_hourly
 

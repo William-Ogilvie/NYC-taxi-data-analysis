@@ -63,7 +63,8 @@ modelling:
   daily_steps:
   - 7
   - 30
-  - 365
+  daily_offset: [0, 30, 45, 78, 190, 275, 365]
+  hourly_offset: [0, 168, 335, 589, 1232, 3217, 4867, 7029, 8760]
   hourly_extra_lags:
   - 4316
   - 4317

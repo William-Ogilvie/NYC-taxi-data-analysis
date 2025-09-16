@@ -269,6 +269,9 @@ def create_train_save_models(names_linear: list[str], names_non_linear: list[str
         ts (pd.Series): time series itself
     """      
 
+    # Create copy of ts to avoid overwriting original
+    ts_copy = ts.copy()
+
     # Dict of linear or hybrid designs
     linear_design = {}
 
@@ -283,15 +286,15 @@ def create_train_save_models(names_linear: list[str], names_non_linear: list[str
 
     # First do the case of no hybrid models
     if hybrid is None:
-        linear_design, linear_models = create_train_linear(names_linear, order_list, lags, fourier_features, time_step, ts)
+        linear_design, linear_models = create_train_linear(names_linear, order_list, lags, fourier_features, time_step, ts_copy)
     
     else:
         # Even though we are in the hybrid case we will still store them in linear_design and linear_models
         # this is because all "linear models" are actually just hybrid models with None for the hybrid part
-        linear_design, linear_models = create_train_hybrid(names_linear, hybrid, order_list, lags, fourier_features, time_step, ts)
+        linear_design, linear_models = create_train_hybrid(names_linear, hybrid, order_list, lags, fourier_features, time_step, ts_copy)
 
     # Create and train non linear models
-    non_linear_design, non_linear_models = create_train_non_linear(names_non_linear, lags, fourier_features, time_step, ts)
+    non_linear_design, non_linear_models = create_train_non_linear(names_non_linear, lags, fourier_features, time_step, ts_copy)
 
     # Save designs and models
     save_design(linear_design, non_linear_design, sig)
