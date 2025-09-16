@@ -119,16 +119,31 @@ def to_utc_hourly(s: pd.Series, source_tz: str = "America/New_York") -> pd.Serie
     # Localise to source timezone (NYC)
     s = s.dt.tz_localize(
         source_tz, 
-        ambiguous= False,           # handles the duplicated hour on fall-back, we use ambiguous=False to take the earlier (DST) hour
+        ambiguous= "infer",           # handles the duplicated hour on fall-back, we use ambiguous=False to take the earlier (DST) hour
         nonexistent="shift_forward" # handles the missing hour on spring-forward by shifting the non existent time forward to nearest valid time
     )
     
     # Convert to UTC for modeling (no DST problems)
     s = s.dt.tz_convert("UTC")
 
-    # # Make the index strictly hourly (so shift(1) truly = 1 hour)
-    # if enforce_hourly:
-    #     s = s.asfreq("h")  
+    return s
+
+def convert_to_NYC(s: pd.Series) -> pd.Series:
+    """ Convert a pandas Series to America/New_York timezone.
+
+    Args:
+        s (pd.Series): the input time series.
+
+    Returns:
+        pd.Series: the converted time series.
+    """     
+    s = s.copy()
+
+    # Convert to datetime if not already
+    s = pd.to_datetime(s)
+
+    # Convert to NYC timezone
+    s.index = s.index.tz_convert("America/New_York")
 
     return s
 
@@ -186,12 +201,18 @@ def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
         df_daily.index.name = "pickup_date"  # Rename index for saving
         df_daily.name = "trips"            # Rename column for saving
 
+        # Fill in missing days
+        df_daily = df_daily.asfreq("D", fill_value= 0)
+
         return df_daily
     elif feature == "hour":
         # Resample to hourly frequency
         df_hourly = pd.Series(1, index = df_time).resample("h").sum()
         df_hourly.index.name = "dt"           # Rename index for saving
         df_hourly.name = "trips"            # Rename column for saving
+
+        # Fill in missing hours
+        df_hourly = df_hourly.asfreq("h", fill_value= 0)
 
         return df_hourly
     else:
@@ -294,6 +315,9 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
 
     sns.set_theme(style="darkgrid") 
     if feature == "daily":
+        # Convert series index to NYC timezone 
+        df = convert_to_NYC(df)
+
         ax = sns.lineplot(data = df, x = "pickup_date", y = "trips")
         ax.set(title = f"JFK Airport yellow taxi trips per day - {year}", xlabel = "Date", ylabel = "Trips")
 
