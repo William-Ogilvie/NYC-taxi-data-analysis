@@ -119,7 +119,7 @@ def to_utc_hourly(s: pd.Series, source_tz: str = "America/New_York") -> pd.Serie
     # Localise to source timezone (NYC)
     s = s.dt.tz_localize(
         source_tz, 
-        ambiguous= "infer",           # handles the duplicated hour on fall-back, we use ambiguous=False to take the earlier (DST) hour
+        ambiguous= False,           # handles the duplicated hour on fall-back, we use ambiguous=False to take the earlier (DST) hour
         nonexistent="shift_forward" # handles the missing hour on spring-forward by shifting the non existent time forward to nearest valid time
     )
     
@@ -143,7 +143,7 @@ def convert_to_NYC(s: pd.Series) -> pd.Series:
     s = pd.to_datetime(s)
 
     # Convert to NYC timezone
-    s.index = s.index.tz_convert("America/New_York")
+    s = s.tz_convert("America/New_York")
 
     return s
 
@@ -316,9 +316,11 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
     sns.set_theme(style="darkgrid") 
     if feature == "daily":
         # Convert series index to NYC timezone 
-        df = convert_to_NYC(df)
+        plot_series = df["trips"].copy()
+        plot_series.index = df["pickup_date"]
+        plot_series = convert_to_NYC(plot_series)
 
-        ax = sns.lineplot(data = df, x = "pickup_date", y = "trips")
+        ax = sns.lineplot(data = plot_series, x = "pickup_date", y = "trips")
         ax.set(title = f"JFK Airport yellow taxi trips per day - {year}", xlabel = "Date", ylabel = "Trips")
 
         # Show only one x axis tick per month
@@ -328,8 +330,11 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         plt.show()
 
     elif feature == "hour":
-        # Convert df["dt"] to datetime if not already
-        df["dt"] = pd.to_datetime(df["dt"])
+        # Convert series index to NYC timezone 
+        plot_series = df["trips"].copy()
+        plot_series.index = df["dt"]
+        plot_series = convert_to_NYC(plot_series)
+
 
         # Create a subset using month:
         if len(month) != 0:
