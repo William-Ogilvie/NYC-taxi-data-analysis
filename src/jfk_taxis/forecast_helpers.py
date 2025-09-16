@@ -395,12 +395,10 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             # Plot
             if time_step == "h":
                 # Convert to NYC time for plotting
-                y_test_NYC = to_NYC_hourly(y_test_copy)
-                display(y_test_NYC.head())
-                display(y_test_copy.head())
-                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_test_NYC.index[0]}, offset: {offset}")
+                y_real_plot = to_NYC_hourly(y_real) 
+                ax = y_real_plot.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_real_plot.index[0]}, offset: {offset}")
             else:
-                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_test_copy.index[0]}, offset: {offset}")
+                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_real.index[0]}, offset: {offset}")
             # Check if there are any linear models to forecast
             if len(linear_models) != 0:
                 # Forecast the linear models:
@@ -420,6 +418,10 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
+                    if time_step == "h":
+                        # Convert to NYC time for plotting
+                        y_fore_linear = to_NYC_hourly(y_fore_linear)
+                    
                     ax = y_fore_linear.plot(ax = ax, label = name)
             
 
@@ -447,6 +449,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
+                    if time_step == "h":
+                        # Convert to NYC time for plotting
+                        y_fore_non_linear = to_NYC_hourly(y_fore_non_linear)
                     ax = y_fore_non_linear.plot(ax = ax, label = name)
         
 
@@ -460,6 +465,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
 
                 # Plot forecasts
+                if time_step == "h":
+                    # Convert to NYC time for plotting
+                    y_step_pred_naive = to_NYC_hourly(y_step_pred_naive)
                 ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
                 
             
@@ -477,7 +485,11 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             plt.figure(figsize=(8,5))
             sns.barplot(data=df_mae, x="Model", y="MAE")
 
-            plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_test_copy.index[0]}, offset = {offset}")
+            if time_step == "h":
+                # Use the NYC time for title 
+                plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_real_plot.index[0]}, offset = {offset}")
+            else:
+                plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_real.index[0]}, offset = {offset}")
             plt.xticks(rotation=45, ha="right")
             plt.show()
     
@@ -501,14 +513,6 @@ def run_forecasts(steps: list[int], offset_list: list[int], linear_models: dict,
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
     y_hist = copy.deepcopy(old_ts) 
 
-    if time_step == "h":
-        # Ensure both time series are in UTC and hourly
-        y_test = to_utc_hourly(y_test)
-        y_hist = to_utc_hourly(y_hist)
-    else:
-        # Just ensure datetime index
-        y_hist.index = pd.to_datetime(y_hist.index)
-        y_test.index = pd.to_datetime(y_test.index)
     forecast_dicts(steps, y_test, y_hist, offset_list, linear_models, non_linear_models, naive, time_step)
 
 def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:

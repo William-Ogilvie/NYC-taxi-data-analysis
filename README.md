@@ -53,3 +53,5 @@ Note explain the install of XGBoost for gpus carefully because we assume that u 
 Comment on fact we expected fourier features to be important, turns out according to SHAP values actaully lags matter way way more.
 
 Make sure to explain that in terms of hourly lags we can't use all of them so we take first 300 approx and throw in roughly half year and full year ones, with full year being significant.
+
+Explain time zone conversions maybe? like converting to UTC to avoid DST errors

@@ -101,6 +101,55 @@ def select_jfk(df: pd.DataFrame) -> pd.DataFrame:
 
     return df[df["PULocationID"] == 132].copy()
 
+def to_utc_hourly(s: pd.Series, source_tz: str = "America/New_York") -> pd.Series:
+    """Convert a pandas Series to UTC hourly.
+
+    Args:
+        s (pd.Series): the input time series.
+        source_tz (str, optional): the source timezone. Defaults to "America/New_York".
+
+    Returns:
+        pd.Series: the converted time series.
+    """     
+    s = s.copy()
+
+    # Convert to datetime if not already
+    s = pd.to_datetime(s)
+
+    # Localise to source timezone (NYC)
+    s = s.dt.tz_localize(
+        source_tz, 
+        ambiguous= False,           # handles the duplicated hour on fall-back, we use ambiguous=False to take the earlier (DST) hour
+        nonexistent="shift_forward" # handles the missing hour on spring-forward by shifting the non existent time forward to nearest valid time
+    )
+    
+    # Convert to UTC for modeling (no DST problems)
+    s = s.dt.tz_convert("UTC")
+
+    # # Make the index strictly hourly (so shift(1) truly = 1 hour)
+    # if enforce_hourly:
+    #     s = s.asfreq("h")  
+
+    return s
+
+"""
+Cute demo from AI to show what we are doing/why:
+
+import pandas as pd
+
+# Summer date (EDT)
+s = pd.DatetimeIndex(['2025-07-10 19:00'])
+nyc = s.tz_localize('America/New_York')         # 2025-07-10 19:00-04:00
+utc = nyc.tz_convert('UTC')                     # 2025-07-10 23:00+00:00
+back = utc.tz_convert('America/New_York')       # 2025-07-10 19:00-04:00
+
+# Winter date (EST)
+s2 = pd.DatetimeIndex(['2025-01-10 19:00'])
+nyc2 = s2.tz_localize('America/New_York')       # 2025-01-10 19:00-05:00
+utc2 = nyc2.tz_convert('UTC')                   # 2025-01-11 00:00+00:00
+back2 = utc2.tz_convert('America/New_York')     # 2025-01-10 19:00-05:00
+"""
+
 def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
     """ Creates a time series dataframe for the specified feature.
 
@@ -119,28 +168,32 @@ def create_ts(df: pd.DataFrame, feature: str) -> pd.DataFrame:
     "daily" means daily breakdown
     '''
 
+    # Get the pickup column
+    df_time = df["tpep_pickup_datetime"].copy()
+
+    # Convert to datetime
+    df_time = pd.to_datetime(df_time)
+
+    # Convert to UTC
+    df_time = to_utc_hourly(df_time, source_tz="America/New_York")
+
+    # Set this as the time series index
+    df_time.index = df_time
 
     if feature == "daily":
-        df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
-        df = df.groupby('pickup_date').size().reset_index()
-        df = df.rename(columns= {0: 'trips'})
+        # Resample to daily frequency
+        df_daily = pd.Series(1, index=df_time).resample("D").sum()
+        df_daily.index.name = "pickup_date"  # Rename index for saving
+        df_daily.name = "trips"            # Rename column for saving
 
-        return df
+        return df_daily
     elif feature == "hour":
-        df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
-        df['pickup_hour'] = df['tpep_pickup_datetime'].dt.hour
+        # Resample to hourly frequency
+        df_hourly = pd.Series(1, index = df_time).resample("h").sum()
+        df_hourly.index.name = "dt"           # Rename index for saving
+        df_hourly.name = "trips"            # Rename column for saving
 
-        df = df.groupby(['pickup_date', 'pickup_hour']).size().reset_index()
-        df = df.rename(columns= {0: 'trips'})
-
-        # Convert the date and hour back into a datetime object
-        df["day"] = pd.to_datetime(df["pickup_date"])
-        df["dt"] = df["day"] + pd.to_timedelta(df["pickup_hour"], unit = "h")
-        df = df.sort_values("dt")
-        df = df.drop(["day"], axis = 1)
-        df["dt"] = pd.to_datetime(df["dt"])
-
-        return df
+        return df_hourly
     else:
         print("Invalid feature entered for create_ts.")
 
@@ -185,7 +238,7 @@ def process_taxi_data(years: list[int], features: list[str]) -> None:
         for feature in features:
             ts = create_ts(df_jfk, feature)
             csv_path = DATA_SAVE / f"{TS_PREFIX}_{feature}{year}.csv"
-            ts.to_csv(csv_path, index = False)
+            ts.to_csv(csv_path, index = True)
         bar.update(1)
 
         # Save data
