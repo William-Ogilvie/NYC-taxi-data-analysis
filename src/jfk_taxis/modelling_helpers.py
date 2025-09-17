@@ -13,8 +13,55 @@ from .training_helpers import save_design, save_models
 import copy
 import pandas as pd
 from xgboost import XGBRegressor
+import numpy as np
+
 
 # --- Functions ---
+def make_offsets(total_time: int, offset_step: int) -> list[int]:
+    """Create a list of offsets with some jitter to avoid overfitting to specific offsets
+
+    Args:
+        total_time (int): total number of time units (days/hours) that we can forecast over
+        offset_step (int): step size for the offsets
+
+    Returns:
+        list[int]: list of offsets with jitter
+    """    
+    # Jitter is half the offset step
+    jitter = int(offset_step / 2)
+
+    # Create base offsets and add some jitter
+    base = np.arange(0, total_time, offset_step)
+    noise = np.random.randint(-jitter, jitter, size=base.shape)
+
+    # Convert to list of ints
+    offsets = list(base + noise)
+
+    return offsets
+
+def make_offsets_from_series(ts: pd.Series, offset_step: int, forecast_steps: int) -> list[int]:
+    """Create offsets from a time series with some jitter to avoid overfitting to specific offsets
+
+    Args:
+        ts (pd.Series): time series to create offsets from
+        offset_step (int): step size for the offsets
+        forecast_steps (int): number of steps to forecast
+
+    Returns:
+        list[int]: list of offsets with jitter
+    """    
+
+    # Number of days (or hours) in the series
+    total_time = len(ts)
+
+    # Now you need to subtract the maximum forecast step to avoid going out of bounds
+    total_time = total_time - max(forecast_steps)
+
+    # Create offsets
+    offsets = make_offsets(total_time, offset_step)
+
+    return offsets
+
 def create_design_non_linear(lags: list[int], fourier_features: list[str], time_step: str, ts: pd.Series, name: str) -> dict:
     """ Create design, target and deterministic process for non linear model and return as dict
 
