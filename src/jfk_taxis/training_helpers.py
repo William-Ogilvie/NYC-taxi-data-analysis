@@ -75,13 +75,15 @@ def split_test_train_sets(ts_daily: pd.Series, ts_hourly: pd.Series) -> tuple[pd
     Returns:
         tuple[pd.Series, pd.Series, pd.Series, pd.Series]: training and testing sets for daily and hourly time series
     """    
-    
+
+    # Note because time series are in UTC we need to be caerful with the boundaries, so 2024-01-01 00:00 NYC times is actually 2024-01-01 05:00 UTC, you can see this in config.yml    
     # We now need to split into test and train data, we will train on the pre 2024 data and test on 2024 onwards, approx a 90:10 split
     ts_daily_train = ts_daily[:config["modelling"]["ts_daily_train_boundary"]]
     ts_daily_test = ts_daily[config["modelling"]["ts_daily_test_boundary"]:]
 
     ts_hourly_train = ts_hourly[:config["modelling"]["ts_hourly_train_boundary"]]
     ts_hourly_test = ts_hourly[config["modelling"]["ts_hourly_test_boundary"]:]
+
 
     return ts_daily_train, ts_daily_test, ts_hourly_train, ts_hourly_test
 

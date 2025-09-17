@@ -197,17 +197,22 @@ def truncate_lags(lags: list[int], truncate_to: int) -> list[int]:
    
     return lags
 
-def to_NYC_hourly(s: pd.Series) -> pd.Series:
+def to_NYC(s: pd.Series, freq: str) -> pd.Series:
     """Convert a pandas Series to NYC hourly, so we can convert back to local time for display.
 
     Args:
         s (pd.Series): the input time series.
+        freq (str): frequency of the time series (e.g. "h", "D")
 
     Returns:
         pd.Series: the converted time series.
     """    
 
-    return s.tz_convert("America/New_York").asfreq("h")
+    # We likely have to localise to UTC first as loading from the csv will have removed the timezone info (although it still has the + 00:00 stamp)
+    if s.index.tz is None:
+        s.index = s.index.tz_localize("UTC")
+
+    return s.tz_convert("America/New_York").asfreq(freq)
 
 def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[int], steps: int, offset: int, dp: DeterministicProcess, hybrid: XGBRegressor | None, gpu: bool):
     """ Forecast future values using the trained model.
@@ -406,13 +411,12 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             # Get real values
             y_real = y_test_copy.iloc[0:step]
             
-            # Plot
+            # Plot 
+            y_real_plot = to_NYC(y_real, time_step)
             if time_step == "h":
-                # Convert to NYC time for plotting
-                y_real_plot = to_NYC_hourly(y_real) 
                 ax = y_real_plot.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_real_plot.index[0]}, offset: {offset}")
-            else:
-                ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {y_real.index[0]}, offset: {offset}")
+            else: 
+                ax = y_real_plot.plot(color='0.25', style='.', title=f"Forecast steps: {step}, start date {str(y_real_plot.index[0].date())}, offset: {offset}")
             # Check if there are any linear models to forecast
             if len(linear_models) != 0:
                 # Forecast the linear models:
@@ -432,10 +436,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
-                    if time_step == "h":
-                        # Convert to NYC time for plotting
-                        y_fore_linear = to_NYC_hourly(y_fore_linear)
-                    
+                    # Convert to NYC time for plotting
+                    y_fore_linear = to_NYC(y_fore_linear, time_step)
+
                     ax = y_fore_linear.plot(ax = ax, label = name)
             
 
@@ -463,9 +466,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
-                    if time_step == "h":
-                        # Convert to NYC time for plotting
-                        y_fore_non_linear = to_NYC_hourly(y_fore_non_linear)
+                    # Convert to NYC time for plotting
+                    y_fore_non_linear = to_NYC(y_fore_non_linear, time_step)
+                       
                     ax = y_fore_non_linear.plot(ax = ax, label = name)
         
 
@@ -479,9 +482,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
 
                 # Plot forecasts
-                if time_step == "h":
-                    # Convert to NYC time for plotting
-                    y_step_pred_naive = to_NYC_hourly(y_step_pred_naive)
+                # Convert to NYC time for plotting
+                y_step_pred_naive = to_NYC(y_step_pred_naive, time_step)
+
                 ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
                 
             
@@ -503,7 +506,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 # Use the NYC time for title 
                 plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_real_plot.index[0]}, offset = {offset}")
             else:
-                plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_real.index[0]}, offset = {offset}")
+                plt.title(f"Model Comparison by MAE, steps = {step}, start date = {str(y_real_plot.index[0].date())}, offset = {offset}")
             plt.xticks(rotation=45, ha="right")
             plt.show()
     
