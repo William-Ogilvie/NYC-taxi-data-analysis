@@ -707,7 +707,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
 
             plt.figure(figsize=(8,5))
-            sns.barplot(data=df_mae, x="Model", y="MAE")
+            sns.barplot(data=df_mae, x="Model", y="MAE", hue = "Model")
 
             if time_step == "h":
                 # Use the NYC time for title 
