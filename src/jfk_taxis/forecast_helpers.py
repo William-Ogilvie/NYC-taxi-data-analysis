@@ -369,6 +369,182 @@ def forecast(model: LinearRegression | XGBRegressor, y: pd.Series, lags: list[in
     return preds
 """
 
+class MAEScore:
+    """Container for MAE score of a specific forecast.
+
+    This class stores a MAE score along with the model name, forecast step and the offset.
+
+    Attributes:
+        name (str): name of the model.
+        mae (float): mean Absolute Error score.
+        step (int): forecast step.
+        offset (int): offset used in the forecast.
+    """    
+    def __init__(self, name: str, mae: float, step: int, offset: int) -> None:
+        """Initialize the MAE score container.
+
+        Args:
+            name (str): name of the model.
+            mae (float): mean Absolute Error score.
+            step (int): forecast step.
+            offset (int): offset used in the forecast.
+        """        
+        self.name = name
+        self.mae = mae
+        self.step = step
+        self.offset = offset
+
+class ModelMAEScores:
+    """Container for MAE scores of a specific model.
+
+    This class stores the model name and a list of mae_score objects for that model.
+
+    Attributes:
+        name (str): name of the model.
+        scores (list[mae_score]): list of mae_score objects. 
+    """    
+
+    def __init__(self, name: str) -> None:
+        """Initialize the model MAE scores container.
+
+        Args:
+            name (str): name of the model.
+        """        
+        self.name = name
+        self.scores = []
+
+    def append_score(self, score: MAEScore) -> None:
+        """Append a MAE score to the model's score list.
+
+        Args:
+            score (mae_score): MAE score to append.
+        """        
+        self.scores.append(score)
+
+    def average_mae_by_step(self) -> pd.Series:
+        """Compute the average MAE by forecast step.
+
+        Returns:
+            pd.Series: series containing the average MAE for each forecast step.
+        """        
+
+        # First get all the unique steps
+        steps = [score.step for score in self.scores]
+        unique_steps = list(set(steps))
+ 
+        mae_dict = {}
+
+        for step in unique_steps:
+            # Get all the MAE scores for this model and step
+            step_scores = [score.mae for score in self.scores if score.step == step]
+
+            # Compute the average MAE for this model and step
+            avg_mae = sum(step_scores) / len(step_scores)
+
+            # Store the average MAE in the dict
+            mae_dict[step] = avg_mae
+
+        # Convert the dict to a pandas series
+        mae_series = pd.Series(mae_dict, name = self.name)
+
+        
+        return mae_series
+
+def save_mae_scores(model_mae_list: dict, mae_scores: dict, step: int, offset: int) -> dict:
+    """Save MAE scores to the model_mae_list.
+
+    Args:
+        model_mae_list (dict): list of model_mae_scores objects.
+        mae_scores (dict): dictionary of MAE scores.
+        step (int): forecast step.
+        offset (int): offset used in the forecast.
+
+    Returns:
+        dict: updated model_mae_list.
+    """    
+    for name, mae_score in mae_scores.items():
+        score = MAEScore(name, mae_score, step, offset) 
+        model_mae_list[name].append_score(score)
+
+    return model_mae_list
+
+def create_avg_mae_df(model_mae_list: dict, linear_models: dict, non_linear_models: dict, naive: bool) -> pd.DataFrame:
+    """ Create a dataframe of average MAE scores by forecast step for all models.
+
+    Args:
+        model_mae_list (dict): list of model_mae_scores objects.
+        linear_models (dict): linear models dict
+        non_linear_models (dict): non linear models dict
+        naive (bool): whether the naive model is included
+
+    Raises:
+        ValueError: erorr if we can't find the model name in the model_mae_list
+
+    Returns:
+        pd.DataFrame: dataframe where the indicies are the steps, columns the model names and values the average MAE scores.
+    """    
+
+    # Find all unique model names
+    model_names = list(set(linear_models.keys()).union(set(non_linear_models.keys())))
+
+    # Add naive if used
+    if naive:
+        model_names.append("Naive")
+
+    # Dataframe to hold the average MAE scores
+    df_mae = pd.DataFrame()
+
+    # Loop over all model names and get the average MAE scores by step
+    for name in model_names:
+        if name not in model_mae_list:
+            raise ValueError(f"Model name {name} not found in model_mae_list")
+
+        mae_series = model_mae_list[name].average_mae_by_step()
+
+        df_mae[name] = mae_series
+    
+    return df_mae
+
+def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> None:
+    # Make the data frame long format for a barplot
+    df = df_avg_mae.reset_index()
+
+    # make subplots with one column and len(df) rows
+    fig, axes = plt.subplots(nrows = len(df), ncols = 1, figsize = (8,  4 * len(df)))
+
+    if len(df) == 1:
+        axes = [axes]
+    
+    for (i, row), ax in zip(df.iterrows(), axes):
+
+        steps = row["index"]
+        df_long = row.drop("index").reset_index()
+        df_long.columns = ["model", "mae"]
+
+        sns.barplot(
+            data = df_long,
+            x = "model",
+            y = "mae",
+            hue = "model",
+            dodge = False,
+            legend = False,
+            ax = ax
+        )
+        
+        ax.set_title(f"Average MAE for step {steps}")
+        ax.tick_params(axis = "x", rotation = 45)
+
+        # Print the average MAE scores for this step
+        print(f"\nAverage MAE scores for step {steps}:")
+        for row in df_long.itertuples():
+            print(f"{row.model}, average MAE: {row.mae:.2f}")
+    
+    plt.tight_layout() 
+    plt.show()
+
+
+    
+
 def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> None:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
     creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
@@ -383,6 +559,22 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
         naive (bool): whether to include naive forecast.
         time_step (str): time step of the time series (e.g. "h", "D")
     """
+
+    # Initalise instances of the model_mae_scores class for each model
+    # List of model_mae_scores instances
+    model_mae_list = {}
+    for name, value in linear_models.items():
+        model_mae = ModelMAEScores(name)
+        model_mae_list[name] = model_mae
+
+    for name, value in non_linear_models.items():
+        model_mae = ModelMAEScores(name)
+        model_mae_list[name] = model_mae
+
+    # If using the naive model add it to the model_mae_list
+    if naive:
+        model_mae = ModelMAEScores("Naive")
+        model_mae_list["Naive"] = model_mae
 
     # Loop over offsets
     for offset in offset_list:
@@ -405,7 +597,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
         # Loop over steps
         for step in steps:
 
-            # Store MAE scores for barplot
+            # Store MAE scores for barplot and for the model_mae_list
             mae_scores = {}
             
             # Get real values
@@ -433,7 +625,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     # Compute MAE linear
                     mae_linear = mean_absolute_error(y_fore_linear, y_real)
                     mae_scores[name] = mae_linear
-                    print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
+                    print(f"MAE: {mae_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
                     # Convert to NYC time for plotting
@@ -463,7 +655,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     # Compute MAE non linear
                     mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                     mae_scores[name] = mae_non_linear
-                    print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
+                    print(f"MAE: {mae_non_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
                     # Convert to NYC time for plotting
@@ -479,7 +671,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             
                 mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
                 mae_scores["Naive"] = mae_naive
-                print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
+                print(f"MAE: {mae_naive:.2f} for step =  30, model = Naive\n")
 
                 # Plot forecasts
                 # Convert to NYC time for plotting
@@ -489,7 +681,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 
             
                 
-
+            # Save the mae scores to the model_mae_list
+            model_mae_list = save_mae_scores(model_mae_list, mae_scores, step, offset)
+            
             # Add legend
             ax.legend()
             ax.set_ylabel("Trip counts")
@@ -509,6 +703,18 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 plt.title(f"Model Comparison by MAE, steps = {step}, start date = {str(y_real_plot.index[0].date())}, offset = {offset}")
             plt.xticks(rotation=45, ha="right")
             plt.show()
+
+    # Now calculate the average MAE by step for each model and put into a dataframe
+    df_avg_mae = create_avg_mae_df(model_mae_list, linear_models, non_linear_models, naive)  
+
+    # Create bar plot of average MAE by step for each model for all steps
+    create_avg_mae_barplot(df_avg_mae)
+
+
+    
+
+
+    
     
 
 
