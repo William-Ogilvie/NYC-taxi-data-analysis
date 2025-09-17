@@ -140,7 +140,7 @@ def convert_to_NYC(s: pd.Series) -> pd.Series:
     s = s.copy()
 
     # Convert to datetime if not already
-    s = pd.to_datetime(s)
+    s.index = pd.to_datetime(s.index)
 
     # Convert to NYC timezone
     s = s.tz_convert("America/New_York")
@@ -315,12 +315,12 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
 
     sns.set_theme(style="darkgrid") 
     if feature == "daily":
-        # Convert series index to NYC timezone 
-        plot_series = df["trips"].copy()
-        plot_series.index = df["pickup_date"]
+        # Create a series with the daily trips and convert to NYC timezone 
+        plot_series = pd.Series(df["trips"].values, index = df["pickup_date"])
+        plot_series.index = pd.to_datetime(plot_series.index)  # Ensure datetime format
         plot_series = convert_to_NYC(plot_series)
 
-        ax = sns.lineplot(data = plot_series, x = "pickup_date", y = "trips")
+        ax = sns.lineplot(data = plot_series)
         ax.set(title = f"JFK Airport yellow taxi trips per day - {year}", xlabel = "Date", ylabel = "Trips")
 
         # Show only one x axis tick per month
@@ -330,18 +330,19 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         plt.show()
 
     elif feature == "hour":
-        # Convert series index to NYC timezone 
-        plot_series = df["trips"].copy()
-        plot_series.index = df["dt"]
+        # Create a series with the hourly trips and convert to NYC timezone
+        plot_series = pd.Series(df["trips"].values, index = df["dt"])
+        plot_series.index = pd.to_datetime(plot_series.index)  # Ensure datetime format
         plot_series = convert_to_NYC(plot_series)
 
 
         # Create a subset using month:
         if len(month) != 0:
-            df = df[df["dt"].dt.month.isin([month[0], month[1]])]
+            plot_series = plot_series[plot_series.index.month.isin([month[0], month[1]])]
+            
         
 
-        ax = sns.lineplot(data = df, x = "dt", y = "trips")
+        ax = sns.lineplot(data = plot_series)
         ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year}", xlabel = "", ylabel = "Trips")
         
         plt.xticks(rotation = 45, ha = "right")
@@ -357,11 +358,16 @@ def combine_ts(years: list[int]) -> None:
     """    
 
 
-    df_daily = pd.concat((pd.read_csv(DATA_SAVE /  f"{TS_PREFIX}_{TS_DAILY}{year}.csv") for year in years), ignore_index= True)      
-    df_hour = pd.concat((pd.read_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{year}.csv") for year in years), ignore_index= True)
+    df_daily = pd.concat((pd.read_csv(DATA_SAVE /  f"{TS_PREFIX}_{TS_DAILY}{year}.csv") for year in years), ignore_index= False)      
+    df_hour = pd.concat((pd.read_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{year}.csv") for year in years), ignore_index= False)
 
-    df_daily.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{years[0]}-{years[-1]}.csv", index = False)
-    df_hour.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{years[0]}-{years[-1]}.csv", index = False)
+    # Due to timezone conversions we have a slight overlap in the series, for example 2012-01-01 appears both in the daily 2011 and 2012 time series.
+    # We need to add these duplicates together
+    df_daily = df_daily.groupby("pickup_date").sum()
+    df_hour = df_hour.groupby("dt").sum() 
+
+    df_daily.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{years[0]}-{years[-1]}.csv", index = True)
+    df_hour.to_csv(DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{years[0]}-{years[-1]}.csv", index = True)
 
 def plot_full_ts(df_daily: pd.DataFrame, years: list[int]) -> None:
     """ Plots the full daily time series.
@@ -372,6 +378,9 @@ def plot_full_ts(df_daily: pd.DataFrame, years: list[int]) -> None:
     """    
 
     sns.set_theme(style="darkgrid")
+
+    # Get just the date part and convert to datetime
+    df_daily["pickup_date"] = pd.to_datetime(df_daily["pickup_date"]).dt.date
 
     # Plot the daily ts
     ax = sns.lineplot(data = df_daily, x = "pickup_date", y = "trips")

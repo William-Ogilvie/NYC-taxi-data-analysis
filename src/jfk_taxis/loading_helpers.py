@@ -36,4 +36,4 @@ def save_config(config: dict) -> None:
         config (dict): The configuration dictionary to save.
     """
     with open(PROJECT_ROOT / "config" / "config.yml", "w") as f:
-        yaml.safe_dump(config, f)
+        yaml.safe_dump(config, f, default_flow_style= False)

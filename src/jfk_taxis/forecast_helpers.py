@@ -29,6 +29,17 @@ from IPython.display import display
 config, PROJECT_ROOT = load_config()
 
 # --- Functions ---
+def drop_time_zone(s: pd.Series) -> pd.Series:
+    """ Drop the timezone from a pandas Series index.
+
+    Args:
+        s (pd.Series): the input time series.
+    Returns:
+        pd.Series: the time series with timezone dropped.
+    """
+    s.index = s.index.tz_localize(None)
+    return s
+
 def preprocess(lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess]:
     """ Preprocess the time series data for modeling.
 
@@ -46,11 +57,14 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
 
     y = copy.deepcopy(ts) # Create a separate copy of the time series to avoid any changes to the original
 
-    # When forecasting we need the index to have a frequency, for us this is daily
+    # Deterministic processes need to be passed a time zone naive index
+    y = drop_time_zone(y)
+
+    # When forecasting we need the index to have a frequency 
     y = y.asfreq(time_step)
 
-    # This may create some NaNs so we fill them with 0
-    y = y.fillna(0)
+    # # This may create some NaNs so we fill them with 0
+    # y = y.fillna(0)
 
     fourier_list = []
     # Fourier features for seasonality

@@ -59,14 +59,9 @@ def load_ts_data() -> tuple[pd.Series, pd.Series]:
     
 
     # To pass the time series through our helper functions they need to be a pandas series indexed by a datetime object:
-    ts_hourly = df_hourly["trips"]
-    ts_hourly.index = df_hourly["dt"]
+    ts_hourly = pd.Series(df_hourly["trips"].values, index = df_hourly["dt"])
 
-    ts_daily = df_daily["trips"]
-    ts_daily.index = df_daily["pickup_date"]
-
-    # Convert hourly index to UTC (this is to ensure consitency and to avoid any DST issues)
-    #ts_hourly = to_utc_hourly(ts_hourly, source_tz="America/New_York", enforce_hourly=True)
+    ts_daily = pd.Series(df_daily["trips"].values, index = df_daily["pickup_date"])
 
     return ts_daily, ts_hourly
 
