@@ -55,3 +55,5 @@ Comment on fact we expected fourier features to be important, turns out accordin
 Make sure to explain that in terms of hourly lags we can't use all of them so we take first 300 approx and throw in roughly half year and full year ones, with full year being significant.
 
 Explain time zone conversions maybe? like converting to UTC to avoid DST errors
+
+maybe comment on how offsets work? every 30 days with a bit of jitter, so in total 7 offsets

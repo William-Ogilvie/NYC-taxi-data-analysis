@@ -545,7 +545,7 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> None:
 
     
 
-def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> None:
+def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> None:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
     creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
 
@@ -553,7 +553,8 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
         steps (list[int]): list of steps to forecast.
         y_test (pd.Series): series of true future values.
         y_hist (pd.Series): series of historical values.
-        offset (list[int]): offsets to start the forecast from in the test values.
+        offset_list (list[int]): offsets to start the forecast from in the test values.
+        offset_to_show (list[int]): offsets to display the forecasts for.
         linear_models (dict): dictionary of linear models.
         non_linear_models (dict): dictionary of non-linear models.
         naive (bool): whether to include naive forecast.
@@ -625,7 +626,10 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     # Compute MAE linear
                     mae_linear = mean_absolute_error(y_fore_linear, y_real)
                     mae_scores[name] = mae_linear
-                    print(f"MAE: {mae_linear:.2f} for step = {step}, model = {name}")
+
+                    # Only display for offsets in offsets_to_show
+                    if offset in offsets_to_show: 
+                        print(f"MAE: {mae_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
                     # Convert to NYC time for plotting
@@ -655,7 +659,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                     # Compute MAE non linear
                     mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                     mae_scores[name] = mae_non_linear
-                    print(f"MAE: {mae_non_linear:.2f} for step = {step}, model = {name}")
+
+                    if offset in offsets_to_show:   
+                        print(f"MAE: {mae_non_linear:.2f} for step = {step}, model = {name}")
 
                     # Add to plot
                     # Convert to NYC time for plotting
@@ -671,7 +677,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             
                 mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
                 mae_scores["Naive"] = mae_naive
-                print(f"MAE: {mae_naive:.2f} for step =  30, model = Naive\n")
+
+                if offset in offsets_to_show:
+                    print(f"MAE: {mae_naive:.2f} for step =  30, model = Naive\n")
 
                 # Plot forecasts
                 # Convert to NYC time for plotting
@@ -689,7 +697,12 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             ax.set_ylabel("Trip counts")
             ax.set_xlabel("Pickup datetime")
             plt.xticks(rotation = 90, ha = "right")
-            plt.show()
+
+            # This is for readability not necessarily efficiency
+            if offset in offsets_to_show:
+                plt.show()
+            else:
+                plt.close()
             # Plot MAE bar plots:
             df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
 
@@ -702,7 +715,12 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             else:
                 plt.title(f"Model Comparison by MAE, steps = {step}, start date = {str(y_real_plot.index[0].date())}, offset = {offset}")
             plt.xticks(rotation=45, ha="right")
-            plt.show()
+
+
+            if offset in offsets_to_show:
+                plt.show()
+            else:
+                plt.close()
 
     # Now calculate the average MAE by step for each model and put into a dataframe
     df_avg_mae = create_avg_mae_df(model_mae_list, linear_models, non_linear_models, naive)  
@@ -719,12 +737,13 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
 
 
 
-def run_forecasts(steps: list[int], offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
 
     Args:
         steps (list[int]): list of steps to forecast
-        offset (list[int]): offset to start the forecast from in the test values.
+        offset_list (list[int]): offsets to start the forecast from in the test values.
+        offsets_to_show (list[int]): offsets to display the forecasts for
         linear_models (dict): dict of linear models
         non_linear_models (dict): dict of non linear models
         naive (bool): bool of whether to include naive baseline
@@ -736,7 +755,7 @@ def run_forecasts(steps: list[int], offset_list: list[int], linear_models: dict,
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
     y_hist = copy.deepcopy(old_ts) 
 
-    forecast_dicts(steps, y_test, y_hist, offset_list, linear_models, non_linear_models, naive, time_step)
+    forecast_dicts(steps, y_test, y_hist, offset_list, offsets_to_show, linear_models, non_linear_models, naive, time_step)
 
 def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline, this is the app version the only differnece is we return the figure rather than showing it.

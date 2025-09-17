@@ -10,11 +10,14 @@ for a list of models names (both linear and non linear). See the function docstr
 # --- Imports ---
 from .forecast_helpers import fit_non_linear, preprocess, fit_linear 
 from .training_helpers import save_design, save_models
+from .loading_helpers import load_config
 import copy
 import pandas as pd
 from xgboost import XGBRegressor
 import numpy as np
 
+# --- Load config ---
+config, PROJECT_ROOT = load_config()
 
 # --- Functions ---
 def make_offsets(total_time: int, offset_step: int) -> list[int]:
@@ -32,10 +35,16 @@ def make_offsets(total_time: int, offset_step: int) -> list[int]:
 
     # Create base offsets and add some jitter
     base = np.arange(0, total_time, offset_step)
-    noise = np.random.randint(-jitter, jitter, size=base.shape)
+
+    # Create random number generator
+    rng = np.random.default_rng(config["xgboost_setup"]["random_state"])
+    noise = rng.integers(-jitter, jitter, size=base.shape)
 
     # Convert to list of ints
-    offsets = list(base + noise)
+    offsets = list(int(i) for i in (base + noise))
+
+    # To avoid errors with negative offsets we take the absolute value of the first offset
+    offsets[0] = abs(offsets[0])
 
     return offsets
 
