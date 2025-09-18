@@ -61,7 +61,7 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
         print(train_index)
         # We need to preprocess the training portion of the fold
         ts_train = ts.iloc[train_index].copy()
-        (X_train, y_train, dp) = preprocess(lags, constant, order, fourier_features, time_step, ts_train)
+        (X_train, y_train, dp, lags) = preprocess(lags, constant, order, fourier_features, time_step, ts_train)
 
         # We don't need to preprocess the test portion of the fold because we are going to pass the deterministic process and use dp.out_sample()
         # when forecasting as we are doing a multistep forecast and need to build lags as we go. 
@@ -73,7 +73,7 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
         y_train = y_train.astype("float32")
         y_test = y_test.astype("float32")
         
-        fold_dict[f"fold_{fold}"] = (X_train, y_train, dp, y_test)
+        fold_dict[f"fold_{fold}"] = (X_train, y_train, dp, lags, y_test)
 
     return fold_dict
 
@@ -133,7 +133,8 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         X_train = value[0]
         y_train = value[1]
         dp = value[2]
-        y_test = value[3]
+        lags = value[3]
+        y_test = value[4]
  
 
         # We are going to use early stopping, now to avoid very long computations we will take a slight shorcut in that the validation set will have 
@@ -196,8 +197,11 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         # Time forecasting
         start_fore = time.time()
 
-        # We want to use gpu for predictions
-        gpu = True 
+        # We want to use gpu for predictions if hybrid is None (so we are just using XGBoost) and the config file says to use cuda
+        if hybrid is None and config["xgboost_setup"]["device"] == "cuda":
+            gpu = True
+        else:
+            gpu = False 
 
         # Run the forecast for the required steps on each of the offsets and take an average
         mae_list = []

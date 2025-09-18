@@ -29,11 +29,21 @@ def load_config() -> tuple[dict, Path]:
 
     return config, PROJECT_ROOT
 
-def save_config(config: dict) -> None:
+def save_config(config: dict) -> tuple[dict, Path]:
     """ Saves the configuration dictionary back to the YAML file.
 
     Args:
         config (dict): The configuration dictionary to save.
+
+    Returns:
+        tuple[dict, Path]: A tuple containing the config dictionary and the project root path.
     """
-    with open(PROJECT_ROOT / "config" / "config.yml", "w") as f:
+    # Save config
+    with open(CONFIG_PATH, "w") as f:
         yaml.safe_dump(config, f, default_flow_style= True)
+
+    # Load config
+    with open(CONFIG_PATH, "r") as f:
+        config = yaml.safe_load(f)
+
+    return config, PROJECT_ROOT
