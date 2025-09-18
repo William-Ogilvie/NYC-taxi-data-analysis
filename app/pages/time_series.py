@@ -177,7 +177,12 @@ def filter_input_template(daily_reduced_model: str, hourly_reduced_model: str) -
 
     elif st.session_state.ts_type_widget == "Hourly":
         if st.session_state.lags_input_widget == "Full default":
-            lags = config["modelling"]["hourly_lags"]
+            lags = config["modelling"]["hourly_lags"][:config["modelling"]["hourly_num_lags"]]
+            extra_lags = config["modelling"]["hourly_extra_lags"]
+
+            for lag in extra_lags:
+                if lag not in lags:
+                    lags.append(lag)
         elif st.session_state.lags_input_widget == "Reduced default":
             lags = config["shap"][hourly_reduced_model]["extracted_lags"] 
         elif st.session_state.lags_input_widget == "Custom":
@@ -361,6 +366,10 @@ def check_daily_offsets_input() -> bool:
             except ValueError:
                 st.error("Custom offsets must be comma-separated integers.")
                 return False
+            # Check whether offset is in allowed range 
+            if offset > config["modelling"]["daily_offset"][-1]:
+                st.error(f"Custom offsets must be less than or equal to {config['modelling']['daily_offset'][-1]}.")
+                return False
     return True
 
 def check_hourly_offsets_input() -> bool:
@@ -375,6 +384,10 @@ def check_hourly_offsets_input() -> bool:
                 int(offset)
             except ValueError:
                 st.error("Custom offsets must be comma-separated integers.")
+                return False
+            # Check whether offset is in allowed range
+            if offset > config["modelling"]["hourly_offset"][-1]:
+                st.error(f"Custom offsets must be less than or equal to {config['modelling']['hourly_offset'][-1]}.")
                 return False
     return True
 
@@ -462,7 +475,7 @@ def plot_selected_daily_models():
     st.session_state.daily_offsets_used = offset_list
 
 def display_daily_plots():
-    offsets = st.session_state.daily_offsets_to_display_widget
+    offsets = st.session_state.daily_offset_to_display_widget
 
     forecast_figs = []
     bar_plot_figs = []
@@ -788,7 +801,7 @@ with col_daily_plotting:
     st.radio("Offsets to start forecast", options = ["default", "custom"], index = 0, key = "daily_offsets_widget") 
 
     if st.session_state.daily_offsets_widget == "custom":
-        st.text_input("Enter custom offsets as comma-separated values", value = "0,7,14,30", key = "daily_custom_offsets_widget")
+        st.text_input(f"Enter custom offsets as comma-separated values, max value {config['modelling']['daily_offset'][-1]}", value = "0,7,14,30", key = "daily_custom_offsets_widget")
     
     st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget")
 
@@ -800,7 +813,7 @@ with col_hourly_plotting:
     st.radio("Offsets to start forecast", options = ["default", "custom"], index = 0, key = "hourly_offsets_widget")
 
     if st.session_state.hourly_offsets_widget == "custom":
-        st.text_input("Enter custom offsets as comma-separated values", value = "0,7,14,30", key = "hourly_custom_offsets_widget")
+        st.text_input(f"Enter custom offsets as comma-separated values, max value {config['modelling']['hourly_offset'][-1]}", value = "0,168,336,504,672", key = "hourly_custom_offsets_widget")
     
    
     st.radio("Naive", options = [True, False], index = 0, key = "hourly_naive_widget")
