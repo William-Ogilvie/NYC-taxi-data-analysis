@@ -505,7 +505,15 @@ def create_avg_mae_df(model_mae_list: dict, linear_models: dict, non_linear_mode
     
     return df_mae
 
-def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> None:
+def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> plt.Figure:
+    """ Create a bar plot of average MAE scores by forecast step for all models.
+
+    Args:
+        df_avg_mae (pd.DataFrame): dataFrame containing average MAE scores.
+
+    Returns:
+        plt.Figure: bar plot figure.
+    """    
     # Make the data frame long format for a barplot
     df = df_avg_mae.reset_index()
 
@@ -532,7 +540,7 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> None:
         )
         
         ax.set_title(f"Average MAE for step {steps}")
-        ax.tick_params(axis = "x", rotation = 45)
+        ax.tick_params(axis = "x", rotation = 90)
 
         # Print the average MAE scores for this step
         print(f"\nAverage MAE scores for step {steps}:")
@@ -540,7 +548,11 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> None:
             print(f"{row.model}, average MAE: {row.mae:.2f}")
     
     plt.tight_layout() 
-    plt.show()
+
+    avg_bar_plot_fig = plt.gcf()
+    plt.close()
+    return avg_bar_plot_fig
+    
 
 
     
@@ -714,7 +726,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
                 plt.title(f"Model Comparison by MAE, steps = {step}, start date = {y_real_plot.index[0]}, offset = {offset}")
             else:
                 plt.title(f"Model Comparison by MAE, steps = {step}, start date = {str(y_real_plot.index[0].date())}, offset = {offset}")
-            plt.xticks(rotation=45, ha="right")
+            plt.xticks(rotation=90, ha="right")
 
 
             if offset in offsets_to_show:
@@ -726,7 +738,9 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
     df_avg_mae = create_avg_mae_df(model_mae_list, linear_models, non_linear_models, naive)  
 
     # Create bar plot of average MAE by step for each model for all steps
-    create_avg_mae_barplot(df_avg_mae)
+    bar_plot_fig = create_avg_mae_barplot(df_avg_mae)
+    bar_plot_fig.show()
+    
 
 
     
@@ -757,17 +771,21 @@ def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: lis
 
     forecast_dicts(steps, y_test, y_hist, offset_list, offsets_to_show, linear_models, non_linear_models, naive, time_step)
 
-def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+def run_forecasts_app(steps: int, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> tuple[dict, dict, plt.Figure]:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline, this is the app version the only differnece is we return the figure rather than showing it.
 
     Args:
-        steps (list[int]): list of steps to forecast
+        steps (int): steps to forecast
+        offset_list (list[int]): offsets to start the forecast from in the test values.
         linear_models (dict): dict of linear models
         non_linear_models (dict): dict of non linear models
         naive (bool): bool of whether to include naive baseline
         time_step (str): time step for the time series (e.g. "h", "D")
         old_ts (pd.Series): historical time series
         new_ts (pd.Series): future time series to compare forecasts against
+
+    Returns:
+        tuple[dict, dict, plt.Figure]: dictionary of forecast figures, dictionary of bar plot figures, average bar plot figure
     """    
 
 
@@ -776,42 +794,80 @@ def run_forecasts_app(steps: list[int], linear_models: dict, non_linear_models: 
     y_hist.index = pd.to_datetime(y_hist.index) 
    # y_hist.index = pd.date_range(start=y_hist.index[0], periods=len(y_hist), freq=time_step)
     
-    forecast_fig, bar_plot_fig = forecast_dicts_app(steps, y_test, y_hist, linear_models, non_linear_models, naive)
+    forecast_figs, bar_plot_figs, avg_bar_plot_fig = forecast_dicts_app(steps, y_test, y_hist, offset_list, linear_models, non_linear_models, naive, time_step)
 
-    return forecast_fig, bar_plot_fig
+    return forecast_figs, bar_plot_figs, avg_bar_plot_fig
 
-def forecast_dicts_app(steps: list[int], y_test: pd.Series, y_hist: pd.Series, linear_models: dict, non_linear_models: dict, naive: bool) -> tuple[plt.Figure, plt.Figure]:
+
+def forecast_dicts_app(steps: int, y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> tuple[dict, dict, plt.figure]:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
-    creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well). Is the same as forecasts_dicts but returns the plots.
+    creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well). This is a modified version for the app.
+    Only does one step at a time and returns the figures rather than showing them.
 
     Args:
-        steps (list[int]): list of steps to forecast.
+        steps (int): steps to forecast.
         y_test (pd.Series): series of true future values.
         y_hist (pd.Series): series of historical values.
+        offset_list (list[int]): offsets to start the forecast from in the test values. 
         linear_models (dict): dictionary of linear models.
         non_linear_models (dict): dictionary of non-linear models.
         naive (bool): whether to include naive forecast.
+        time_step (str): time step of the time series (e.g. "h", "D")
+    
+    Returns:
+        tuple[dict, dict, plt.Figure]: dictionary of forecast figures, dictionary of bar plot figures, average bar plot figure
     """
 
-    # Compute naive predictions
-    # Today = yesterday
-    y_pred_naive = y_test.shift(1)
-    y_pred_naive.iloc[0] = y_hist.iloc[-1]
-    
-   
-    for step in steps:
+    # Initalise instances of the model_mae_scores class for each model
+    # List of model_mae_scores instances
+    model_mae_list = {}
+    for name, value in linear_models.items():
+        model_mae = ModelMAEScores(name)
+        model_mae_list[name] = model_mae
 
-        # Store MAE scores for barplot
+    for name, value in non_linear_models.items():
+        model_mae = ModelMAEScores(name)
+        model_mae_list[name] = model_mae
+
+    # If using the naive model add it to the model_mae_list
+    if naive:
+        model_mae = ModelMAEScores("Naive")
+        model_mae_list["Naive"] = model_mae
+
+    # We are going to store all of the offset plots in a dict and then return them all at once
+    forecast_figs = {}
+    bar_plot_figs = {}
+
+    # Loop over offsets
+    for offset in offset_list:
+        # Create a copy of y_hist and y_test to avoid any changes to the original
+        y_test_copy = copy.deepcopy(y_test)
+        y_hist_copy = copy.deepcopy(y_hist)
+
+        # Apply offset to y_hist_copy and y_test_copy 
+        y_hist_copy = pd.concat([y_hist_copy, y_test_copy.iloc[:offset]])
+        y_test_copy = y_test_copy.iloc[offset:]
+
+
+
+        # Compute naive predictions
+        # Today = yesterday
+        y_pred_naive = y_test_copy.shift(1)
+        y_pred_naive.iloc[0] = y_hist_copy.iloc[-1]
+
+
+        # Store MAE scores for barplot and for the model_mae_list
         mae_scores = {}
-        
+            
         # Get real values
-        y_real = y_test.iloc[0:step]
-        
-        # Plot
-        ax = y_real.plot(color='0.25', style='.', title=f"Forecast steps: {step}", figsize = (6, 3))
-        fig = ax.get_figure()
-        
-        
+        y_real = y_test_copy.iloc[0:steps]
+            
+        # Plot 
+        y_real_plot = to_NYC(y_real, time_step)
+        if time_step == "h":
+            ax = y_real_plot.plot(color='0.25', style='.', title=f"Forecast steps: {steps}, start date {y_real_plot.index[0]}, offset: {offset}")
+        else: 
+            ax = y_real_plot.plot(color='0.25', style='.', title=f"Forecast steps: {steps}, start date {str(y_real_plot.index[1].date())}, offset: {offset}")
         # Check if there are any linear models to forecast
         if len(linear_models) != 0:
             # Forecast the linear models:
@@ -820,19 +876,24 @@ def forecast_dicts_app(steps: list[int], y_test: pd.Series, y_hist: pd.Series, l
                 dp = value[1]
                 hybrid = value[2]
                 lags = value[3]
-                
+                    
                 # Get forecast (we use cpu for linear forecasts, hence set gpu = False)
-                y_fore_linear = forecast(model, y_hist, lags, step, dp, hybrid, False)
+                y_fore_linear = forecast(model, y_hist_copy, lags, steps, offset, dp, hybrid, False)
 
-                
+                    
                 # Compute MAE linear
                 mae_linear = mean_absolute_error(y_fore_linear, y_real)
                 mae_scores[name] = mae_linear
-                print(f"MAE Linear: {mae_linear:.2f} for step = {step}, model = {name}")
+
+                # Only display for offsets in offsets_to_show 
+                print(f"MAE: {mae_linear:.2f} for step = {steps}, model = {name}")
 
                 # Add to plot
+                # Convert to NYC time for plotting
+                y_fore_linear = to_NYC(y_fore_linear, time_step)
+
                 ax = y_fore_linear.plot(ax = ax, label = name)
-        
+            
 
         # check if there are any non linear models to forecast
         if len(non_linear_models) != 0:
@@ -850,48 +911,76 @@ def forecast_dicts_app(steps: list[int], y_test: pd.Series, y_hist: pd.Series, l
                     gpu = False
 
                 # Get forecast
-                y_fore_non_linear = forecast(model, y_hist, lags, step, dp, hybrid, gpu)
+                y_fore_non_linear = forecast(model, y_hist_copy, lags, steps, offset, dp, hybrid, gpu)
 
                 # Compute MAE non linear
                 mae_non_linear = mean_absolute_error(y_fore_non_linear, y_real)
                 mae_scores[name] = mae_non_linear
-                print(f"MAE Non Linear: {mae_non_linear:.2f} for step = {step}, model = {name}")
+
+                print(f"MAE: {mae_non_linear:.2f} for step = {steps}, model = {name}")
 
                 # Add to plot
+                # Convert to NYC time for plotting
+                y_fore_non_linear = to_NYC(y_fore_non_linear, time_step)
+                       
                 ax = y_fore_non_linear.plot(ax = ax, label = name)
-       
-
         
+
+            
         if naive == True:
             # Compute naive MAE
             y_step_pred_naive = y_pred_naive.loc[y_real.index]
-         
+            
             mae_naive = mean_absolute_error(y_real, y_step_pred_naive)
             mae_scores["Naive"] = mae_naive
-            print(f"Naive MAE: MAE = {mae_naive:.2f}\n")
+
+            print(f"MAE: {mae_naive:.2f} for step =  30, model = Naive\n")
 
             # Plot forecasts
-            ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
-            
-           
-            
+            # Convert to NYC time for plotting
+            y_step_pred_naive = to_NYC(y_step_pred_naive, time_step)
 
+            ax = y_step_pred_naive.plot(ax = ax, label = "Naive")
+                
+            
+                
+        # Save the mae scores to the model_mae_list
+        model_mae_list = save_mae_scores(model_mae_list, mae_scores, steps, offset)
+            
         # Add legend
+        ax.legend()
         ax.set_ylabel("Trip counts")
         ax.set_xlabel("Pickup datetime")
-        ax.legend()
         plt.xticks(rotation = 90, ha = "right")
 
-    
+        # Add to list of figures to return
+        forecast_fig = ax.get_figure()
+        forecast_figs[offset] = forecast_fig
+        
+        plt.close()
+
         # Plot MAE bar plots:
         df_mae = pd.DataFrame(list(mae_scores.items()), columns=["Model", "MAE"]) 
 
-        fig2 = plt.figure(figsize=(6,3))
-        sns.barplot(data=df_mae, x="Model", y="MAE")
+        plt.figure(figsize=(8,5))
+        sns.barplot(data=df_mae, x="Model", y="MAE", hue = "Model")
 
-        plt.title(f"Model Comparison by MAE, steps = {step}")
-        plt.xticks(rotation=45, ha="right")
+        if time_step == "h":
+            # Use the NYC time for title 
+            plt.title(f"Model Comparison by MAE, steps = {steps}, start date = {y_real_plot.index[0]}, offset = {offset}")
+        else:
+            plt.title(f"Model Comparison by MAE, steps = {steps}, start date = {str(y_real_plot.index[0].date())}, offset = {offset}")
+        plt.xticks(rotation=90, ha="right")
 
-        # Return figures for both plots fig is the forecast, fig2 is the MAE bar plot
-        return fig, fig2
-        
+        barplot_fig = plt.gcf()
+        bar_plot_figs[offset] = barplot_fig
+
+        plt.close()
+
+    # Now calculate the average MAE by step for each model and put into a dataframe
+    df_avg_mae = create_avg_mae_df(model_mae_list, linear_models, non_linear_models, naive)  
+
+    # Create bar plot of average MAE by step for each model for all steps
+    avg_bar_plot_fig = create_avg_mae_barplot(df_avg_mae)
+
+    return forecast_figs, bar_plot_figs, avg_bar_plot_fig

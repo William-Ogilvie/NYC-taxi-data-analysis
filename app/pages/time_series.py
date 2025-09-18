@@ -348,6 +348,73 @@ def train_daily_non_linear_models():
         # Append to daily non linear trained models
         st.session_state.daily_trained_non_linear_models.append(model_name)
 
+def check_daily_offsets_input() -> bool:
+    """Check if the custom offsets input is valid.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """    
+    if st.session_state.daily_offsets_widget == "Custom":
+        for offset in st.session_state.daily_custom_offsets_widget.split(","):
+            try:
+                int(offset)
+            except ValueError:
+                st.error("Custom offsets must be comma-separated integers.")
+                return False
+    return True
+
+def check_hourly_offsets_input() -> bool:
+    """Check if the custom offsets input is valid.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """    
+    if st.session_state.hourly_offsets_widget == "Custom":
+        for offset in st.session_state.hourly_custom_offsets_widget.split(","):
+            try:
+                int(offset)
+            except ValueError:
+                st.error("Custom offsets must be comma-separated integers.")
+                return False
+    return True
+
+
+def get_daily_offsets() -> list[int]:
+    """Get daily offsets.
+
+    Returns:
+        list[int]: daily offsets.
+    """    
+
+
+    if st.session_state.daily_offsets_widget == "default":
+        return config["modelling"]["daily_offset"]
+    elif st.session_state.daily_offsets_widget == "custom":
+        if not check_daily_offsets_input():
+            return []
+
+        custom_offsets = st.session_state.daily_custom_offsets_widget
+        return [int(x) for x in custom_offsets.split(",")]
+    
+def get_hourly_offsets() -> list[int]:
+    """Get hourly offsets.
+
+    Returns:
+        list[int]: hourly offsets.
+    """    
+
+
+    if st.session_state.hourly_offsets_widget == "default":
+        return config["modelling"]["hourly_offset"]
+    elif st.session_state.hourly_offsets_widget == "custom":
+        if not check_hourly_offsets_input():
+            return []
+
+        custom_offsets = st.session_state.hourly_custom_offsets_widget
+        return [int(x) for x in custom_offsets.split(",")]
+
+
+
 def plot_selected_daily_models():
     """Plot selected daily models.
     """  
@@ -360,7 +427,8 @@ def plot_selected_daily_models():
     ts_test = st.session_state.ts_daily_test
     time_step = "D"
     naive = st.session_state.daily_naive_widget
-    steps = [st.session_state.daily_steps_widget]
+    steps = st.session_state.daily_steps_widget
+    offset_list = get_daily_offsets()
 
     for model_name in st.session_state.daily_linear_models_to_plot_widget:
 
@@ -383,12 +451,29 @@ def plot_selected_daily_models():
 
     
     # Run forecasts
-    forecast_fig, bar_plot_fig = run_forecasts_app(steps, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
- 
+    forecast_figs, bar_plot_figs, avg_bar_plot_fig = run_forecasts_app(steps, offset_list, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
+
     # Update session state with forecasts
-    st.session_state.daily_forecast_fig = forecast_fig
-    st.session_state.daily_bar_plot_fig = bar_plot_fig
-             
+    st.session_state.daily_forecast_fig = forecast_figs
+    st.session_state.daily_bar_plot_fig = bar_plot_figs
+    st.session_state.daily_avg_bar_plot_fig = avg_bar_plot_fig
+
+    # Store the offsets used so we can display for plot
+    st.session_state.daily_offsets_used = offset_list
+
+def display_daily_plots():
+    offsets = st.session_state.daily_offsets_to_display_widget
+
+    forecast_figs = []
+    bar_plot_figs = []
+
+    for offset in offsets:
+        forecast_figs.append(st.session_state.daily_forecast_fig[offset])
+        bar_plot_figs.append(st.session_state.daily_bar_plot_fig[offset])
+
+    st.session_state.daily_forecast_figs_to_display = forecast_figs
+    st.session_state.daily_bar_plot_figs_to_display = bar_plot_figs
+
 def train_hourly_linear_models():
     """Train hourly linear models. Models are saved using the signature file format as in the notebooks. We save the model names to session state.
     """
@@ -447,7 +532,6 @@ def train_hourly_non_linear_models():
         # Append to hourly non linear trained models
         st.session_state.hourly_trained_non_linear_models.append(model_name)
 
-
 def plot_selected_hourly_models():
     """Plot selected hourly models.
     """  
@@ -460,7 +544,8 @@ def plot_selected_hourly_models():
     ts_test = st.session_state.ts_hourly_test
     time_step = "h"
     naive = st.session_state.hourly_naive_widget
-    steps = [st.session_state.hourly_steps_widget]
+    steps = st.session_state.hourly_steps_widget
+    offset_list = get_hourly_offsets()
 
     for model_name in st.session_state.hourly_linear_models_to_plot_widget:
 
@@ -483,11 +568,30 @@ def plot_selected_hourly_models():
 
     
     # Run forecasts
-    forecast_fig, bar_plot_fig = run_forecasts_app(steps, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
+    forecast_figs, bar_plot_figs, avg_bar_plot_fig = run_forecasts_app(steps, offset_list, full_linear_models, full_non_linear_models, naive, time_step, ts_train, ts_test)
  
     # Update session state with forecasts
-    st.session_state.hourly_forecast_fig = forecast_fig
-    st.session_state.hourly_bar_plot_fig = bar_plot_fig
+    st.session_state.hourly_forecast_fig = forecast_figs
+    st.session_state.hourly_bar_plot_fig = bar_plot_figs
+    st.session_state.hourly_avg_bar_plot_fig = avg_bar_plot_fig
+
+    # Store the offsets used so we can display for plot
+    st.session_state.hourly_offsets_used = offset_list
+
+def display_hourly_plots():
+    offsets = st.session_state.hourly_offset_to_display_widget
+
+    forecast_figs = []
+    bar_plot_figs = []
+
+    for offset in offsets:
+
+        forecast_figs.append(st.session_state.hourly_forecast_fig[offset])
+        bar_plot_figs.append(st.session_state.hourly_bar_plot_fig[offset])
+    
+    st.session_state.hourly_forecast_figs_to_display = forecast_figs
+    st.session_state.hourly_bar_plot_figs_to_display = bar_plot_figs
+
 
 # --- SHAP functions ---
 def compute_daily_shap_values():
@@ -593,6 +697,12 @@ if "hourly_trained_linear_models" not in st.session_state:
 if "hourly_trained_non_linear_models" not in st.session_state:
     st.session_state.hourly_trained_non_linear_models = []
 
+if "daily_offsets_used" not in st.session_state:
+    st.session_state.daily_offsets_used = []
+
+if "hourly_offsets_used" not in st.session_state:
+    st.session_state.hourly_offsets_used = []
+
 
 if "ts_daily_train" not in st.session_state:
     get_training_test_data()
@@ -628,7 +738,7 @@ with st.form("model_form"):
             st.multiselect("Fourier features", options = ["Yearly", "Weekly", "Daily"], key = "custom_fourier_hourly_widget")
     
 
-    submitted = st.form_submit_button("Add model") 
+    submitted = st.form_submit_button("Add model", key="add_model_button")
 
 
 
@@ -654,20 +764,20 @@ col_remove_daily, col_remove_hourly = st.columns([1,1])
 with col_remove_daily:
     st.multiselect("Select daily linear/hybrid models to remove", options = list(st.session_state.daily_linear_models.keys()), key = "daily_linear_models_to_remove_widget")
     st.multiselect("Select daily non-linear models to remove", options = list(st.session_state.daily_non_linear_models.keys()), key = "daily_non_linear_models_to_remove_widget")
-    st.button("Remove selected daily models", on_click = remove_daily) 
+    st.button("Remove selected daily models", on_click = remove_daily, key = "remove_daily_button") 
 with col_remove_hourly:
     st.multiselect("Select hourly linear/hybrid models to remove", options = list(st.session_state.hourly_linear_models.keys()), key = "hourly_linear_models_to_remove_widget")
     st.multiselect("Select hourly non-linear models to remove", options = list(st.session_state.hourly_non_linear_models.keys()), key = "hourly_non_linear_models_to_remove_widget")
-    st.button("Remove selected hourly models", on_click = remove_hourly)
+    st.button("Remove selected hourly models", on_click = remove_hourly, key = "remove_hourly_button")
 
 # --- Train models ---
 col_daily_train, col_hourly_train = st.columns([1,1])
 with col_daily_train:
-    st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models)
-    st.button("Train daily non-linear models", on_click = train_daily_non_linear_models)
+    st.button("Train daily linear/hybrid models", on_click = train_daily_linear_models, key = "daily_linear_train_button")
+    st.button("Train daily non-linear models", on_click = train_daily_non_linear_models, key = "daily_non_linear_train_button")
 with col_hourly_train:
-    st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models)
-    st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models)
+    st.button("Train hourly linear/hybrid models", on_click = train_hourly_linear_models, key = "hourly_linear_train_button")
+    st.button("Train hourly non-linear models", on_click = train_hourly_non_linear_models, key = "hourly_non_linear_train_button")
 
 # --- Plot models ---
 col_daily_plotting, col_hourly_plotting = st.columns([1,1])
@@ -675,42 +785,61 @@ with col_daily_plotting:
     st.multiselect("Select daily linear/hybrid models to plot", options = st.session_state.daily_trained_linear_models, key = "daily_linear_models_to_plot_widget")
     st.multiselect("Select daily non-linear models to plot", options = st.session_state.daily_trained_non_linear_models, key = "daily_non_linear_models_to_plot_widget")
     st.number_input("Number of steps (days) to forecast", min_value = 1, max_value = 365, value = 30, step = 1, key = "daily_steps_widget")
+    st.radio("Offsets to start forecast", options = ["default", "custom"], index = 0, key = "daily_offsets_widget") 
+
+    if st.session_state.daily_offsets_widget == "custom":
+        st.text_input("Enter custom offsets as comma-separated values", value = "0,7,14,30", key = "daily_custom_offsets_widget")
+    
     st.radio("Naive", options = [True, False], index = 0, key = "daily_naive_widget")
 
-    st.button("Plot selected daily models", on_click=plot_selected_daily_models)
+    st.button("Plot selected daily models", on_click=plot_selected_daily_models, key = "daily_plot_button")
 with col_hourly_plotting:
     st.multiselect("Select hourly linear/hybrid models to plot", options = st.session_state.hourly_trained_linear_models, key = "hourly_linear_models_to_plot_widget")
     st.multiselect("Select hourly non-linear models to plot", options = st.session_state.hourly_trained_non_linear_models, key = "hourly_non_linear_models_to_plot_widget")
     st.number_input("Number of steps (hours) to forecast", min_value = 1, max_value = 8760, value = 168, step = 1, key = "hourly_steps_widget")
+    st.radio("Offsets to start forecast", options = ["default", "custom"], index = 0, key = "hourly_offsets_widget")
+
+    if st.session_state.hourly_offsets_widget == "custom":
+        st.text_input("Enter custom offsets as comma-separated values", value = "0,7,14,30", key = "hourly_custom_offsets_widget")
+    
+   
     st.radio("Naive", options = [True, False], index = 0, key = "hourly_naive_widget")
 
-    st.button("Plot selected hourly models", on_click=plot_selected_hourly_models)
+    st.button("Plot selected hourly models", on_click=plot_selected_hourly_models, key = "hourly_plot_button")
 
 # --- Display plots if available ---
 col_daily_figures, col_hourly_figures = st.columns([1,1])
 with col_daily_figures:
-    if st.session_state.get("daily_forecast_fig", None) is not None:
-        st.pyplot(st.session_state.daily_forecast_fig)
+    st.multiselect("Select offset to display on plot", options=st.session_state.daily_offsets_used, key = "daily_offset_to_display_widget")
+    st.button("Display plot for selected offsets", on_click = display_daily_plots, key = "daily_display_button")
 
-    if st.session_state.get("daily_bar_plot_fig", None) is not None:
-        st.pyplot(st.session_state.daily_bar_plot_fig)
-
+    if st.session_state.get("daily_forecast_figs_to_display", None) is not None:
+        for fig, bar in zip(st.session_state.daily_forecast_figs_to_display, st.session_state.daily_bar_plot_figs_to_display):
+            st.pyplot(fig)
+            st.pyplot(bar)
+        
+        st.pyplot(st.session_state.daily_avg_bar_plot_fig)
 with col_hourly_figures: 
-    if st.session_state.get("hourly_forecast_fig", None) is not None:
-        st.pyplot(st.session_state.hourly_forecast_fig)
-
-    if st.session_state.get("hourly_bar_plot_fig", None) is not None:
-        st.pyplot(st.session_state.hourly_bar_plot_fig)
+    st.multiselect("Select offset to display on plot", options=st.session_state.hourly_offsets_used, key = "hourly_offset_to_display_widget")
+    st.button("Display plot for selected offsets", on_click = display_hourly_plots, key = "hourly_display_button") 
+    
+    if st.session_state.get("hourly_forecast_figs_to_display", None) is not None:
+        for fig, bar in zip(st.session_state.hourly_forecast_figs_to_display, st.session_state.hourly_bar_plot_figs_to_display):
+            st.pyplot(fig)
+            st.pyplot(bar)
+        
+        st.pyplot(st.session_state.hourly_avg_bar_plot_fig)
+    
 
 # --- SHAP values ---
 col_daily_shap, col_hourly_shap = st.columns([1,1])
 with col_daily_shap:
     st.selectbox("Select daily model for SHAP values", options = st.session_state.daily_trained_linear_models + st.session_state.daily_trained_non_linear_models, key = "daily_shap_model_widget")
-    st.button("Compute SHAP values for selected daily model", on_click = compute_daily_shap_values)
+    st.button("Compute SHAP values for selected daily model", on_click = compute_daily_shap_values, key = "daily_shap_button")
 with col_hourly_shap:
     st.write("Be warned that computing SHAP values for hourly models can take a long time due to the size of the dataset. Potentially in the region of 24 minutes at least on my machine.")
     st.selectbox("Select hourly model for SHAP values", options = st.session_state.hourly_trained_linear_models + st.session_state.hourly_trained_non_linear_models, key = "hourly_shap_model_widget")
-    st.button("Compute SHAP values for selected hourly model", on_click = compute_hourly_shap_values)
+    st.button("Compute SHAP values for selected hourly model", on_click = compute_hourly_shap_values, key = "hourly_shap_button")
 
 # --- Display SHAP plots if available ---
 col_daily_shap_fig, col_hourly_shap_fig = st.columns([1,1])

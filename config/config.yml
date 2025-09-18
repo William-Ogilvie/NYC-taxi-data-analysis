@@ -893,24 +893,23 @@
     non_linear_keys_preffix: non_linear_keys, original_parquet_prefix: processed,
     shap_values_file: shap_values, target_file_suffix: target.pkl, ts_daily: daily,
     ts_hourly: hour, ts_prefix: ts}, shap: {daily_base_non_linear: {extracted_fourier_features: [
-        YE, W], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 21, 23, 26, 28, 35,
-        98, 100, 163, 294, 330, 364, 371], extracted_trends: []}, daily_hybrid_order: 3,
+        YE, W], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 23, 28, 30, 33,
+        35, 59, 84, 98, 330, 357, 364, 371], extracted_trends: []}, daily_hybrid_order: 3,
     daily_hybrid_order2: {extracted_fourier_features: [YE], extracted_lags: [1, 2,
-        3, 8, 10, 26, 39, 41, 157, 224, 261, 264, 266, 278, 281, 294, 297, 308, 310,
-        325, 329, 350, 357, 364, 371], extracted_trends: [trend]}, daily_hybrid_order_list: [
+        3, 4, 8, 10, 13, 14, 23, 33, 41, 57, 88, 100, 105, 140, 147, 153, 168, 232,
+        261, 267, 276, 281, 357, 364, 371], extracted_trends: [trend]}, daily_hybrid_order_list: [
       0, 1, 2, 3], daily_linear_order2: {extracted_fourier_features: [W], extracted_lags: [
-        1, 2, 3, 6, 7, 10, 14, 23, 26, 40, 43, 46, 48, 53, 64, 70, 98, 122, 123, 212,
-        213, 244, 250, 298, 309, 326, 357, 364, 371], extracted_trends: []}, daily_order_list: [
+        1, 2, 3, 4, 6, 7, 10, 14, 15, 23, 28, 34, 35, 36, 43, 53, 98, 148, 155, 161,
+        180, 216, 244, 266, 267, 285, 357, 364, 371], extracted_trends: []}, daily_order_list: [
       0, 1, 2, 3, 4, 5], daily_prefix: daily, hourly_base_non_linear: {extracted_fourier_features: [
-        D], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 16, 23, 24, 25, 48, 72, 73, 96,
-        120, 144, 168, 169, 193, 194, 216, 240, 264, 336, 337, 8735, 8736], extracted_trends: []},
+        D], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 14, 16, 23, 24, 25, 48, 72, 73,
+        96, 120, 144, 167, 168, 169, 193, 216, 336, 361, 362, 8735, 8736], extracted_trends: []},
     hourly_hybrid_order: 0, hourly_hybrid_order2: {extracted_fourier_features: [],
-      extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 18, 23, 24, 37, 48, 96, 145, 167, 168,
-        173, 264, 288, 335, 336, 8734, 8735, 8736, 8757, 8758, 8760, 8783, 8784],
+      extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 20, 23, 24, 48, 72, 96, 167, 168, 173,
+        288, 335, 336, 8733, 8734, 8735, 8736, 8757, 8758, 8759, 8760, 8783, 8784],
       extracted_trends: []}, hourly_linear_order2: {extracted_fourier_features: [],
-      extracted_lags: [1, 2, 3, 6, 7, 8, 23, 24, 25, 48, 49, 72, 73, 96, 120, 121,
-        144, 145, 167, 168, 170, 192, 240, 264, 288, 312, 336, 8735, 8736, 8759],
-      extracted_trends: []}, hourly_prefix: hourly, num_features_to_extract: 30},
-  xgboost_default: {colsample_bytree: 0.8, learning_rate: 0.05, max_depth: 5, n_estimators: 500,
-    subsample: 0.8}, xgboost_setup: {device: cuda, eval_metric: mae, random_state: 37,
-    tree_method: hist}}
+      extracted_lags: [1, 2, 3, 6, 7, 8, 14, 23, 24, 25, 26, 48, 49, 72, 73, 96, 120,
+        121, 144, 145, 167, 168, 170, 240, 312, 335, 336, 8735, 8736, 8759], extracted_trends: []},
+    hourly_prefix: hourly, num_features_to_extract: 30}, xgboost_default: {colsample_bytree: 0.8,
+    learning_rate: 0.05, max_depth: 5, n_estimators: 500, subsample: 0.8}, xgboost_setup: {
+    device: cuda, eval_metric: mae, random_state: 37, tree_method: hist}}
