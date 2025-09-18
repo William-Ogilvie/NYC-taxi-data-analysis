@@ -78,7 +78,7 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
     return fold_dict
 
 
-def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: LinearRegression | None) -> dict:
+def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: LinearRegression | None, offset_list: list[int]) -> dict:
     """ Objective function for hyperparameter tuning using hyperopt
 
     Args:
@@ -87,6 +87,7 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         lags (list[int]): list of lags
         steps (list[int]): number of steps to forecast
         hybrid (LinearRegression | None): hybrid model to use, if None then no hybrid model is used
+        offset_list (list[int]): list of offsets to use when forecasting
 
     Returns:
         dict: dictionary containing the computed loss (mean MAE across folds) and the status 
@@ -198,8 +199,18 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         # We want to use gpu for predictions
         gpu = True 
 
-        # Run the forecast for the required steps
-        y_preds = forecast(model, y_train, lags, steps, dp, hybrid, gpu)
+        # Run the forecast for the required steps on each of the offsets and take an average
+        mae_list = []
+        for offset in offset_list:
+            # Forecast on offset
+            y_preds = forecast(model, y_train, lags, steps, offset, dp, hybrid, gpu)
+
+            # Compute MAE for this offset 
+            mae = mean_absolute_error(y_preds, y_test)
+
+            # Append to list
+            mae_list.append(mae)
+        
 
         end_fore = time.time()
     
@@ -211,10 +222,12 @@ def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid:
         # print("Best iteration:", model.best_iteration)
         # print("Best score:", model.best_score)
 
-        # Compute MAE
-        mae = mean_absolute_error(y_preds, y_test)
+        
+        # Average the MAEs and add to list
+        mae = sum(mae_list) / len(mae_list) 
         maes.append(mae) 
 
+    # Average MAE across folds (technically this is a double average as we have averaged across offsets too)
     mean_mae = sum(maes) / len(maes)
     print("MAEs:", maes)
     print("Avg MAE:", mean_mae)
@@ -230,7 +243,7 @@ def wrapped_objective(space: dict) -> dict:
     Returns:
         dict: same return as objective function, dict of loss and status
     """    
-    return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid)
+    return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid, wrapped_objective.offset_list)
 
 def split_params(params: dict) -> tuple[dict, dict, dict, dict]:
     """ Splits the hyperparam dicts into four dicts, daily_non_linear, daily_hybrid, hourly_non_linear, hourly_hybrid
@@ -260,14 +273,12 @@ def split_params(params: dict) -> tuple[dict, dict, dict, dict]:
     return daily_non_linear_dict, daily_hybrid_dict, hourly_non_linear_dict, hourly_hybrid_dict
 
 
-def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: list[int], ts_daily_train: pd.Series, ts_daily_test: pd.Series, ts_hourly_train: pd.Series, ts_hourly_test: pd.Series, daily_steps: list[int], hourly_steps: list[int]) -> None:
+def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: pd.Series, ts_hourly_train: pd.Series, ts_hourly_test: pd.Series, daily_steps: list[int], hourly_steps: list[int], daily_offsets: list[int], hourly_offsets: list[int], daily_offsets_to_show: list[int], hourly_offsets_to_show: list[int]) -> None:
     """ Tests the hyperparameters by loading the previous models and design matrices, defining a new model with the hyperparameters and fitting it to the training data.
         Outputs the same forecasts using run_forecasts as in the modelling notebook.
 
     Args:
-        dict_full (dict): dict of dict of hyperparamters, split into four keys, "daily", "daily_hybrid", "hourly", "hourly_hybrid", then each dict has values of the hyperparameters key of the model signature
-        daily_lags (list[int]): list of daily lags to use for the model
-        used_hourly_lags (list[int]): list of hourly lags to use for the model
+        dict_full (dict): dict of dict of hyperparamters, split into four keys, "daily", "daily_hybrid", "hourly", "hourly_hybrid", then each dict has values of the hyperparameters key of the model signature 
         ts_daily_train (pd.Series): training data for the daily model
         ts_daily_test (pd.Series): test data for the daily model
         ts_hourly_train (pd.Series): training data for the hourly model
@@ -275,9 +286,6 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
         daily_steps (list[int]): list of steps to forecast for the daily model
         hourly_steps (list[int]): list of steps to forecast for the hourly model
     """    
-
-    # We will need the lags for the older models
-    old_daily_lags, old_hourly_lags = load_process_lags()
 
 
 
@@ -325,7 +333,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts(steps, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts(steps, daily_offsets, daily_offsets_to_show, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["daily_hybrid_key"]:
                 # Load the previous non linear model
@@ -376,7 +384,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = daily_steps
 
                 # Run forecasts
-                run_forecasts(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
+                run_forecasts(steps, daily_offsets, daily_offsets_to_show, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_linear_key"]:
                 # Load the previous non linear model
@@ -422,7 +430,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts(steps, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts(steps, hourly_offsets, hourly_offsets_to_show, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
 
             elif key == config["hyperparameter_tuning"]["hourly_hybrid_key"]:
                 # Load the previous non linear model
@@ -476,7 +484,7 @@ def test_hyperparams(dict_full: dict, daily_lags: list[int], used_hourly_lags: l
                 steps = hourly_steps
 
                 # Run forecasts
-                run_forecasts(steps, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
+                run_forecasts(steps, hourly_offsets, hourly_offsets_to_show, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test)
 
             else:
                 raise ValueError("Key must be one of 'daily', 'daily_hybrid', 'hourly', 'hourly_hybrid'")
