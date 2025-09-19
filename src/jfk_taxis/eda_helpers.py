@@ -21,6 +21,7 @@ config, PROJECT_ROOT = load_config()
 # --- Constants and Paths ---
 DATA_DIR_MAPS = PROJECT_ROOT / config["data"]["reports_path"] / config["data"]["maps_path"]
 DATA_DIR_RAW = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
+DATA_DIR_APP = PROJECT_ROOT / config["data"]["app_path"] / config["data"]["app_data_path"]
 
 # --- Functions ---
 def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, drop_rows: bool) -> folium.Map:
@@ -390,7 +391,7 @@ def multiplot_choropleths(geo_data: gpd.GeoDataFrame, scale: list[int], years: l
     plt.show()
 
 def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, year: int, month: int, pickup_or_drop_off: str, drop_boroughs: list[str], drop_ids: list[int]) -> folium.Map:
-    """ Create choropleth maps for the app using the same approach as create_save_listed_adjusted_choropleths, now year and month will be singular values. 
+    """ Create choropleth maps for the app using the same approach as create_save_listed_adjusted_choropleths, now year and month will be singular values. Loads from app data dir.
 
     Args:
         geo_data (gpd.GeoDataFrame): geopandas dataframe containing the taxi zones shape data
@@ -439,21 +440,21 @@ def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame
 
     return M
 
-def load_geo_data_and_zone_lookup() -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
-    """ Loads the geo data and zone lookup data from the data directory
+def load_geo_data_and_zone_lookup_app() -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
+    """ Loads the geo data and zone lookup data from the app data directory
 
     Returns:
         tuple[gpd.GeoDataFrame, pd.DataFrame]: tuple containing the geo data and zone lookup data
     """    
 
     # Load the taxi zones shapefile using geopandas
-    geo_data = gpd.read_file(DATA_DIR_RAW / "taxi_zones.shp")
+    geo_data = gpd.read_file(DATA_DIR_APP / "taxi_zones.shp")
 
     # Reproject to EPSG 4326 for folium
     geo_data = geo_data.to_crs(epsg = 4326)
 
     # Load the taxi zone lookup file using pandas
-    zone_lookup = pd.read_csv(DATA_DIR_RAW / "taxi_zone_lookup.csv")
+    zone_lookup = pd.read_csv(DATA_DIR_APP / "taxi_zone_lookup.csv")
 
     return geo_data, zone_lookup
 

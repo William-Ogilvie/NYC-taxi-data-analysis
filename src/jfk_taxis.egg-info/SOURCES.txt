@@ -4,6 +4,10 @@ src/jfk_taxis/__init__.py
 src/jfk_taxis/data_processing.py
 src/jfk_taxis/eda_helpers.py
 src/jfk_taxis/forecast_helpers.py
+src/jfk_taxis/hyperparam_helpers.py
+src/jfk_taxis/loading_helpers.py
+src/jfk_taxis/modelling_helpers.py
+src/jfk_taxis/shap_helpers.py
 src/jfk_taxis/training_helpers.py
 src/jfk_taxis.egg-info/PKG-INFO
 src/jfk_taxis.egg-info/SOURCES.txt

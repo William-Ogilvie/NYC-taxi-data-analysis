@@ -518,7 +518,7 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> plt.Figure:
     df = df_avg_mae.reset_index()
 
     # make subplots with one column and len(df) rows
-    fig, axes = plt.subplots(nrows = len(df), ncols = 1, figsize = (8,  4 * len(df)))
+    fig, axes = plt.subplots(nrows = len(df), ncols = 1, figsize = (10,  6 * len(df)))
 
     if len(df) == 1:
         axes = [axes]
@@ -739,7 +739,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
 
     # Create bar plot of average MAE by step for each model for all steps
     bar_plot_fig = create_avg_mae_barplot(df_avg_mae)
-    bar_plot_fig.show()
+    display(bar_plot_fig)
     
 
 

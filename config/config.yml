@@ -1,12 +1,12 @@
-{data: {data_path: data, figures_path: figures, maps_path: maps, processed_path: processed,
-    raw_path: raw, reports_path: reports, saved_objects_path: saved_objects}, eda: {
-    max_month_2025: 7}, hyperparameter_tuning: {daily_hybrid_key: daily_hybrid, daily_linear_key: daily,
-    daily_offset: [11, 36, 63, 94, 112, 137, 192, 216, 233, 264, 309, 328], daily_steps: [
-      30], daily_test_size: 365, hourly_hybrid_key: hourly_hybrid, hourly_linear_key: hourly,
-    hourly_offset: [246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419,
-      7884], hourly_steps: [168], hourly_test_size: 8760, max_evals: 1, n_splits: 5},
-  model_naming: {default_non_linear: base_non_linear, hybrid_model_prefix: hybrid_order,
-    linear_model_prefix: linear_order, reduced_daily_hybrid_model_prefix: reduced_daily_hybrid_order,
+{data: {app_data_path: data, app_path: app, data_path: data, figures_path: figures,
+    maps_path: maps, processed_path: processed, raw_path: raw, reports_path: reports,
+    saved_objects_path: saved_objects}, eda: {max_month_2025: 7}, hyperparameter_tuning: {
+    daily_hybrid_key: daily_hybrid, daily_linear_key: daily, daily_offset: [11, 36,
+      63, 94, 112, 137, 192, 216, 233, 264, 309, 328], daily_steps: 30, daily_test_size: 365,
+    hourly_hybrid_key: hourly_hybrid, hourly_linear_key: hourly, hourly_offset: [
+      246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419, 7884], hourly_steps: 168,
+    hourly_test_size: 8760, max_evals: 100, n_splits: 5}, model_naming: {default_non_linear: base_non_linear,
+    hybrid_model_prefix: hybrid_order, linear_model_prefix: linear_order, reduced_daily_hybrid_model_prefix: reduced_daily_hybrid_order,
     reduced_daily_linear_model_prefix: reduced_daily_linear_order, reduced_daily_non_linear_model_prefix: reduced_daily_non_linear,
     reduced_hourly_hybrid_model_prefix: reduced_hourly_hybrid_order, reduced_hourly_linear_model_prefix: reduced_hourly_linear_order,
     reduced_hourly_non_linear_model_prefix: reduced_hourly_non_linear}, model_sigs: {
@@ -38,9 +38,9 @@
       322, 323, 325, 326, 328, 329, 330, 333, 336, 343, 350, 357, 364, 371], daily_linear_trends: [
       0, 1, 2, 3, 4, 5], daily_offset: [11, 36, 63, 94, 112, 137, 192, 216, 233, 264,
       309, 328, 373, 404, 411, 436, 465, 500], daily_offset_size: 30, daily_offsets_to_show: [
-      11, 264, 500], daily_steps: [7, 30, 60], hourly_extra_lags: [4316, 4317, 4318,
-      4319, 4320, 4321, 4322, 4323, 4333, 4340, 8733, 8734, 8735, 8736, 8757, 8758,
-      8759, 8760, 8781, 8782, 8783, 8784], hourly_fourier_features: [WE, D], hourly_hybrid_trends: [
+      11], daily_steps: [7, 30, 60], hourly_extra_lags: [4316, 4317, 4318, 4319, 4320,
+      4321, 4322, 4323, 4333, 4340, 8733, 8734, 8735, 8736, 8757, 8758, 8759, 8760,
+      8781, 8782, 8783, 8784], hourly_fourier_features: [WE, D], hourly_hybrid_trends: [
       0, 1, 2, 3], hourly_lags: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16,
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
       36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
@@ -886,17 +886,16 @@
     hourly_linear_trends: [0, 1, 2, 3, 4, 5], hourly_num_lags: 336, hourly_offset: [
       246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419, 7884, 8961,
       9706, 9877, 10486, 11172, 12012, 13003], hourly_offset_size: 720, hourly_offsets_to_show: [
-      246, 6349, 13003], hourly_steps: [24, 168, 720], ts_daily_test_boundary: '2024-01-01',
-    ts_daily_train_boundary: '2023-12-31', ts_hourly_test_boundary: '2024-01-01 05:00:00+00:00',
-    ts_hourly_train_boundary: '2024-01-01 04:00:00+00:00'}, saving: {daily_lags: daily,
-    daily_ts_file_name: ts_daily2011-2025.csv, design_file_suffix: design.pkl, dp_file_suffix: dp.pkl,
-    hourly_lags: hourly, hourly_ts_file_name: ts_hour2011-2025.csv, hybrid_file_suffix: hybrid.pkl,
-    hyperparams_preffix: hyperparams, jfk_parquet_prefix: processed_jfk, lags_file_suffix: lags.pkl,
-    lags_preffix: sig_lags, lags_sig: eda, linear_keys_preffix: linear_keys, model_file_suffix: model.pkl,
-    non_linear_keys_preffix: non_linear_keys, original_parquet_prefix: processed,
+      246], hourly_steps: [24, 168, 720], ts_daily_test_boundary: '2024-01-01', ts_daily_train_boundary: '2023-12-31',
+    ts_hourly_test_boundary: '2024-01-01 05:00:00+00:00', ts_hourly_train_boundary: '2024-01-01
+      04:00:00+00:00'}, saving: {daily_lags: daily, daily_ts_file_name: ts_daily2011-2025.csv,
+    design_file_suffix: design.pkl, dp_file_suffix: dp.pkl, hourly_lags: hourly, hourly_ts_file_name: ts_hour2011-2025.csv,
+    hybrid_file_suffix: hybrid.pkl, hyperparams_preffix: hyperparams, jfk_parquet_prefix: processed_jfk,
+    lags_file_suffix: lags.pkl, lags_preffix: sig_lags, lags_sig: eda, linear_keys_preffix: linear_keys,
+    model_file_suffix: model.pkl, non_linear_keys_preffix: non_linear_keys, original_parquet_prefix: processed,
     shap_values_file: shap_values, target_file_suffix: target.pkl, ts_daily: daily,
     ts_hourly: hour, ts_prefix: ts}, shap: {daily_base_non_linear: {extracted_fourier_features: [
-        YE, W], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 23, 28, 30, 33,
+        W, YE], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 23, 28, 30, 33,
         35, 59, 84, 98, 330, 357, 364, 371], extracted_trends: []}, daily_hybrid_order: 3,
     daily_hybrid_order2: {extracted_fourier_features: [YE], extracted_lags: [1, 2,
         3, 4, 8, 10, 13, 14, 23, 33, 41, 57, 88, 100, 105, 140, 147, 153, 168, 232,

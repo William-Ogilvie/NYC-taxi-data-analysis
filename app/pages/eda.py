@@ -7,7 +7,7 @@ The EDA page of the JFK Taxis Streamlit app. Creates an interactive choropleth m
 
 import streamlit as st
 from streamlit_folium import folium_static
-from jfk_taxis import load_geo_data_and_zone_lookup, create_app_choropleths, load_config
+from jfk_taxis import load_geo_data_and_zone_lookup_app, create_app_choropleths, load_config
 import numpy as np
 
 # --- Load config ---
@@ -18,7 +18,7 @@ st.set_page_config(page_title="EDA", layout="wide")
 # --- Functions ---
 @st.cache_data
 def load_geo_data_zone_wrapper():
-    geo_data, zone_lookup = load_geo_data_and_zone_lookup()
+    geo_data, zone_lookup = load_geo_data_and_zone_lookup_app()
     return geo_data, zone_lookup
 
 def build_map():

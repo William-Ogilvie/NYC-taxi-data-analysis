@@ -1,9 +1,0 @@
-pandas
-geopandas
-folium
-matplotlib
-pyarrow
-jupyterlab
-holidays
-sklearn
-xgboost
