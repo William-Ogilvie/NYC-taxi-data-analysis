@@ -7,7 +7,6 @@ Along with a wrapper function to allow passing additional parameters to the obje
 """
 
 # --- Imports ---
-from hyperopt import STATUS_OK
 import xgboost as xgb
 from .forecast_helpers import forecast, run_forecasts, preprocess
 from .loading_helpers import load_config
@@ -78,169 +77,169 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
 
     return fold_dict
 
-# Hyperopt version
-def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: LinearRegression | None, offset_list: list[int]) -> dict:
-    """ Objective function for hyperparameter tuning using hyperopt
+# # Hyperopt version
+# def objective(space: dict, fold_dict: dict, lags: list[int], steps: int, hybrid: LinearRegression | None, offset_list: list[int]) -> dict:
+#     """ Objective function for hyperparameter tuning using hyperopt
 
-    Args:
-        space (dict): hyperparameter space
-        fold_dict (dict): dict containing the folds with keys as fold_0, fold_1, ..., each value is a tuple (X_train, y_train, dp, y_test)
-        lags (list[int]): list of lags
-        steps (list[int]): number of steps to forecast
-        hybrid (LinearRegression | None): hybrid model to use, if None then no hybrid model is used
-        offset_list (list[int]): list of offsets to use when forecasting
+#     Args:
+#         space (dict): hyperparameter space
+#         fold_dict (dict): dict containing the folds with keys as fold_0, fold_1, ..., each value is a tuple (X_train, y_train, dp, y_test)
+#         lags (list[int]): list of lags
+#         steps (list[int]): number of steps to forecast
+#         hybrid (LinearRegression | None): hybrid model to use, if None then no hybrid model is used
+#         offset_list (list[int]): list of offsets to use when forecasting
 
-    Returns:
-        dict: dictionary containing the computed loss (mean MAE across folds) and the status 
-    """     
+#     Returns:
+#         dict: dictionary containing the computed loss (mean MAE across folds) and the status 
+#     """     
 
-    model = XGBRegressor(
-        n_estimators = space["n_estimators"],
+#     model = XGBRegressor(
+#         n_estimators = space["n_estimators"],
         
-        learning_rate = space["learning_rate"],
+#         learning_rate = space["learning_rate"],
 
-        max_depth = space["max_depth"],
-        min_child_weight = space["min_child_weight"],
+#         max_depth = space["max_depth"],
+#         min_child_weight = space["min_child_weight"],
 
-        subsample = space["subsample"],
-        colsample_bytree = space["colsample_bytree"],
+#         subsample = space["subsample"],
+#         colsample_bytree = space["colsample_bytree"],
 
-        reg_lambda = space["reg_lambda"],
-        reg_alpha = space["reg_alpha"],
+#         reg_lambda = space["reg_lambda"],
+#         reg_alpha = space["reg_alpha"],
 
-        gamma = space["gamma"],
+#         gamma = space["gamma"],
 
-        random_state = space["random_state"],
-        #early_stopping_rounds = space["early_stopping_rounds"],
-        eval_metric = space["eval_metric"],
+#         random_state = space["random_state"],
+#         #early_stopping_rounds = space["early_stopping_rounds"],
+#         eval_metric = space["eval_metric"],
         
 
-        # Tree method hist will eseentially bin feature values into histograms and consider 
-        # and then only considers splits at bin boundaries. 
-        # If you have a gpu it is advised you use it particularly for training the hourly dataset, to do set device = "cuda" (you may need to install the gpu version of xgboost manually with conda install -c conda-forge py-xgboost=*=cuda*)
-        tree_method = space["tree_method"],
-        device = space["device"] # use gpu
-        )
+#         # Tree method hist will eseentially bin feature values into histograms and consider 
+#         # and then only considers splits at bin boundaries. 
+#         # If you have a gpu it is advised you use it particularly for training the hourly dataset, to do set device = "cuda" (you may need to install the gpu version of xgboost manually with conda install -c conda-forge py-xgboost=*=cuda*)
+#         tree_method = space["tree_method"],
+#         device = space["device"] # use gpu
+#         )
 
-    # If we are in the hybrid case then the model above is actually the "hybrid" part used in forecasting, and we have passed the linear regression as the hybrid component of this function
-    # so we need to swap theses two
-    if hybrid is not None:
-        tmp = model
-        model = hybrid
-        hybrid = tmp
+#     # If we are in the hybrid case then the model above is actually the "hybrid" part used in forecasting, and we have passed the linear regression as the hybrid component of this function
+#     # so we need to swap theses two
+#     if hybrid is not None:
+#         tmp = model
+#         model = hybrid
+#         hybrid = tmp
 
-    maes = []
-    for value in fold_dict.values():
-        X_train = value[0]
-        y_train = value[1]
-        dp = value[2]
-        lags = value[3]
-        y_test = value[4]
+#     maes = []
+#     for value in fold_dict.values():
+#         X_train = value[0]
+#         y_train = value[1]
+#         dp = value[2]
+#         lags = value[3]
+#         y_test = value[4]
  
 
-        # We are going to use early stopping, now to avoid very long computations we will take a slight shorcut in that the validation set will have 
-        # the "real lags" rather than the lags computed during the forecast on the test set of the fold. 
+#         # We are going to use early stopping, now to avoid very long computations we will take a slight shorcut in that the validation set will have 
+#         # the "real lags" rather than the lags computed during the forecast on the test set of the fold. 
 
-        # # Get the number of rows in X_train
-        # num_rows = X_train.shape[0]
+#         # # Get the number of rows in X_train
+#         # num_rows = X_train.shape[0]
 
-        # # We will validate on about 10% of the data
-        # split_row = int(num_rows * 0.9) # this tells us which row to split on
-        # X_val = X_train.iloc[split_row:]
-        # y_val = y_train.iloc[split_row:]
+#         # # We will validate on about 10% of the data
+#         # split_row = int(num_rows * 0.9) # this tells us which row to split on
+#         # X_val = X_train.iloc[split_row:]
+#         # y_val = y_train.iloc[split_row:]
     
 
-        # X_train = X_train.iloc[:split_row]
-        # y_train = y_train.iloc[:split_row]
+#         # X_train = X_train.iloc[:split_row]
+#         # y_train = y_train.iloc[:split_row]
 
-        # Convert to numpy arrays before fitting model
-        X_train_np = X_train.to_numpy(copy = True)
-        y_train_np = y_train.to_numpy(copy = True)
+#         # Convert to numpy arrays before fitting model
+#         X_train_np = X_train.to_numpy(copy = True)
+#         y_train_np = y_train.to_numpy(copy = True)
 
 
-        # X_val_np = X_val.to_numpy(copy = True)
-        # y_val_np = y_val.to_numpy(copy = True)
+#         # X_val_np = X_val.to_numpy(copy = True)
+#         # y_val_np = y_val.to_numpy(copy = True)
 
-        # Time fitting the model
-        start_fit = time.time()
+#         # Time fitting the model
+#         start_fit = time.time()
 
-        # If there is no hybrid model we can just fit the model to the data
-        if hybrid is None:
-            # Convert to CuPy arrays if using GPU
-            if config["xgboost_setup"]["device"] == "cuda":
-                X_train_cp = cp.asarray(X_train_np)
-                y_train_cp = cp.asarray(y_train_np)
+#         # If there is no hybrid model we can just fit the model to the data
+#         if hybrid is None:
+#             # Convert to CuPy arrays if using GPU
+#             if config["xgboost_setup"]["device"] == "cuda":
+#                 X_train_cp = cp.asarray(X_train_np)
+#                 y_train_cp = cp.asarray(y_train_np)
 
-                # Fit the model
-                model.fit(X_train_cp, y_train_cp)
-            else:
-                model.fit(X_train_np, y_train_np)
+#                 # Fit the model
+#                 model.fit(X_train_cp, y_train_cp)
+#             else:
+#                 model.fit(X_train_np, y_train_np)
 
-        # If we have a hyrid model then this will need to be fit to the data first (as it is the linear part) and then we pass the XGBoost part to the forecast as hybrid
-        else: 
-            # Fit model to the data (we fit to the numpy arrays as model is a linear regression)
-            model.fit(X_train_np, y_train_np)
+#         # If we have a hyrid model then this will need to be fit to the data first (as it is the linear part) and then we pass the XGBoost part to the forecast as hybrid
+#         else: 
+#             # Fit model to the data (we fit to the numpy arrays as model is a linear regression)
+#             model.fit(X_train_np, y_train_np)
 
-            # We now need to compute the residuals and fit the hybrid model to these
-            y_fit = model.predict(X_train_np)
-            y_resid = y_train_np - y_fit
+#             # We now need to compute the residuals and fit the hybrid model to these
+#             y_fit = model.predict(X_train_np)
+#             y_resid = y_train_np - y_fit
 
-            # Convert to CuPy arrays if using GPU and fit the model
-            if config["xgboost_setup"]["device"] == "cuda":
-                X_train_cp = cp.asarray(X_train_np)
-                y_resid_cp = cp.asarray(y_resid)
-                hybrid.fit(X_train_cp, y_resid_cp)
-            else:
-                hybrid.fit(X_train_np, y_resid)
+#             # Convert to CuPy arrays if using GPU and fit the model
+#             if config["xgboost_setup"]["device"] == "cuda":
+#                 X_train_cp = cp.asarray(X_train_np)
+#                 y_resid_cp = cp.asarray(y_resid)
+#                 hybrid.fit(X_train_cp, y_resid_cp)
+#             else:
+#                 hybrid.fit(X_train_np, y_resid)
 
-        end_fit = time.time()
+#         end_fit = time.time()
 
-        # Time forecasting
-        start_fore = time.time()
+#         # Time forecasting
+#         start_fore = time.time()
 
-        # We want to use gpu for predictions if hybrid is None (so we are just using XGBoost) and the config file says to use cuda
-        if hybrid is None and config["xgboost_setup"]["device"] == "cuda":
-            gpu = True
-        else:
-            gpu = False 
+#         # We want to use gpu for predictions if hybrid is None (so we are just using XGBoost) and the config file says to use cuda
+#         if hybrid is None and config["xgboost_setup"]["device"] == "cuda":
+#             gpu = True
+#         else:
+#             gpu = False 
 
-        # Run the forecast for the required steps on each of the offsets and take an average
-        mae_list = []
-        for offset in offset_list:
-            # Forecast on offset
-            y_preds = forecast(model, y_train, lags, steps, offset, dp, hybrid, gpu)
+#         # Run the forecast for the required steps on each of the offsets and take an average
+#         mae_list = []
+#         for offset in offset_list:
+#             # Forecast on offset
+#             y_preds = forecast(model, y_train, lags, steps, offset, dp, hybrid, gpu)
 
-            # Get the true values we are forecasting
-            y_test_offset = y_test.iloc[offset:offset+steps]
+#             # Get the true values we are forecasting
+#             y_test_offset = y_test.iloc[offset:offset+steps]
 
-            # Compute MAE for this offset 
-            mae = mean_absolute_error(y_preds, y_test_offset)
+#             # Compute MAE for this offset 
+#             mae = mean_absolute_error(y_preds, y_test_offset)
 
-            # Append to list
-            mae_list.append(mae)
+#             # Append to list
+#             mae_list.append(mae)
         
 
-        end_fore = time.time()
+#         end_fore = time.time()
     
-        # Report timings
-        print(f"Fit time: {end_fit - start_fit:.2f} seconds")
-        print(f"Predict time: {end_fore - start_fore:.4f} seconds")
+#         # Report timings
+#         print(f"Fit time: {end_fit - start_fit:.2f} seconds")
+#         print(f"Predict time: {end_fore - start_fore:.4f} seconds")
 
-        # # See iterations stopped at
-        # print("Best iteration:", model.best_iteration)
-        # print("Best score:", model.best_score)
+#         # # See iterations stopped at
+#         # print("Best iteration:", model.best_iteration)
+#         # print("Best score:", model.best_score)
 
         
-        # Average the MAEs and add to list
-        print(mae_list)
-        mae = sum(mae_list) / len(mae_list) 
-        maes.append(mae) 
+#         # Average the MAEs and add to list
+#         print(mae_list)
+#         mae = sum(mae_list) / len(mae_list) 
+#         maes.append(mae) 
 
-    # Average MAE across folds (technically this is a double average as we have averaged across offsets too)
-    mean_mae = sum(maes) / len(maes)
-    print("MAEs:", maes)
-    print("Avg MAE:", mean_mae)
-    return {'loss': mean_mae, 'status': STATUS_OK}
+#     # Average MAE across folds (technically this is a double average as we have averaged across offsets too)
+#     mean_mae = sum(maes) / len(maes)
+#     print("MAEs:", maes)
+#     print("Avg MAE:", mean_mae)
+#     return {'loss': mean_mae, 'status': STATUS_OK}
 
 def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
     """ Defines the XGBoost model with hyperparameters from Optuna trial
@@ -263,7 +262,7 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
 
     # Depth/complexity
     # Max depth of tree, larger more complex trees but can cause overfitting
-    "max_depth": trial.suggest_int("max_depth", 3, 6, 1), # scope.int ensures we take ints only
+    "max_depth": trial.suggest_int("max_depth", 3, 6, step = 1), # scope.int ensures we take ints only
     # minimum "weight" needed in child node. Higher values more conservative, fewer splits helps prevent overfitting
     "min_child_weight": trial.suggest_float("min_child_weight", 0.1, 10.0, log=True),
 
@@ -285,9 +284,9 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
 
     "random_state": 37,
     #"early_stopping_rounds": 100,
-    "eval_metric": "mae", 
-    "tree_method": "hist",
-    "device": "cuda" # Use GPU if available
+    "eval_metric": config["xgboost_setup"]["eval_metric"], 
+    "tree_method": config["xgboost_setup"]["tree_method"], 
+    "device": config["xgboost_setup"]["device"] # Use GPU if available
     }
 
     model = XGBRegressor(
@@ -315,7 +314,7 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
         # and then only considers splits at bin boundaries. 
         # If you have a gpu it is advised you use it particularly for training the hourly dataset, to do set device = "cuda" (you may need to install the gpu version of xgboost manually with conda install -c conda-forge py-xgboost=*=cuda*)
         tree_method = space["tree_method"],
-        device = space["device"] # use gpu
+        device = space["device"] # use gpu or cpu
         )
     
     return model
@@ -437,9 +436,9 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
 
         end_fore = time.time()
     
-        # Report timings
-        print(f"Fit time: {end_fit - start_fit:.2f} seconds")
-        print(f"Predict time: {end_fore - start_fore:.4f} seconds")
+        # # Report timings
+        # print(f"Fit time: {end_fit - start_fit:.2f} seconds")
+        # print(f"Predict time: {end_fore - start_fore:.4f} seconds")
 
         # # See iterations stopped at
         # print("Best iteration:", model.best_iteration)
@@ -447,14 +446,14 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
 
         
         # Average the MAEs and add to list
-        print(mae_list)
+        # print(mae_list)
         mae = sum(mae_list) / len(mae_list) 
         maes.append(mae) 
 
     # Average MAE across folds (technically this is a double average as we have averaged across offsets too)
     mean_mae = sum(maes) / len(maes)
-    print("MAEs:", maes)
-    print("Avg MAE:", mean_mae)
+    # print("MAEs:", maes)
+    # print("Avg MAE:", mean_mae)
     return mean_mae
 
 def wrapped_objective_optuna(trial: optuna.trial.Trial) -> float:
@@ -465,20 +464,20 @@ def wrapped_objective_optuna(trial: optuna.trial.Trial) -> float:
     Returns:
         float: same return as objective function, mean maes across folds
     """
-    return objective_optuna(trial, wrapped_optuna_objective.fold_dict, wrapped_optuna_objective.lags, wrapped_optuna_objective.steps, wrapped_optuna_objective.hybrid, wrapped_optuna_objective.offset_list)    
+    return objective_optuna(trial, wrapped_objective_optuna.fold_dict, wrapped_objective_optuna.steps, wrapped_objective_optuna.hybrid, wrapped_objective_optuna.offset_list)
 
 
 
-def wrapped_objective(space: dict) -> dict:
-    """ Wrapper function for the objective to include additional parameters.
+# def wrapped_objective(space: dict) -> dict:
+#     """ Wrapper function for the objective to include additional parameters.
 
-    Args:
-        space (dict): hyperparameter space
+#     Args:
+#         space (dict): hyperparameter space
 
-    Returns:
-        dict: same return as objective function, dict of loss and status
-    """    
-    return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid, wrapped_objective.offset_list)
+#     Returns:
+#         dict: same return as objective function, dict of loss and status
+#     """    
+#     return objective(space, wrapped_objective.fold_dict, wrapped_objective.lags, wrapped_objective.steps, wrapped_objective.hybrid, wrapped_objective.offset_list)
 
 def split_params(params: dict) -> tuple[dict, dict, dict, dict]:
     """ Splits the hyperparam dicts into four dicts, daily_non_linear, daily_hybrid, hourly_non_linear, hourly_hybrid
@@ -544,12 +543,21 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     **value2 
                 )
 
-                # Convert to CuPy arrays before fitting model
-                X_cp = cp.asarray(X)
-                y_cp = cp.asarray(y)
+                # Check if using gpu
+                if config["xgboost_setup"]["device"] == "cuda":
+                    # Convert to CuPy arrays before fitting model
+                    X_cp = cp.asarray(X)
+                    y_cp = cp.asarray(y)
 
-                # Fit the model
-                new_non_linear.fit(X_cp,y_cp)
+                    # Fit the model
+                    new_non_linear.fit(X_cp,y_cp)
+                else:
+                    # Convert to Numpy arrays before fitting model
+                    X_np = X.to_numpy(copy = True)
+                    y_np = y.to_numpy(copy = True)
+
+                    # Fit the model
+                    new_non_linear.fit(X_np,y_np)
 
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)
@@ -639,12 +647,21 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     **value2
                 )
 
-                # Convert to CuPy arrays before fitting model
-                X_cp = cp.asarray(X)
-                y_cp = cp.asarray(y)
+                # Check if using gpu
+                if config["xgboost_setup"]["device"] == "cuda":
+                    # Convert to CuPy arrays before fitting model
+                    X_cp = cp.asarray(X)
+                    y_cp = cp.asarray(y)
 
-                # Fit the model
-                new_non_linear.fit(X_cp,y_cp)
+                    # Fit the model
+                    new_non_linear.fit(X_cp,y_cp)
+                else:
+                    # Convert to Numpy arrays before fitting model
+                    X_np = X.to_numpy(copy = True)
+                    y_np = y.to_numpy(copy = True)
+
+                    # Fit the model
+                    new_non_linear.fit(X_np,y_np)
 
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)

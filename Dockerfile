@@ -1,51 +1,40 @@
-# syntax=docker/dockerfile:1
+# Miniconda environement 
+FROM continuumio/miniconda3
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
+# Get Mamba
+RUN conda install -n base -c conda-forge mamba
 
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
-
-ARG PYTHON_VERSION=3.11.13
-FROM python:${PYTHON_VERSION}-slim as base
-
-# Prevents Python from writing pyc files.
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Keeps Python from buffering stdout and stderr to avoid situations where
-# the application crashes without emitting any logs due to buffering.
-ENV PYTHONUNBUFFERED=1
-
+# Set the working directory inside the container
 WORKDIR /app
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
+# Copy only the enviroment files to leverage Docker cache (so that packages are installed in lower layers)
+# This means we can switch between cpu and gpu envs at build time
+COPY environment*.yml .
 
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
-# Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install -r requirements.txt
+# Create the environment (GPU version by default, can override with --build-arg ENV_FILE=environment_cpu.yml)
+ARG ENV_FILE=environment_gpu.yml
+ARG CUDA_VERSION=12.9
+ENV CONDA_OVERRIDE_CUDA=${CUDA_VERSION}
+RUN mamba env create -f ${ENV_FILE}
 
-# Switch to the non-privileged user to run the application.
-USER appuser
+# Set env as default by putting it on PATH, and set the name of the env
+ARG ENV_NAME=jfk-taxi-analysis-gpu
+ENV PATH /opt/conda/envs/${ENV_NAME}/bin:$PATH
 
-# Copy the source code into the container.
-COPY . .
+# For future reference this is how to mount a volume (allows data to persit accross containers)
+# docker run -it --rm --mount source=my-volume,destination=/my-data/ ubuntu:22.04
 
-# Expose the port that the application listens on.
-EXPOSE 8000
+# For development, mount the current directory to /app in the container 
 
-# Run the application.
-CMD streamlit run home.py
+# Build commands
+
+# Builds the docker image with the tag jfk-taxi, uses defeault args
+# docker build -t jfk-taxi . 
+
+# GPU image
+# docker build -t jfk-taxi:gpu --build-arg ENV_FILE=environment_gpu.yml --build-arg ENV_NAME=jfk-taxi-analysis-gpu .
+
+# CPU image
+# docker build -t jfk-taxi:cpu --build-arg ENV_FILE=environment_cpu.yml --build-arg ENV_NAME=jfk-taxi-analysis-cpu .    
+
+# -t sets the tag (name) and the oppotional build args, . just means use this directory as the build context
