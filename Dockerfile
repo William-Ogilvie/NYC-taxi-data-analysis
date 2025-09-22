@@ -1,25 +1,84 @@
-# Miniconda environement 
-FROM continuumio/miniconda3
+# Micro mamba environement, we want a CUDA base image for GPU support 
+FROM mambaorg/micromamba:cuda12.9.1-ubuntu22.04
+# handy command to check cuda version on machine -nvidia-smi
 
+# Using this guide
+# https://micromamba-docker.readthedocs.io/en/latest/quick_start.html 
+
+# chown sets the owner of the copied files to the mamba user not the root user
+COPY --chown=$MAMBA_USER:$MAMBA_USER environment_gpu.yml /tmp/environment_gpu.yml
+
+# Create the environment and clean up, note we have to set the name to be base (well we could have mutliptle envs but we don't need to for this project)
+RUN micromamba install -y -n base -f /tmp/environment_gpu.yml && \
+    micromamba clean --all --yes
+
+# Create a working directory
+WORKDIR /app
+
+# To build the docker image run
+# docker build -t jfk-taxi:gpu . 
+
+# The base conda env will be automatically activated when we run the image:
+# docker run -it --rm jfk-taxi:gpu python --version (should display python version)
+# -i interactive mode (keep STDIN open)
+# -t allocate a pseudo-TTY (formatting of terminal)
+# --rm auto remove the container when it exits
+
+# If you just want to run the container remove the python --version part
+# docker run -it --rm jfk-taxi:gpu
+
+# We want to create a bind mount of current directory to /app in the container so we can access our code and data
+# the reason for a bind mount is that it allows us to edit files in the host system, i.e. we can save results from modelling into the data/saved_objects dir
+# This means we can use the container as a dev environment, changes here exist in the container and vice versa
+# docker run -it --rm --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
+
+
+# When we run the container we will need to install our local pacakge jfk_taxis, to do this write pip install -e . 
+
+# To run jupyter lab we use the following command
+
+# We also want to map port the host port 8889 to the container port 8888 so we can access jupyter lab
+# and also map port 8501 for streamlit
+# docker run -it --rm -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu 
+
+# To actually run jupyter lab use the following command:
+# jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
+# --ip=0.0.0.0 means listen on all interfaces, so host can reach it 
+# --no-browser means don't try to open a browser in the container
+# --allow-root means allow to run as root user 
+# --NotebookApp.token='' means disable the token authentication (not secure but ok for local dev)
+
+# We also need to expose the gpu to the container, this is done with --gpus all
+# docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
+
+
+
+
+# Old docker file below, kept for reference only 
+# The base conda 
 # Get Mamba
-RUN conda install -n base -c conda-forge mamba
+#RUN conda install -n base -c conda-forge mamba
 
 # Set the working directory inside the container
-WORKDIR /app
+#WORKDIR /app
 
 # Copy only the enviroment files to leverage Docker cache (so that packages are installed in lower layers)
 # This means we can switch between cpu and gpu envs at build time
-COPY environment*.yml .
+#COPY environment*.yml .
 
 # Create the environment (GPU version by default, can override with --build-arg ENV_FILE=environment_cpu.yml)
-ARG ENV_FILE=environment_gpu.yml
-ARG CUDA_VERSION=12.9
-ENV CONDA_OVERRIDE_CUDA=${CUDA_VERSION}
-RUN mamba env create -f ${ENV_FILE}
+#ARG ENV_FILE=environment_gpu.yml
+#ARG CUDA_VERSION=12.9
+#ENV CONDA_OVERRIDE_CUDA=${CUDA_VERSION}
+#RUN mamba env create -f ${ENV_FILE} && \
+#    conda clean -afy && \ 
+#    mamba clean --all -y && \
+#    rm -rf /root/.cache/pip
+# We also clean mamaba and conda caches to reduce image size
 
 # Set env as default by putting it on PATH, and set the name of the env
-ARG ENV_NAME=jfk-taxi-analysis-gpu
-ENV PATH /opt/conda/envs/${ENV_NAME}/bin:$PATH
+#ARG ENV_NAME=jfk-taxi-analysis-gpu
+#ENV PATH=/opt/conda/envs/${ENV_NAME}/bin:$PATH
 
 # For future reference this is how to mount a volume (allows data to persit accross containers)
 # docker run -it --rm --mount source=my-volume,destination=/my-data/ ubuntu:22.04
