@@ -44,7 +44,7 @@ GPU_FLAG=$([ "$USE_GPU" -eq 1 ] && echo "--gpus all" || true)
 docker run --rm \
   -u "$(id -u):$(id -g)" \
   $GPU_FLAG \
-  --mount type-bind, src="$(pwd)",dst=/app \ 
+  --mount type=bind, src="$(pwd)",dst=/app \
   "$IMAGE" \
   bash -lc 'pip install . && python scripts/hyperparam_tuning.py' | tee -a "$LOG"
 # normal docker run commands except:
@@ -66,15 +66,16 @@ sudo shutdown -h now
 
 # To actually run this script:
 # 1) ssh into EC2 instance
-# 2) ensure in home dir, then mkdir -p project logs
+# 2) ensure in home dir, then mkdir -p project logs, then cd project
 # 3) git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 # 4) we will then use tmux to run this script so it keeps running if we disconnect
 # 5) sudo apt-get update && sudo apt-get install -y tmux
 # install tmux (allows for multiple terminal sessions)
 # 6) tmux new -s hyperparam_tuning
 # new tmux session called hyperparam_tuning
-# to check this has worked do ctr + B D to detach from the session then do tmux ls to see active sessions
+# to check this has worked do tmux detach to detach from the session then do tmux ls to see active sessions
 # tmux attach -t hyperparam_tuning to reattach
 # 7) then inside the tmux session:
-# 8) cd project/NYC-taxi-data-analysis/scripts && bash hyperparam_tuning_bash.sh 2>&1 | tee -a ~/logs/hyperparam_tuning.log
+# 8) cd project/NYC-taxi-data-analysis/scripts 
+# 9) bash hyperparam_tuning_bash.sh 2>&1 | tee -a ~/logs/hyperparam_tuning.log
 
