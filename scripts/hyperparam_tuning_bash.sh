@@ -56,12 +56,13 @@ docker run --rm \
   $GPU_FLAG \
   --mount type=bind,src="$(pwd)",dst=/app \
   "$IMAGE" \
-  bash -lc 'pip install -e . && python scripts/hyperparam_tuning.py' | tee -a "$LOG"
+  bash -lc 'pip install -e . && cd scripts && python setup.py && python scripts/hyperparam_tuning.py' | tee -a "$LOG"
 # normal docker run commands except:
 # bash -lc '...' : run a login bash (-l) and execute the command (-c). the login helps ensure the env is activated properly
 # | tee -a "$LOG": stream container stdout to the log and your terminal
 # we also pip install -e . to get the jfk_taxi package inside the container (note due to the way load_config works it's easier to use -e . not just . as otherwise the PROJECT_ROOT is inside the site pacakges
-# not the src/jfk_taxis dir, then we just run the hyperparam tuning script
+# not the src/jfk_taxis dir, then we cd into the scripts dir and run the setup.py script (we have already made most of the directories but we need to select the 
+# appropriate device for xgboost) then we just run the hyperparam tuning script
 
 
 
