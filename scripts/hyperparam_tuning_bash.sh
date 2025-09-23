@@ -77,5 +77,6 @@ sudo shutdown -h now
 # tmux attach -t hyperparam_tuning to reattach
 # 7) then inside the tmux session:
 # 8) cd project/NYC-taxi-data-analysis/scripts 
-# 9) bash hyperparam_tuning_bash.sh 2>&1 | tee -a ~/logs/hyperparam_tuning.log
+# 9) bash hyperparam_tuning_bash.sh 2>&1 
+# run the script, 2>&1 ensures both stdout and stderr are logged into the same stream (i.e. the terminal)
 
