@@ -42,7 +42,7 @@ trap 'log "ERROR on line $LINENO"; aws s3 cp "$LOG" "s3://$BUCKET/logs/exp-$RUN_
 
 # Load the data from the S3 bucket
 log "Syncing data from S3 -> $DATA_DIR ..."
-aws s3 sync "s3://$BUCKET/data" "$DATA_DIR" --only-show-errors
+aws s3 sync "s3://$BUCKET/data/time_series" "$DATA_DIR" --only-show-errors
 
 log "Starting container run..."
 
