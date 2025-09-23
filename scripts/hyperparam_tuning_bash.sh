@@ -44,7 +44,7 @@ GPU_FLAG=$([ "$USE_GPU" -eq 1 ] && echo "--gpus all" || true)
 docker run --rm \
   -u "$(id -u):$(id -g)" \
   $GPU_FLAG \
-  --mount type=bind, src="$(pwd)",dst=/app \
+  --mount type=bind,src="$(pwd)",dst=/app \
   "$IMAGE" \
   bash -lc 'pip install . && python scripts/hyperparam_tuning.py' | tee -a "$LOG"
 # normal docker run commands except:
