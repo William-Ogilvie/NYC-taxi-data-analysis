@@ -9,7 +9,10 @@ download the data.
 
 # --- Imports ---
 from pathlib import Path
+import xgboost
 import yaml
+import cupy as cp
+import numpy as np
 
 # scripts/ is location of current file so we go one above to get project root
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +39,44 @@ processed_data_dir.mkdir(parents= True, exist_ok= True)
 saved_objects_dir.mkdir(parents= True, exist_ok= True)
 figures_dir.mkdir(parents= True, exist_ok= True)
 maps_dir.mkdir(parents= True, exist_ok= True)
+
+# --- Functions ---
+def test_gpu():
+    """Test GPU availability for XGBoost.
+
+    Returns:
+        str: "cuda" if GPU is available, "cpu" otherwise.
+    """    
+    try:
+        X = cp.array([[0.0], [1.0]], dtype=np.float32)
+        y = cp.array([0.0, 1.0], dtype=np.float32) 
+
+        model = xgboost.XGBRegressor(
+            n_estimators = 1,
+            max_depth = 1,
+            tree_method = "hist",
+            device = "cuda",
+            verbosity = 0,
+        )
+        model.fit(X, y)
+
+        return "cuda"
+    except Exception as e:
+        print("GPU not available, falling back to CPU.")
+
+        return "cpu"
+
+# --- Main ---
+if __name__ == "__main__":
+
+    # Test if GPU is available for XGBoost and update config
+    device = test_gpu()
+
+    config["xgboost_setup"]["device"] = device
+
+    # Save updated config
+    with open(CONFIG_PATH, "w") as f:
+        yaml.safe_dump(config, f, default_flow_style= True)
 
 
 

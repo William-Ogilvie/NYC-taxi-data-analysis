@@ -914,5 +914,5 @@
         25, 26, 48, 49, 72, 73, 96, 120, 121, 144, 145, 167, 168, 170, 240, 312, 335,
         336, 8735, 8736, 8759], extracted_trends: []}, hourly_prefix: hourly, num_features_to_extract: 30},
   xgboost_default: {colsample_bytree: 0.8, learning_rate: 0.05, max_depth: 5, n_estimators: 500,
-    subsample: 0.8}, xgboost_setup: {device: cuda, eval_metric: mae, random_state: 37,
+    subsample: 0.8}, xgboost_setup: {device: cpu, eval_metric: mae, random_state: 37,
     tree_method: hist}}

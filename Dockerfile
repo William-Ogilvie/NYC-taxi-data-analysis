@@ -37,6 +37,13 @@ WORKDIR /app
 
 
 # When we run the container we will need to install our local pacakge jfk_taxis, to do this write pip install -e . 
+# In the EC2 instance we run into problems with not having permissions inside the container to create the jfk_taxis.egg-info directory
+# to fix this we can ensure the container runs with the same UID (user ID) and GID (group ID) as the host user, meaning we have the same 
+# read write permsissions in the container as the host user on the files passed in the bind mount
+
+# To do this we can use the following command to get the UID and GID of the host user:
+# -u $(id -u):$(id -g)
+# docker run -it --rm -u $(id -u):$(id -g) --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
 
 # To run jupyter lab we use the following command
 
