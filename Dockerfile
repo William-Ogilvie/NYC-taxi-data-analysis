@@ -15,7 +15,10 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER $ENV_FILE /tmp/$ENV_FILE
 RUN micromamba install -y -n base -f /tmp/$ENV_FILE && \
     micromamba clean --all --yes
 
-# Create a working directory
+# Create a working directory and set the owner to the mamba user
+RUN mkdir /app && chown $MAMBA_USER:$MAMBA_USER /app
+
+# Set as working directory
 WORKDIR /app
 
 # To build the docker image run (select the env you want to use with --build-arg ENV_FILE=environment_cpu.yml or environment_gpu.yml)
