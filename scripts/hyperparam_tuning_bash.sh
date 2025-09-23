@@ -85,7 +85,7 @@ sudo shutdown -h now
 # install tmux (allows for multiple terminal sessions)
 # 6) tmux new -s hyperparam_tuning
 # new tmux session called hyperparam_tuning
-# to check this has worked do tmux detach to detach from the session then do tmux ls to see active sessions
+# to check this has worked do tmux detach (or ctr B + D) to detach from the session then do tmux ls to see active sessions
 # tmux attach -t hyperparam_tuning to reattach
 # 7) then inside the tmux session:
 # 8) cd project/NYC-taxi-data-analysis/scripts 
