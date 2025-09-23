@@ -70,7 +70,7 @@ docker run --rm \
 log "Syncing outputs to s3://$BUCKET/outputs/$RUN_ID ..."
 aws s3 sync "$OUT_DIR" "s3://$BUCKET/outputs/$RUN_ID" --only-show-errors | tee -a "$LOG"
 
-# Log completion and location of logs, turn off the instance
+# Log completion and location of logs, turn off the instance, you may want to comment out the shutdown if desired
 log "DONE. Logs at $LOG"
 log "Turning off instance..."
 sudo shutdown -h now
