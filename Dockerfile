@@ -5,18 +5,21 @@ FROM mambaorg/micromamba:cuda12.9.1-ubuntu22.04
 # Using this guide
 # https://micromamba-docker.readthedocs.io/en/latest/quick_start.html 
 
+# Choose the env to run, cpu or gpu
+ARG ENV_FILE=environment_gpu.yml
+
 # chown sets the owner of the copied files to the mamba user not the root user
-COPY --chown=$MAMBA_USER:$MAMBA_USER environment_gpu.yml /tmp/environment_gpu.yml
+COPY --chown=$MAMBA_USER:$MAMBA_USER $ENV_FILE /tmp/$ENV_FILE
 
 # Create the environment and clean up, note we have to set the name to be base (well we could have mutliptle envs but we don't need to for this project)
-RUN micromamba install -y -n base -f /tmp/environment_gpu.yml && \
+RUN micromamba install -y -n base -f /tmp/$ENV_FILE && \
     micromamba clean --all --yes
 
 # Create a working directory
 WORKDIR /app
 
-# To build the docker image run
-# docker build -t jfk-taxi:gpu . 
+# To build the docker image run (select the env you want to use with --build-arg ENV_FILE=environment_cpu.yml or environment_gpu.yml)
+# docker build -t jfk-taxi:gpu --build-arg ENV_FILE=environment_gpu.yml .
 
 # The base conda env will be automatically activated when we run the image:
 # docker run -it --rm jfk-taxi:gpu python --version (should display python version)
