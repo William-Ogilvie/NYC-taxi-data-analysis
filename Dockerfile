@@ -15,9 +15,6 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER $ENV_FILE /tmp/$ENV_FILE
 RUN micromamba install -y -n base -f /tmp/$ENV_FILE && \
     micromamba clean --all --yes
 
-# Create a working directory and set the owner to the mamba user
-RUN mkdir /app && chown $MAMBA_USER:$MAMBA_USER /app
-
 # Set as working directory
 WORKDIR /app
 
