@@ -238,7 +238,7 @@ for key, value in bayes_dict.items():
     offset_list = value["offset_list"]
 
     # Create a new study
-    study = optuna.create_study(direction = "minimize", study_name = "hyper_parameter_optimisation")
+    study = optuna.create_study(direction = "minimize", study_name = f"hyper_parameter_optimisation_for_{key}")
     study.optimize(partial(objective_optuna, fold_dict = fold_dict, steps = steps, hybrid = hybrid, offset_list = offset_list), n_trials = config["hyperparameter_tuning"]["max_evals"])
 
     print("Number of finisehed trials: ", len(study.trials))

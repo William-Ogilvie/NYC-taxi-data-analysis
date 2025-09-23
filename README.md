@@ -46,6 +46,8 @@ You will now be able to run the Notebooks. Note any output will be stored in a r
 jupyter lab
 ```
 
+NOte setup.py will now test for gpu/cpu and set xgboost to appropriate device
+
 ## Reults / Key Findings
 
 Note explain the install of XGBoost for gpus carefully because we assume that u run one
@@ -63,7 +65,7 @@ maybe comment on how offsets work? every 30 days with a bit of jitter, so in tot
 
 As the hyperparameter tuning can be computationally expensive I decided to have it run on an EC2 instance in AWS rather than on my host machine. To do this I setup a S3 bucket to store the time series csvs as well as the outputs of the hyperparameter tuning. Then I create an EC2 instance with permissions to access the S3 bucket. I use the Deep Learning Ubuntu 20.04 AMI as it has already has the Nvidia drivers installed (if you use an instance with a GPU) as well as docker, git and AWS CLI. It will need to have an IAM role with the AmazonS3FullAccesss policy when created. 
 
-Once connected to the instance clone the repository from git, (git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git) then use docker to build the image and run the container (add commands here). You will then want to run the setup.py script to create all necessary directories. Then close the container. Inside the S3 bucket place the full time series data (ts_daily2011-2025.csv, ts_hourly2011-2025.csv) inside a data/time_series directory. To download this directory to our EC2 instance first do ```bash aws s3 ls ``` to see all s3 buckets. Then ```bash aws s3 sync://BUCKET_NAME/data/time_series data/processed ```. 
+Once connected to the instance clone the repository from git, (git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git) then use docker to build the image and run the container (add commands here). You will then want to run the setup.py script to create all necessary directories and ensure that xgboost is set to either cpu or cuda as appropriate. Then close the container. Inside the S3 bucket place the full time series data (ts_daily2011-2025.csv, ts_hourly2011-2025.csv) inside a data/time_series directory. To download this directory to our EC2 instance first do ```bash aws s3 ls ``` to see all s3 buckets. Then ```bash aws s3 sync://BUCKET_NAME/data/time_series data/processed ```. 
 
 upload:
 mkdir -p ~/outputs
