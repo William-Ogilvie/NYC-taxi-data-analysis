@@ -5,17 +5,26 @@ set -Eeuo pipefail
 # u  : treat unset variables as errors
 # -o pipefail : fail a pipeline if *any* command fails (not just the last)
 
-# ---- config you edit ----
+# --- Config ---
+# Get the script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+echo "Script directory: $SCRIPT_DIR"
+
+# Get the project directory (one level above script directory)
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." &> /dev/null && pwd )"
+echo "Project directory: $PROJECT_DIR"
+
+cd "$PROJECT_DIR" # ensure we are in the project directory
+
 BUCKET="jfk-taxi-data-william-ogilvie" # S3 bucket to pull data from / push results to
 IMAGE="jfk-taxi:cpu"          # docker image to use
 USE_GPU=0                     # set to 1 to add --gpu all to docker run command
-PROJECT_DIR="$HOME/project/NYC-taxi-data-analysis" # repo is cloned here
-DATA_DIR="$HOME/data/processed" # data stored here locally
+DATA_DIR="$PROJECT_DIR/data/processed" # data stored here locally
 OUT_DIR="$PROJECT_DIR/data/saved_objects" # outputs stored here locally
 RUN_ID="$(date +%F-%H%M%S)" # timestamp tag like 2025-09-23-154200 (unique run id)
 LOG="$HOME/logs/exp-$RUN_ID.log" # log file on host
-# -------------------------
 
+# --- Setup ---
 # Create necessary directories if they don't exist
 mkdir -p "$DATA_DIR" "$OUT_DIR" "$(dirname "$LOG")"
 
@@ -40,6 +49,7 @@ log "Starting container run..."
 # If USE_GPU is 1 then GPU_FLAG is --gpus all otherwise it's empty
 GPU_FLAG=$([ "$USE_GPU" -eq 1 ] && echo "--gpus all" || true)
 
+# --- Run the hyperparameter tuning in a docker container ---
 # Run the container, mount the project directory, pass the UIC/GID to match host user and run the hyperparam tuning script
 docker run --rm \
   -u "$(id -u):$(id -g)" \
