@@ -456,15 +456,15 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
     # print("Avg MAE:", mean_mae)
     return mean_mae
 
-def wrapped_objective_optuna(trial: optuna.trial.Trial) -> float:
-    """ Wrapper function for the objective to include additional parameters.
+# def wrapped_objective_optuna(trial: optuna.trial.Trial) -> float:
+#     """ Wrapper function for the objective to include additional parameters.
 
-    Args:
-        trial (optuna.trial.Trial): Optuna trial object
-    Returns:
-        float: same return as objective function, mean maes across folds
-    """
-    return objective_optuna(trial, wrapped_objective_optuna.fold_dict, wrapped_objective_optuna.steps, wrapped_objective_optuna.hybrid, wrapped_objective_optuna.offset_list)
+#     Args:
+#         trial (optuna.trial.Trial): Optuna trial object
+#     Returns:
+#         float: same return as objective function, mean maes across folds
+#     """
+#     return objective_optuna(trial, wrapped_objective_optuna.fold_dict, wrapped_objective_optuna.steps, wrapped_objective_optuna.hybrid, wrapped_objective_optuna.offset_list)
 
 
 

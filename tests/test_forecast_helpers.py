@@ -334,25 +334,40 @@ def test_preprocess():
     assert check_lags_and_fourier_preprocess(dp_hourly_order_2_const, X_hourly_order_2_const, hourly_lags, series_hourly_full, "h") == True
 
 def test_to_NYC():
-    """ test for to_NYC function in forecast_helpers.py
+    """ test for to_NYC function in forecast_helpers.py 
 
-    Combined with the previous test this shows that our functions are inverses of each other. 
+    the series are structure to test that we are filling in the gaps in the series according to the time step, this is actually a fail safe
+    anyway as in our own series all gaps should be filled during processing.
     """    
     import pandas as pd
     from pandas import Timestamp
-    from jfk_taxis import data_processing
+    from jfk_taxis import forecast_helpers 
 
-    series = pd.Series(
+    series_hourly = pd.Series(
         data = [200, 147, 23],
-        index = ["2011-05-25 18:28:00+00:00", "2020-01-01 02:50:00+00:00", "2024-08-23 12:10:00+00:00"]  
+        index = [Timestamp("2011-05-25 18:00:00+00:00", tz = "UTC"), Timestamp("2011-05-25 19:00:00+00:00", tz = "UTC"), Timestamp("2011-05-25 21:00:00+00:00", tz = "UTC")]
     )
 
-    converted_series = data_processing.convert_to_NYC(series)
+    converted_series = forecast_helpers.to_NYC(series_hourly, "h")
 
     assert converted_series.index.dtype == "datetime64[ns, America/New_York]"
-    assert converted_series.index[0] == Timestamp("2011-05-25 14:28:00-0400", tz='America/New_York')  # UTC-4
-    assert converted_series.index[1] == Timestamp("2019-12-31 21:50:00-0500", tz='America/New_York')  # UTC-5
-    assert converted_series.index[2] == Timestamp("2024-08-23 08:10:00-0400", tz='America/New_York')  # UTC-4
+    assert converted_series.index[0] == Timestamp("2011-05-25 14:00:00-0400", tz='America/New_York')  # UTC-4
+    assert converted_series.index[1] == Timestamp("2011-05-25 15:00:00-0400", tz='America/New_York')  # UTC-4
+    assert converted_series.index[2] == Timestamp("2011-05-25 16:00:00-0400", tz='America/New_York')  # UTC-4
+    assert converted_series.index[3] == Timestamp("2011-05-25 17:00:00-0400", tz='America/New_York')  # UTC-4
+
+    series_daily = pd.Series(
+        data = [242, 2, 1],
+        index = [Timestamp("2024-01-01 00:00:00+00:00", tz = "UTC"), Timestamp("2024-01-03 00:00:00+00:00", tz = "UTC"), Timestamp("2024-01-04 00:00:00+00:00", tz = "UTC")]
+    )
+
+    converted_series = forecast_helpers.to_NYC(series_daily, "D")
+
+    assert converted_series.index.dtype == "datetime64[ns, America/New_York]"
+    assert converted_series.index[0] == Timestamp("2023-12-31 19:00:00-0500", tz='America/New_York')  
+    assert converted_series.index[1] == Timestamp("2024-01-01 19:00:00-0500", tz='America/New_York')  
+    assert converted_series.index[2] == Timestamp("2024-01-02 19:00:00-0500", tz='America/New_York')  
+    assert converted_series.index[3] == Timestamp("2024-01-03 19:00:00-0500", tz='America/New_York')  
 
 
      
