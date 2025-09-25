@@ -6,18 +6,14 @@ Unit test for data_processing.py. Note we don't test all the functions here as s
 To run just do pytest test_data_processing.py
 """ 
 
-
-from logging import config
-from jfk_taxis import data_processing 
-from jfk_taxis import load_config
-import pytest
-
 def test_load_parquet():
     """ test for load_parquet function in data_processing.py, note load_parquet loads parquet files for a given year.
     As our data runs from 2011 to 2025 to avoid messing with our actual data we will use taxi data in NYC from 1974 (that we create here)
     """    
     import pandas as pd
     import os
+    from jfk_taxis import load_config
+    from jfk_taxis import data_processing
 
     # Get config
     config, PROJECT_ROOT = load_config()
@@ -124,6 +120,7 @@ def test_init_clean_df():
     """ test for init_clean_df function in data_processing.py
     """    
     import pandas as pd
+    from jfk_taxis import data_processing
     
 
     df = pd.DataFrame({
@@ -146,6 +143,7 @@ def test_select_jfk():
     """ test for select_jfk function in data_processing.py
     """    
     import pandas as pd
+    from jfk_taxis import data_processing
 
     df = pd.DataFrame({
         "tpep_pickup_datetime": pd.to_datetime([
@@ -170,6 +168,7 @@ def test_to_utc_hourly():
     """    
     import pandas as pd
     from pandas import Timestamp
+    from jfk_taxis import data_processing
 
     series = pd.Series([
         "2011-05-25 14:28:00",
@@ -191,6 +190,7 @@ def test_convert_to_NYC():
     """    
     import pandas as pd
     from pandas import Timestamp
+    from jfk_taxis import data_processing
 
     series = pd.Series(
         data = [200, 147, 23],
@@ -208,6 +208,7 @@ def test_create_ts():
     """ test for create_ts function in data_processing.py
     """    
     import pandas as pd
+    from jfk_taxis import data_processing
 
     # Note this is in NYC time and will be converted to UTC for the time series
     df = pd.DataFrame({
@@ -259,6 +260,8 @@ def test_combine_ts():
     import pandas as pd
     import os
     import shutil
+    from jfk_taxis import load_config
+    from jfk_taxis import data_processing
     # Get config
     config, PROJECT_ROOT = load_config()
 
