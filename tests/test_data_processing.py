@@ -12,6 +12,113 @@ from jfk_taxis import data_processing
 from jfk_taxis import load_config
 import pytest
 
+def test_load_parquet():
+    """ test for load_parquet function in data_processing.py, note load_parquet loads parquet files for a given year.
+    As our data runs from 2011 to 2025 to avoid messing with our actual data we will use taxi data in NYC from 1974 (that we create here)
+    """    
+    import pandas as pd
+    import os
+
+    # Get config
+    config, PROJECT_ROOT = load_config()
+
+    # Constants
+    DATA_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"] 
+
+    # Create taxi data for 1487
+    df_1974_01 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1974-01-01 14:28:00", 
+            "1974-01-15 21:32:00",
+            "1974-01-28 09:01:00",
+            "1974-01-30 16:50:00"
+        ]),
+        "PULocationID": [1, 2, 3, 123],
+        "DOLocationID": [4, 5, 6, 7]
+    }) 
+
+    df_1974_07 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1974-07-02 14:28:00", 
+            "1974-07-12 23:50:00",
+            "1974-07-26 00:10:00",
+            "1974-07-30 15:30:00"
+        ]),
+        "PULocationID": [100, 32, 46, 123],
+        "DOLocationID": [3, 55, 56, 9]
+    })
+
+    df_1974_11 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1974-11-05 18:00:00", 
+            "1974-11-15 02:50:00",
+            "1974-11-20 06:34:00",
+            "1974-11-30 19:23:00"
+        ]),
+        "PULocationID": [10, 22, 33, 123],
+        "DOLocationID": [44, 55, 66, 77]
+    })
+
+    # To make sure we don't take any other years
+    df_1975_01 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1975-01-01 17:21:00", 
+            "1975-01-15 23:55:00",
+        ]),
+        "PULocationID": [11, 2],
+        "DOLocationID": [4, 9]
+    })
+
+
+    # Save files
+    df_1974_01.to_parquet(DATA_DIR / "yellow_tripdata_1974-01.parquet", index=False)
+    df_1974_07.to_parquet(DATA_DIR / "yellow_trip____HELLOOOOOOOO!_data_1974-07.parquet", index=False) # as some of the real files have slightly different formatting between yellow and the year we include that in our tests
+    df_1974_11.to_parquet(DATA_DIR / "yellow_tripdata_1974-11.parquet", index=False)
+    df_1975_01.to_parquet(DATA_DIR / "yellow_tripdata_1975-01.parquet", index=False)
+
+    # Run load_parquet for 1974
+    df_loaded = data_processing.load_parquet(1974)
+
+    # Remove the files we created
+    os.remove(DATA_DIR / "yellow_tripdata_1974-01.parquet")
+    os.remove(DATA_DIR / "yellow_trip____HELLOOOOOOOO!_data_1974-07.parquet")
+    os.remove(DATA_DIR / "yellow_tripdata_1974-11.parquet")
+    os.remove(DATA_DIR / "yellow_tripdata_1975-01.parquet")
+
+
+    # Basic checks
+    assert isinstance(df_loaded, pd.DataFrame)
+    assert df_loaded.shape[0] == 12 # 4 rows in each of the three files for 1974
+    assert df_loaded.shape[1] == 2 # we only extract these two columns to save memory
+    assert all(df_loaded.columns == ["tpep_pickup_datetime", "PULocationID"])
+    assert all(df_loaded["tpep_pickup_datetime"].dt.year == 1974) # all returns true if all elts in iterable are true
+    assert df_loaded.iloc[0]["tpep_pickup_datetime"] == pd.Timestamp("1974-01-01 14:28:00")
+    assert df_loaded.iloc[0]["PULocationID"] == 1
+    assert df_loaded.iloc[1]["tpep_pickup_datetime"] == pd.Timestamp("1974-01-15 21:32:00")
+    assert df_loaded.iloc[1]["PULocationID"] == 2
+    assert df_loaded.iloc[2]["tpep_pickup_datetime"] == pd.Timestamp("1974-01-28 09:01:00")
+    assert df_loaded.iloc[2]["PULocationID"] == 3
+    assert df_loaded.iloc[3]["tpep_pickup_datetime"] == pd.Timestamp("1974-01-30 16:50:00")
+    assert df_loaded.iloc[3]["PULocationID"] == 123
+    assert df_loaded.iloc[4]["tpep_pickup_datetime"] == pd.Timestamp("1974-07-02 14:28:00")
+    assert df_loaded.iloc[4]["PULocationID"] == 100
+    assert df_loaded.iloc[5]["tpep_pickup_datetime"] == pd.Timestamp("1974-07-12 23:50:00")
+    assert df_loaded.iloc[5]["PULocationID"] == 32
+    assert df_loaded.iloc[6]["tpep_pickup_datetime"] == pd.Timestamp("1974-07-26 00:10:00")
+    assert df_loaded.iloc[6]["PULocationID"] == 46
+    assert df_loaded.iloc[7]["tpep_pickup_datetime"] == pd.Timestamp("1974-07-30 15:30:00")
+    assert df_loaded.iloc[7]["PULocationID"] == 123
+    assert df_loaded.iloc[8]["tpep_pickup_datetime"] == pd.Timestamp("1974-11-05 18:00:00")
+    assert df_loaded.iloc[8]["PULocationID"] == 10
+    assert df_loaded.iloc[9]["tpep_pickup_datetime"] == pd.Timestamp("1974-11-15 02:50:00")
+    assert df_loaded.iloc[9]["PULocationID"] == 22
+    assert df_loaded.iloc[10]["tpep_pickup_datetime"] == pd.Timestamp("1974-11-20 06:34:00")
+    assert df_loaded.iloc[10]["PULocationID"] == 33
+    assert df_loaded.iloc[11]["tpep_pickup_datetime"] == pd.Timestamp("1974-11-30 19:23:00")
+    assert df_loaded.iloc[11]["PULocationID"] == 123
+
+
+     
 
 def test_init_clean_df():
     """ test for init_clean_df function in data_processing.py

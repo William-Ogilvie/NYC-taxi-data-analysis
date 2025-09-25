@@ -53,6 +53,9 @@ def load_parquet(year: int) -> pd.DataFrame:
  
     # Get all files for that year
     files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
+
+    # As these are slightly different ways these files are formatted we will need to order them by month so when we concatonate we don't do it in the wrong order
+    files = sorted(files, key = lambda x: int(x.stem.split("-")[-1])) # x.stem is the file name without the suffix, so when we split on "-" the month will be the last one in the list
    
     # Load and concatenate all the data into a single data frame (for tqdm leave = False ensures the bar disappears when done):
     df = pd.concat((pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"]) for f in tqdm(files, desc = "Download files: ", leave = False)), ignore_index = True)
