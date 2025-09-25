@@ -2,7 +2,8 @@
 test_forecast_helpers.py
 =========================
 
-Unit tests for forecast helpers.py.
+Unit tests for forecast helpers.py. Note to_numpy, fit_linear, fit_non_linear are just wrappers around sklearn functions so don't need their own unit tests.
+truncate_lags is a simple function that just truncates a list so doesn't need its own unit test.
 """
 
 import pytest
@@ -29,15 +30,108 @@ def test_drop_time_zone():
                                       Timestamp("2011-12-31 23:00:00")]))
 
 
+def compute_fourier_feature(k: int, t: int, m: int, sin_or_cos: str) -> float:
+    """ Compute a single fourier feature value
 
-def check_lags_preprocess(dp: DeterministicProcess, X: pd.DataFrame, lags: list[int], y: pd.Series) -> bool:
-    """ checks that the lags implemented by the preprocess have been done correctly
+    Args:
+        k (int): harmonic
+        t (int): time index
+        m (int): period
+        sin_or_cos (str): "sin" or "cos"
+
+    Returns:
+        float: the fourier feature value
+    """    
+    import numpy as np
+
+    if sin_or_cos == "sin":
+        return np.sin((2 * np.pi * k * t) / m)
+    elif sin_or_cos == "cos":
+        return np.cos((2 * np.pi * k * t) / m)
+    else:
+        raise ValueError("sin_or_cos must be 'sin' or 'cos'")
+    
+def compute_weekly_fourier_features(date_time: pd.Timestamp, harmonic: int, sin_or_cos: str, time_step: str) -> float:
+    """ Compute the weekly fourier feature for a given date_time and harmonic
+
+    Args:
+        date_time (pd.Timestamp): the date time
+        harmonic (int): the harmonic
+        sin_or_cos (str): "sin" or "cos"
+        time_step (str): "D" for daily data, "h" for hourly data
+
+    Returns:
+        float: the weekly fourier feature value
+    """    
+
+    # First work out what day of the week it is, this will be t
+    t = date_time.dayofweek # Monday = 0, Sunday = 6
+    if time_step == "D":
+        # For just daily series there are 7 days in a week so m = 7
+        m = 7
+    elif time_step == "h":
+        # Now the t for hourly series will be the day of the week * 24 + the hour of the day
+        t = t * 24 + date_time.hour # 0 to 167
+        # For hourly series there are 24 hours in a day and 7 days in a week so m = 24 * 7
+        m = 24 * 7
+    else:
+        raise ValueError("time_step must be 'D' or 'h'")
+    # Now k will be the harmonic
+    k = harmonic
+
+    return compute_fourier_feature(k, t, m, sin_or_cos)
+
+def compute_yearly_fourier_features(date_time: pd.Timestamp, harmonic: int, sin_or_cos: str) -> float:
+    """ Compute the yearly fourier feature for a given date_time and harmonic
+
+    Args:
+        date_time (pd.Timestamp): the date time
+        harmonic (int): the harmonic
+        sin_or_cos (str): "sin" or "cos"
+
+    Returns:
+        float: the yearly fourier feature value
+    """    
+
+    # First work out what day of the year it is, this will be t
+    t = date_time.day_of_year # 1 to 365 (or 366)
+    # Now for freq=YE-DEC 0 is Jan 1st, so we need to subtract 1 from t and take % 365
+    t = (t - 1) % 365
+    # There are 365 days in a year so m = 365
+    m = 365
+    # Now k will be the harmonic
+    k = harmonic
+    return compute_fourier_feature(k, t, m, sin_or_cos)
+
+def compute_daily_fourier_features(date_time: pd.Timestamp, harmonic: int, sin_or_cos: str) -> float:
+    """ Compute the daily fourier feature for a given date_time and harmonic
+
+    Args:
+        date_time (pd.Timestamp): the date time
+        harmonic (int): the harmonic
+        sin_or_cos (str): "sin" or "cos"
+
+    Returns:
+        float: the daily fourier feature value
+    """    
+
+    # Work out what hour of the day it is, this will be t
+    t = date_time.hour # 0 to 23
+    # There are 24 hours in a day so m = 24
+    m = 24
+    # Now k will be the harmonic
+    k = harmonic
+    return compute_fourier_feature(k, t, m, sin_or_cos)
+
+def check_lags_and_fourier_preprocess(dp: DeterministicProcess, X: pd.DataFrame, lags: list[int], y: pd.Series, time_step: str) -> bool:
+    """ checks that the lags and fourier features implemented by the preprocess have been done correctly
 
     Args:
         dp (DeterministicProcess): deterministic process in question
         X (pd.DataFrame): design matrix
         lags (list[int]): list of lags to check
         y (pd.Series): original time series
+        time_step (str): "D" for daily data, "h" for hourly data
 
     Returns:
         bool: True if the lags are correctly applied, False otherwise
@@ -76,11 +170,36 @@ def check_lags_preprocess(dp: DeterministicProcess, X: pd.DataFrame, lags: list[
                 return False
     
     # Go out 30 steps into the deterministic process and check 
+    # The formula for the fourier features is:
+    # sin(2 * pi * k * t / m) and cos(2 * pi * k * t / m)
+    # where k is the harmonic, t is the time index, and m is the period
     step = 30
-    X_out = dp.out_of_sample(steps = step)
+    X_out = dp.out_of_sample(steps=step)
     for i in range(0, X_out.shape[0]):
-        print(X_out.iloc[i])
+        for col, value in X_out.iloc[i].items(): 
+            # Check if this is a fourier feature (general structure is sin(x,freq=Y-Z) or cos(x,freq=Y-Z))
+            if ("sin" in col) or ("cos" in col):
+                sin_or_cos = col.split("(")[0] # "sin" or "cos"
+                order = col.split("(")[1].split(",")[0] # the harmonic
+                freq = col.split("freq=")[1].split("-")[0].split(")")[0] # the frequency (YE, W, D)
 
+                if freq == "W":
+                    expected_value = compute_weekly_fourier_features(X_out.index[i], int(order), sin_or_cos, time_step)
+                elif freq == "YE":
+                    expected_value = compute_yearly_fourier_features(X_out.index[i], int(order), sin_or_cos)
+                elif freq == "D":
+                    expected_value = compute_daily_fourier_features(X_out.index[i], int(order), sin_or_cos)
+                else:
+                    raise ValueError(f"Unknown frequency {freq} in column {col}")
+                
+                # Compare this to our given value with some tolerance due to floating point errors
+                if abs(expected_value - value) > 1e-1:
+                    print("Found mismatch in fourier feature computation")
+                    print(X_out.index[i])
+                    print(col)
+                    print(value)
+                    print(expected_value)
+                    return False 
 
     return True
 
@@ -200,17 +319,40 @@ def test_preprocess():
     assert y_hourly_order_2_no_const.iloc[-2] == 0
     assert y_hourly_order_2_const.iloc[-2] == 0  
 
-    # We are going to trust that deterministic process from statsmodels is implemented correctly on their end so we only need to check that our lags are done correctly
-    # using the check_lags_preprocess function
-    assert check_lags_preprocess(dp_daily_order_0_no_const, X_daily_order_0_no_const, daily_lags, series_daily_full) == True
-    assert check_lags_preprocess(dp_daily_order_0_const, X_daily_order_0_const, daily_lags, series_daily_full) == True
-    assert check_lags_preprocess(dp_daily_order_2_no_const, X_daily_order_2_no_const, daily_lags, series_daily_full) == True
-    assert check_lags_preprocess(dp_daily_order_2_const, X_daily_order_2_const, daily_lags, series_daily_full) == True
-    assert check_lags_preprocess(dp_hourly_order_0_no_const, X_hourly_order_0_no_const, hourly_lags, series_hourly_full) == True
-    assert check_lags_preprocess(dp_hourly_order_0_const, X_hourly_order_0_const, hourly_lags, series_hourly_full) == True
-    assert check_lags_preprocess(dp_hourly_order_2_no_const, X_hourly_order_2_no_const, hourly_lags, series_hourly_full) == True
-    assert check_lags_preprocess(dp_hourly_order_2_const, X_hourly_order_2_const, hourly_lags, series_hourly_full) == True
+    # Check that the lags are correctly returned
+    assert lags_daily_order_0_no_const == lags_daily_order_0_const == lags_daily_order_2_no_const == lags_daily_order_2_const == daily_lags
+    assert lags_hourly_order_0_no_const == lags_hourly_order_0_const == lags_hourly_order_2_no_const == lags_hourly_order_2_const == hourly_lags
 
+    # Check that both the lags and fourier features have been implemented correctly
+    assert check_lags_and_fourier_preprocess(dp_daily_order_0_no_const, X_daily_order_0_no_const, daily_lags, series_daily_full, "D") == True
+    assert check_lags_and_fourier_preprocess(dp_daily_order_0_const, X_daily_order_0_const, daily_lags, series_daily_full, "D") == True
+    assert check_lags_and_fourier_preprocess(dp_daily_order_2_no_const, X_daily_order_2_no_const, daily_lags, series_daily_full, "D") == True
+    assert check_lags_and_fourier_preprocess(dp_daily_order_2_const, X_daily_order_2_const, daily_lags, series_daily_full, "D") == True
+    assert check_lags_and_fourier_preprocess(dp_hourly_order_0_no_const, X_hourly_order_0_no_const, hourly_lags, series_hourly_full, "h") == True
+    assert check_lags_and_fourier_preprocess(dp_hourly_order_0_const, X_hourly_order_0_const, hourly_lags, series_hourly_full, "h") == True
+    assert check_lags_and_fourier_preprocess(dp_hourly_order_2_no_const, X_hourly_order_2_no_const, hourly_lags, series_hourly_full, "h") == True
+    assert check_lags_and_fourier_preprocess(dp_hourly_order_2_const, X_hourly_order_2_const, hourly_lags, series_hourly_full, "h") == True
+
+def test_to_NYC():
+    """ test for to_NYC function in forecast_helpers.py
+
+    Combined with the previous test this shows that our functions are inverses of each other. 
+    """    
+    import pandas as pd
+    from pandas import Timestamp
+    from jfk_taxis import data_processing
+
+    series = pd.Series(
+        data = [200, 147, 23],
+        index = ["2011-05-25 18:28:00+00:00", "2020-01-01 02:50:00+00:00", "2024-08-23 12:10:00+00:00"]  
+    )
+
+    converted_series = data_processing.convert_to_NYC(series)
+
+    assert converted_series.index.dtype == "datetime64[ns, America/New_York]"
+    assert converted_series.index[0] == Timestamp("2011-05-25 14:28:00-0400", tz='America/New_York')  # UTC-4
+    assert converted_series.index[1] == Timestamp("2019-12-31 21:50:00-0500", tz='America/New_York')  # UTC-5
+    assert converted_series.index[2] == Timestamp("2024-08-23 08:10:00-0400", tz='America/New_York')  # UTC-4
 
 
      
