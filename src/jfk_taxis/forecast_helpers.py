@@ -30,7 +30,7 @@ config, PROJECT_ROOT = load_config()
 
 # --- Functions ---
 def drop_time_zone(s: pd.Series) -> pd.Series:
-    """ Drop the timezone from a pandas Series index.
+    """ Drop the timezone from a pandas Series index. Note this only works if the timezone is UTC (which it will be as we do all computations in UTC).
 
     Args:
         s (pd.Series): the input time series.
@@ -64,7 +64,7 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
     y = y.asfreq(time_step)
 
     # # This may create some NaNs so we fill them with 0
-    # y = y.fillna(0)
+    y = y.fillna(0)
 
     fourier_list = []
     # Fourier features for seasonality
@@ -72,7 +72,7 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
         if feature == "YE":
             fourier_list.append(CalendarFourier(freq = "YE", order = 10)) # Annual seasonality (10 harmonics)
         elif feature == "W":
-            fourier_list.append(CalendarFourier(freq = "W", order = 5)) # Weekly seasonality (3 harmonics)
+            fourier_list.append(CalendarFourier(freq = "W", order = 5)) # Weekly seasonality (5 harmonics)
         elif feature == "D":
             fourier_list.append(CalendarFourier(freq = "D", order = 5)) # Daily seasonality (5 harmonics)
    
@@ -83,7 +83,7 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
         order = order,         # Polynomial trend (degree 1 = linear)
         seasonal = False,    # Don't use seasonal dummies
         additional_terms = fourier_list, # Add in the Fourier terms and any other extra features
-        drop = True,       # Drop first column to avoid collinearity
+        drop = False,       
     )
 
     X = dp.in_sample()
