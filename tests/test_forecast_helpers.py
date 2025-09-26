@@ -524,3 +524,163 @@ def test_average_mae_by_step():
     assert avg_mae_by_step[3] == avg_mae_by_step_3
     assert avg_mae_by_step[27] == avg_mae_by_step_27
 
+def test_save_mae_scores():
+    """ test for save_mae_scores function in forecast_helpers.py
+    """   
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # Sample data 
+    model_mae_list = {
+        "model_1": forecast_helpers.ModelMAEScores("model_1"),
+        "model_2": forecast_helpers.ModelMAEScores("model_2"),
+        "model_3": forecast_helpers.ModelMAEScores("model_3")  
+    }
+
+    mae_scores = {
+        "model_1": 245.6,
+        "model_2": 123.4,
+        "model_3": 543.2
+    }
+
+    step = 5
+    offset = 10
+
+    model_mae_list = forecast_helpers.save_mae_scores(model_mae_list, mae_scores, step, offset)
+
+    # Checks
+    assert len(model_mae_list["model_1"].scores) == 1
+    assert len(model_mae_list["model_2"].scores) == 1
+    assert len(model_mae_list["model_3"].scores) == 1
+    assert model_mae_list["model_1"].scores[0].mae == 245.6
+    assert model_mae_list["model_2"].scores[0].mae == 123.4
+    assert model_mae_list["model_3"].scores[0].mae == 543.2
+    assert model_mae_list["model_1"].scores[0].step == step
+    assert model_mae_list["model_2"].scores[0].step == step
+    assert model_mae_list["model_3"].scores[0].step == step
+    assert model_mae_list["model_1"].scores[0].offset == offset
+    assert model_mae_list["model_2"].scores[0].offset == offset
+    assert model_mae_list["model_3"].scores[0].offset == offset
+
+
+# To debug tests run:
+# 
+
+def test_create_avg_mae_df():
+    """ test for create_avg_mae_df function in forecast_helpers.py, we will reuse the save_mae_scores function from the above test as we know it works now.
+    """    
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # Sample data
+    model_mae_list = {
+        "model_1": forecast_helpers.ModelMAEScores("model_1"),
+        "model_2": forecast_helpers.ModelMAEScores("model_2"),
+        "model_3": forecast_helpers.ModelMAEScores("model_3"),
+        "Naive": forecast_helpers.ModelMAEScores("Naive")  
+    }
+
+    mae_scores = {
+        "model_1": [245.6, 234.5, 210.3],
+        "model_2": [123.4, 130.2, 125.6],
+        "model_3": [543.2, 532.1, 550.3],
+        "Naive": [300.1, 310.2, 305.3]
+    }
+
+    # These dicts don't need real values only the keys are used by the function
+    linear_models = {
+        "model_1": "tmp_str" 
+    }
+
+    non_linear_models = {
+        "model_2": "tmp_str", 
+        "model_3": "tmp3_str" 
+    }
+
+    # We will use naive 
+    naive = True
+
+    step = 5
+    offset = 12
+
+    # Save these set of scores and offsets
+    for i in range(0, len(mae_scores["model_1"])):
+        temp_mae_scores = {key: mae_scores[key][i] for key in mae_scores.keys()}
+        model_mae_list = forecast_helpers.save_mae_scores(model_mae_list, temp_mae_scores, step, offset)
+
+    # Now change the offset and step and save (you have to change the step each time as that is how we have setup forecast_helpers)
+    mae_scores = {
+        "model_1": [220.4, 215.6],
+        "model_2": [128.9, 119.5],
+        "model_3": [520.5, 530.2],
+        "Naive": [315.4, 320.1]
+    }
+    offset = 20
+    step = 7
+    for i in range(0, len(mae_scores["model_1"])):
+        temp_mae_scores = {key: mae_scores[key][i] for key in mae_scores.keys()}
+        model_mae_list = forecast_helpers.save_mae_scores(model_mae_list, temp_mae_scores, step, offset)
+
+    # Change just the step and save
+    mae_scores = {
+        "model_1": [200.3, 210.4],
+        "model_2": [121.4, 119.8],
+        "model_3": [510.2, 500.3],
+        "Naive": [290.3, 295.4]
+    }
+    step = 10
+    offset = 12
+    for i in range(0, len(mae_scores["model_1"])):
+        temp_mae_scores = {key: mae_scores[key][i] for key in mae_scores.keys()}
+        model_mae_list = forecast_helpers.save_mae_scores(model_mae_list, temp_mae_scores, step, offset)
+
+    # Change both and save
+    mae_scores = {
+        "model_1": [190.2, 525.3],
+        "model_2": [115.6, 120.4],
+        "model_3": [480.5, 490.2],
+        "Naive": [280.2, 285.3]
+    }
+    offset = 20
+    step = 42
+    for i in range(0, len(mae_scores["model_1"])):
+        temp_mae_scores = {key: mae_scores[key][i] for key in mae_scores.keys()}
+        model_mae_list = forecast_helpers.save_mae_scores(model_mae_list, temp_mae_scores, step, offset)
+
+    avg_mae_df = forecast_helpers.create_avg_mae_df(model_mae_list, linear_models, non_linear_models, naive)
+
+    # Checks
+    print(avg_mae_df)
+    assert isinstance(avg_mae_df, pd.DataFrame)
+    assert avg_mae_df.shape[0] == 4 # 4 different steps
+    assert avg_mae_df.shape[1] == 4 # model_1, model_2, model_3, Naive
+    assert set(list(avg_mae_df.index)) == {5, 7, 10, 42}
+    assert set(list(avg_mae_df.columns)) == {"model_1", "model_2", "model_3", "Naive"}
+
+    # Check the values
+    assert avg_mae_df.loc[5, "model_1"] == (245.6 + 234.5 + 210.3) / 3
+    assert avg_mae_df.loc[5, "model_2"] == (123.4 + 130.2 + 125.6) / 3
+    assert avg_mae_df.loc[5, "model_3"] == (543.2 + 532.1 + 550.3) / 3
+    assert avg_mae_df.loc[5, "Naive"] == (300.1 + 310.2 + 305.3) / 3
+    assert avg_mae_df.loc[7, "model_1"] == (220.4 + 215.6) / 2
+    assert avg_mae_df.loc[7, "model_2"] == (128.9 + 119.5) / 2
+    assert avg_mae_df.loc[7, "model_3"] == (520.5 + 530.2) / 2
+    assert avg_mae_df.loc[7, "Naive"] == (315.4 + 320.1) / 2
+    assert avg_mae_df.loc[10, "model_1"] == (200.3 + 210.4) / 2
+    assert avg_mae_df.loc[10, "model_2"] == (121.4 + 119.8) / 2
+    assert avg_mae_df.loc[10, "model_3"] == (510.2 + 500.3) / 2
+    assert avg_mae_df.loc[10, "Naive"] == (290.3 + 295.4) / 2
+    assert avg_mae_df.loc[42, "model_1"] == (190.2 + 525.3) / 2
+    assert avg_mae_df.loc[42, "model_2"] == (115.6 + 120.4) / 2
+    assert avg_mae_df.loc[42, "model_3"] == (480.5 + 490.2) / 2
+    assert avg_mae_df.loc[42, "Naive"] == (280.2 + 285.3) / 2
+
+
+
+    
+
+
+
+
+
+
