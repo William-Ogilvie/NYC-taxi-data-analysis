@@ -40,7 +40,7 @@ def drop_time_zone(s: pd.Series) -> pd.Series:
     s.index = s.index.tz_localize(None)
     return s
 
-def preprocess(lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess]:
+def preprocess(lags: list[int], constant: bool, order: int, fourier_features: list[str], time_step: str, ts: pd.Series) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess, list[int]]:
     """ Preprocess the time series data for modeling.
 
     Args:
@@ -52,7 +52,7 @@ def preprocess(lags: list[int], constant: bool, order: int, fourier_features: li
         ts (pd.Series): time series data
 
     Returns:
-        tuple[pd.DataFrame, pd.Series, DeterministicProcess]: design matrix, target series and the deterministic process fitted on the data
+        tuple[pd.DataFrame, pd.Series, DeterministicProcess, list[int]]: design matrix, target series, the deterministic process fitted on the data and a list of the lags
     """    
 
     y = copy.deepcopy(ts) # Create a separate copy of the time series to avoid any changes to the original

@@ -4,6 +4,10 @@ test_forecast_helpers.py
 
 Unit tests for forecast helpers.py. Note to_numpy, fit_linear, fit_non_linear are just wrappers around sklearn functions so don't need their own unit tests.
 truncate_lags is a simple function that just truncates a list so doesn't need its own unit test.
+
+We will also not test forecast_dicts or run_forecasts, this is because these functions essentially just call the other functions and plot the output.
+In a similar vein we will not test any of the other functions that only plot things like create_avg_mae_barplot, however we will test the componenets they rely on
+like create_avg_mae_df.
 """
 
 import pytest
@@ -369,5 +373,154 @@ def test_to_NYC():
     assert converted_series.index[2] == Timestamp("2024-01-02 19:00:00-0500", tz='America/New_York')  
     assert converted_series.index[3] == Timestamp("2024-01-03 19:00:00-0500", tz='America/New_York')  
 
+def preprocess_model(model_type: str, time_step: str) -> tuple[pd.DataFrame, pd.Series, DeterministicProcess, list[int]]:
+    """ function to generate some sample preprocessed data for testing the forecast function
 
+    Args:
+        model_type (str): type of model, linear, hybrid or non-linear
+        time_step (str): time step, "D" for daily, "h" for hourly
+
+    Returns:
+        tuple[pd.DataFrame, pd.Series, DeterministicProcess, list[int]]: X, y, dp, lags
+    """     
+    import pandas as pd
+    import numpy as np
+    from jfk_taxis import forecast_helpers
+
+    # Sample time series
+    np.random.seed(37)
+    series_daily_full = pd.Series(data = np.random.uniform(3500, 5500, size = 365*3), index = pd.date_range(start = "2021-01-01 00:00:00+0000", periods = 365*3, freq = "D"))
+    series_hourly_full = pd.Series(data = np.random.uniform(50, 400, size = 365*3*24), index = pd.date_range(start = "2021-01-01 00:00:00+0000", periods = 365*3*24, freq = "h"))
+
+    # Lags
+    daily_lags = [1, 2, 7, 23, 364]
+    hourly_lags = [1, 2, 24, 48, 24*365+12]
+
+    # Order
+    order = 2 # we will just use order 2 for all models here
+    constant = True
+
+    # Fourier features
+    daily_fourier = ["YE", "W"]
+    hourly_fourier = ["D", "W"]
+
+    if time_step == "D":
+        if model_type == "non-linear":
+            constant = False
+            order = 0
+
+        return forecast_helpers.preprocess(daily_lags, constant = constant, order = order, fourier_features = daily_fourier, time_step = "D", ts = series_daily_full)
+    elif time_step == "h":
+        if model_type == "non-linear":
+            constant = False
+            order = 0
+
+        return forecast_helpers.preprocess(hourly_lags, constant = constant, order = order, fourier_features = hourly_fourier, time_step = "h", ts = series_hourly_full)
+
+def test_forecast():
+    """ test for forecast function in forecast_helpers.py
+    """     
+    import pandas as pd
+    import numpy as np
+    from jfk_taxis import forecast_helpers
+    from jfk_taxis import load_config
+
+    config, PROJECT_ROOT = load_config()
+
+    # First we are going to need to create six models to test with, one linear, one hybrid and one non-linear for both hourly and daily time steps 
+    # To do this we will use the prepocess function as that has been tested above, and this is also what the forecast function
+    # will be recieveing as input anyway.
+
+    model_types = ["linear", "hybrid", "non-linear"]
+    time_steps = ["D", "h"]
+    daily_steps = 30
+    hourly_steps = 7*24
+
+    for model_type in model_types:
+        for time_step in time_steps:
+            X, y, dp, lags = preprocess_model(model_type, time_step)
+
+            # Fit the model
+            if model_type == "linear":
+                model = forecast_helpers.fit_linear(X, y)
+                hybrid = None
+                gpu = False
+            elif model_type == "non-linear":
+                model = forecast_helpers.fit_non_linear(X, y)
+                hybrid = None
+                if config["xgboost_setup"]["device"] == "cuda":
+                    gpu = True
+                else:
+                    gpu = False
+            elif model_type == "hybrid":
+                model = forecast_helpers.fit_linear(X, y)
+                X_num = X.to_numpy()
+                residuals = y - pd.Series(data = model.predict(X_num), index = y.index)
+                hybrid = forecast_helpers.fit_non_linear(X, residuals)
+                gpu = False # as we are using a linear model as well we will just set gpu to False
+                
+            else:
+                raise ValueError(f"Unknown model type {model_type}")
+
+            if time_step == "D":
+                steps = daily_steps
+                offset = 11
+            elif time_step == "h":
+                steps = hourly_steps
+                offset = 28
+            else:
+                raise ValueError(f"Unknown time step {time_step}") 
+            
+
+
+            forecast_series = forecast_helpers.forecast(model, y, lags, steps, offset, dp, hybrid, gpu)
+
+            # Basic checks
+            assert isinstance(forecast_series, pd.Series)
+            assert forecast_series.shape[0] == steps
+            assert forecast_series.index.dtype == "datetime64[ns]"
+
+            # Check start end are correct and that each prediction has time step of "time_step" apart 
+            assert forecast_series.index[0] == y.index[-1] + np.timedelta64((offset+1), time_step)
+            assert forecast_series.index[-1] == y.index[-1] + np.timedelta64((offset + steps), time_step)
+            for i in range(0, forecast_series.shape[0]-1):
+                assert forecast_series.index[i+1] == forecast_series.index[i] + np.timedelta64(1, time_step)
+            
+            # Check all values are floats
+            assert all([isinstance(val, float) for val in forecast_series])
+
+def test_average_mae_by_step():
+    """ test for the average_mae_by_step function from the ModelMAEScores class in forecast_helpers.py
+    """    
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # Sample maes
+    maes = [200.3, 2424, 123.4, 543.2, 654.1, 234.5, 876.3, 345.2, 765.4, 234.1]
+    # Sample steps
+    steps = [1, 2, 3, 27, 1, 1, 2, 3, 1, 3]
+    # Sample offsets
+    offsets = [0, 0, 0, 0, 0, 10, 10, 20, 20, 20]
      
+
+    # Create a sample ModelMAEScores object
+    model_mae_scores = forecast_helpers.ModelMAEScores("test_model")
+
+    for mae, step, offset in zip(maes, steps, offsets):
+        score_obj = forecast_helpers.MAEScore(name="test_model", mae=mae, step=step, offset=offset)
+        model_mae_scores.append_score(score_obj)
+
+    avg_mae_by_step = model_mae_scores.average_mae_by_step()
+
+    avg_by_step_1 = (200.3 + 654.1 + 234.5 + 765.4) / 4
+    avg_mae_by_step_2 = (2424 + 876.3) / 2
+    avg_mae_by_step_3 = (123.4 + 345.2 + 234.1) / 3
+    avg_mae_by_step_27 = 543.2
+
+    print(avg_mae_by_step.keys()) 
+    # Checks
+    assert avg_mae_by_step[1] == avg_by_step_1
+    assert avg_mae_by_step[2] == avg_mae_by_step_2
+    assert avg_mae_by_step[3] == avg_mae_by_step_3
+    assert avg_mae_by_step[27] == avg_mae_by_step_27
+

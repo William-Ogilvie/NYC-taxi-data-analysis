@@ -61,6 +61,10 @@ Explain time zone conversions maybe? like converting to UTC to avoid DST errors
 maybe comment on how offsets work? every 30 days with a bit of jitter, so in total 7 offsets
 
 
+## Testing guide
+
+before running tests you may need to run setup.py to ensure config is configured correctly for your PC
+
 ## EC2 instance guide
 
 As the hyperparameter tuning can be computationally expensive I decided to have it run on an EC2 instance in AWS rather than on my host machine. To do this I setup a S3 bucket to store the time series csvs as well as the outputs of the hyperparameter tuning. Then I create an EC2 instance with permissions to access the S3 bucket. I use the Deep Learning Ubuntu 20.04 AMI as it has already has the Nvidia drivers installed (if you use an instance with a GPU) as well as docker, git and AWS CLI. It will need to have an IAM role with the AmazonS3FullAccesss policy when created. 
