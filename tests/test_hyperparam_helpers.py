@@ -296,6 +296,37 @@ def test_objective_optuna():
     assert hourly_non_linear_obj == avg_hourly_non_linear_mae
     assert hourly_hybrid_obj == avg_hourly_hybrid_mae
 
+def test_split_params():
+    """ test the split_params function in hyperparam_helpers.py
+    """    
+    # Create sample params
+    params = {
+        "daily_hybrid_order1": {"param_2": 0.1, "param_3": 5}, 
+        "reduced_daily_base_non_linear": {"param_5": 10, "param_6": 0.01},
+        "reduced_hourly_hybrid_order1": {"param_2": 0.2, "param_3": 10}, 
+        "hourly_base_non_linear": {"param_5": 20, "param_6": 0.02},
+    }
+
+    daily_non_linear_dict, daily_hybrid_dict, hourly_non_linear_dict, hourly_hybrid_dict = hyperparam_helpers.split_params(params)
+
+    # Check the contents of each dictionary
+    assert daily_non_linear_dict.keys() == {"reduced_daily_base_non_linear"}
+    assert daily_non_linear_dict["reduced_daily_base_non_linear"] == {"param_5": 10, "param_6": 0.01}
+    assert daily_hybrid_dict.keys() == {"daily_hybrid_order1"}
+    assert daily_hybrid_dict["daily_hybrid_order1"] == {"param_2": 0.1, "param_3": 5}
+    assert hourly_non_linear_dict.keys() == {"hourly_base_non_linear"}
+    assert hourly_non_linear_dict["hourly_base_non_linear"] == {"param_5": 20, "param_6": 0.02}
+    assert hourly_hybrid_dict.keys() == {"reduced_hourly_hybrid_order1"}
+    assert hourly_hybrid_dict["reduced_hourly_hybrid_order1"] == {"param_2": 0.2, "param_3": 10}
+
+
+
+
+
+
+
+
+
 
 
 
