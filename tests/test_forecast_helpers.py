@@ -5,9 +5,8 @@ test_forecast_helpers.py
 Unit tests for forecast helpers.py. Note to_numpy, fit_linear, fit_non_linear are just wrappers around sklearn functions so don't need their own unit tests.
 truncate_lags is a simple function that just truncates a list so doesn't need its own unit test.
 
-We will also not test forecast_dicts or run_forecasts, this is because these functions essentially just call the other functions and plot the output.
-In a similar vein we will not test any of the other functions that only plot things like create_avg_mae_barplot, however we will test the componenets they rely on
-like create_avg_mae_df.
+We will also not test forecast_dicts or run_forecasts, this is because these functions essentially just call the other functions and plot the output, so we have checked their plots themselves.
+In a similar vein we will not test any of the other functions that only plot things like create_avg_mae_barplot, however we will test the componenets they rely on like create_avg_mae_df.
 """
 
 import pytest
@@ -31,7 +30,7 @@ def test_drop_time_zone():
     # Checks
     assert all(result == pd.Series(data = [1, 2, 3], index = [Timestamp("2023-01-01 00:00:00"),
                                       Timestamp("2023-05-25 01:00:00"),
-                                      Timestamp("2011-12-31 23:00:00")]))
+                                      Timestamp("2011-12-31 23:00:00")])), "Values or index incorrect"
 
 
 def compute_fourier_feature(k: int, t: int, m: int, sin_or_cos: str) -> float:

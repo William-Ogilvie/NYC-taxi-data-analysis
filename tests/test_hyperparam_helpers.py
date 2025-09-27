@@ -2,7 +2,7 @@
 test_hyperparam_helpers.py
 ============================
 
-Unit tests for hyperparam_helpers.py
+Unit tests for hyperparam_helpers.py. Again we won't test test_hyperparams because it essentially calls all the other smaller functions and plots the output. So just checking the plots manually is enough.
 """
 
 from jfk_taxis import hyperparam_helpers
@@ -46,28 +46,28 @@ def test_create_val_data():
         y_test = value[4]
 
         # Length of y_test
-        assert len(y_test) == daily_test_size
+        assert len(y_test) == daily_test_size, "y_test length incorrect"
 
         # y_test 1 time step after y_train
-        assert y_test.index[0].tz_localize(None) == y_train.index[-1] +  np.timedelta64(1, "D")
+        assert y_test.index[0].tz_localize(None) == y_train.index[-1] +  np.timedelta64(1, "D"), "y_test does not start 1 time step after y_train"
 
         # y_test formatted correctly (this isn't given as y_test doesn't come from preprocesss so worth checking)
         for i in range(0, y_test.shape[0]-1):
-            assert y_test.index[i+1] == y_test.index[i] + np.timedelta64(1, "D")
+            assert y_test.index[i+1] == y_test.index[i] + np.timedelta64(1, "D"), "y_test not formatted correctly"
 
     for key, value in hourly_fold_dict.items():
         y_train = value[1]
         y_test = value[4]
 
         # Length of y_test
-        assert len(y_test) == hourly_test_size
+        assert len(y_test) == hourly_test_size, "y_test length incorrect"
 
         # y_test 1 time step after y_train
-        assert y_test.index[0].tz_localize(None) == y_train.index[-1] +  np.timedelta64(1, "h")
+        assert y_test.index[0].tz_localize(None) == y_train.index[-1] +  np.timedelta64(1, "h"), "y_test does not start 1 time step after y_train"
 
         # y_test formatted correctly (this isn't given as y_test doesn't come from preprocesss so worth checking)
         for i in range(0, y_test.shape[0]-1):
-            assert y_test.index[i+1] == y_test.index[i] + np.timedelta64(1, "h")
+            assert y_test.index[i+1] == y_test.index[i] + np.timedelta64(1, "h"), "y_test not formatted correctly"
 
 def test_objective_optuna():
     """ test for the objective_optuna function in hyperparam_helpers.py.
@@ -284,8 +284,8 @@ def test_objective_optuna():
     daily_hybrid_obj = hyperparam_helpers.objective_optuna(trial, daily_fold_dict, daily_steps, hybrid_linear_model, offset_list)
 
     # Now we compare the results
-    assert daily_non_linear_obj == avg_daily_non_linear_mae
-    assert daily_hybrid_obj == avg_daily_hybrid_mae
+    assert daily_non_linear_obj == avg_daily_non_linear_mae, "mae of daily non linear model does not match"
+    assert daily_hybrid_obj == avg_daily_hybrid_mae, "mae of daily hybrid model does not match"
 
     # Same for hourly
     hybrid_linear_model = LinearRegression(fit_intercept=False)
@@ -293,8 +293,8 @@ def test_objective_optuna():
     hourly_hybrid_obj = hyperparam_helpers.objective_optuna(trial, hourly_fold_dict, hourly_steps, hybrid_linear_model, offset_list)
 
     # Now we compare the results
-    assert hourly_non_linear_obj == avg_hourly_non_linear_mae
-    assert hourly_hybrid_obj == avg_hourly_hybrid_mae
+    assert hourly_non_linear_obj == avg_hourly_non_linear_mae, "mae of hourly non linear model does not match"
+    assert hourly_hybrid_obj == avg_hourly_hybrid_mae, "mae of hourly hybrid model does not match"
 
 def test_split_params():
     """ test the split_params function in hyperparam_helpers.py
@@ -310,14 +310,14 @@ def test_split_params():
     daily_non_linear_dict, daily_hybrid_dict, hourly_non_linear_dict, hourly_hybrid_dict = hyperparam_helpers.split_params(params)
 
     # Check the contents of each dictionary
-    assert daily_non_linear_dict.keys() == {"reduced_daily_base_non_linear"}
-    assert daily_non_linear_dict["reduced_daily_base_non_linear"] == {"param_5": 10, "param_6": 0.01}
-    assert daily_hybrid_dict.keys() == {"daily_hybrid_order1"}
-    assert daily_hybrid_dict["daily_hybrid_order1"] == {"param_2": 0.1, "param_3": 5}
-    assert hourly_non_linear_dict.keys() == {"hourly_base_non_linear"}
-    assert hourly_non_linear_dict["hourly_base_non_linear"] == {"param_5": 20, "param_6": 0.02}
-    assert hourly_hybrid_dict.keys() == {"reduced_hourly_hybrid_order1"}
-    assert hourly_hybrid_dict["reduced_hourly_hybrid_order1"] == {"param_2": 0.2, "param_3": 10}
+    assert daily_non_linear_dict.keys() == {"reduced_daily_base_non_linear"}, "keys of daily non linear dict incorrect"
+    assert daily_non_linear_dict["reduced_daily_base_non_linear"] == {"param_5": 10, "param_6": 0.01}, "params of daily non linear dict incorrect"
+    assert daily_hybrid_dict.keys() == {"daily_hybrid_order1"}, "keys of daily hybrid dict incorrect"
+    assert daily_hybrid_dict["daily_hybrid_order1"] == {"param_2": 0.1, "param_3": 5}, "params of daily hybrid dict incorrect"
+    assert hourly_non_linear_dict.keys() == {"hourly_base_non_linear"}, "keys of hourly non linear dict incorrect"
+    assert hourly_non_linear_dict["hourly_base_non_linear"] == {"param_5": 20, "param_6": 0.02}, "params of hourly non linear dict incorrect"
+    assert hourly_hybrid_dict.keys() == {"reduced_hourly_hybrid_order1"}, "keys of hourly hybrid dict incorrect"
+    assert hourly_hybrid_dict["reduced_hourly_hybrid_order1"] == {"param_2": 0.2, "param_3": 10}, "params of hourly hybrid dict incorrect"
 
 
 

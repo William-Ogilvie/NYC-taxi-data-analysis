@@ -46,25 +46,32 @@ def make_offsets(total_time: int, offset_step: int) -> list[int]:
     # To avoid errors with negative offsets we take the absolute value of the first offset
     offsets[0] = abs(offsets[0])
 
+    # To avoid offsets going outside total time we cap the last offset at total_time
+    if offsets[-1] > total_time:
+        offsets[-1] = total_time
+
     return offsets
 
-def make_offsets_from_series(ts: pd.Series, offset_step: int, forecast_steps: int) -> list[int]:
+def make_offsets_from_series(ts: pd.Series, offset_step: int, forecast_steps: list[int]) -> list[int]:
     """Create offsets from a time series with some jitter to avoid overfitting to specific offsets
 
     Args:
         ts (pd.Series): time series to create offsets from
         offset_step (int): step size for the offsets
-        forecast_steps (int): number of steps to forecast
+        forecast_steps (list[int]): number of steps to forecast
 
     Returns:
         list[int]: list of offsets with jitter
-    """    
+    """   
+
+    # Jitter is half the offset step
+    jitter = int(offset_step / 2) 
 
     # Number of days (or hours) in the series
     total_time = len(ts)
 
-    # Now you need to subtract the maximum forecast step to avoid going out of bounds
-    total_time = total_time - max(forecast_steps)
+    # Now you need to subtract the maximum forecast step and the jitter to avoid going out of bounds
+    total_time = total_time - max(forecast_steps) - jitter
 
     # Create offsets
     offsets = make_offsets(total_time, offset_step)
