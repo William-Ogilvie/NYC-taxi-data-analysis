@@ -57,8 +57,8 @@ def create_val_data(n_splits: int, test_size: int, lags: list[int], constant: bo
     tscv= TimeSeriesSplit(n_splits = n_splits, test_size = test_size)
     
     for fold, (train_index, test_index) in enumerate(tscv.split(ts)):
-        print(f"Fold {fold}")
-        print(train_index)
+        # print(f"Fold {fold}")
+        # print(train_index)
         # We need to preprocess the training portion of the fold
         ts_train = ts.iloc[train_index].copy()
         (X_train, y_train, dp, lags) = preprocess(lags, constant, order, fourier_features, time_step, ts_train)
@@ -282,7 +282,7 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
     # minimum loss reduction required to split a node, higher values = more conservative
     "gamma": trial.suggest_float("gamma", 0.0009, 10.0, log=True), # approx [0.0009, 10]
 
-    "random_state": 37,
+    "random_state": config["xgboost_setup"]["random_state"],
     #"early_stopping_rounds": 100,
     "eval_metric": config["xgboost_setup"]["eval_metric"], 
     "tree_method": config["xgboost_setup"]["tree_method"], 
@@ -335,6 +335,7 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
     """     
 
     model = define_model(trial) 
+  
 
     # If we are in the hybrid case then the model above is actually the "hybrid" part used in forecasting, and we have passed the linear regression as the hybrid component of this function
     # so we need to swap theses two
@@ -432,7 +433,7 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
 
             # Append to list
             mae_list.append(mae)
-        
+        print(mae_list) 
 
         end_fore = time.time()
     
@@ -449,6 +450,7 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
         # print(mae_list)
         mae = sum(mae_list) / len(mae_list) 
         maes.append(mae) 
+    print(maes)
 
     # Average MAE across folds (technically this is a double average as we have averaged across offsets too)
     mean_mae = sum(maes) / len(maes)
