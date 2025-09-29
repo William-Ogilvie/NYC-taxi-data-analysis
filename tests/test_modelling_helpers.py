@@ -476,7 +476,721 @@ def test_train_hybrid_models():
     assert isinstance(hybrid, XGBRegressor), "Hybrid model is not an XGBRegressor instance"
     assert lags == hourly_lags, "Lags returned incorrectly"
 
+def test_create_train_non_linear():
+    """ test the create_train_non_linear function in modelling_helpers.py
+    """    
+    from jfk_taxis import modelling_helpers
+
+    # Essentially this function just combines the create_design_non_linear and train_non_linear_models so we will just combine the tests essentially
+    # and check we get what we expect
+
+    daily_lags = [1, 7, 14, 30, 60]
+    hourly_lags = [1, 24, 168, 336, 720]
+    daily_fourier_features = ["YE", "W"]
+    hourly_fourier_features = ["D", "W"]
+
+    expected_daily_lags = [f"y_lag_{lag}" for lag in daily_lags]
+    expected_hourly_lags = [f"y_lag_{lag}" for lag in hourly_lags]
+
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
 
 
+    # Expected params for this model
+    expected_params = expected_xgbregressor_params()
+
+    daily_ts = create_ts("D")
+    hourly_ts = create_ts("h")
+
+    # To make sure we are actually creating two models (that will be identical)
+    daily_names = ["model_1", "model_2"]
+    hourly_names = ["model_2", "model_3"]
+
+    # Create and train model, daily
+    non_linear_design, non_linear_models_daily = modelling_helpers.create_train_non_linear(daily_names, daily_lags, daily_fourier_features, "D", daily_ts)
+
+    # Checks (these are just the create design and train model checks combined)
+    for name in daily_names:
+        assert set(non_linear_design.keys()) == set(daily_names), "Model name key incorrect"
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
 
 
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+    
+        assert set(list(non_linear_models_daily.keys())) == set(daily_names), "Model name key incorrect"
+        
+        # Unpack dict
+        model = non_linear_models_daily[name][0]
+        dp = non_linear_models_daily[name][1]
+        hybrid = non_linear_models_daily[name][2]
+        lags = non_linear_models_daily[name][3]
+
+        # Get the model params
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Repeat for hourly
+    non_linear_design, non_linear_models_hourly = modelling_helpers.create_train_non_linear(hourly_names, hourly_lags, hourly_fourier_features, "h", hourly_ts)
+
+    for name in hourly_names:
+        # Upack non linear design
+        assert set(list(non_linear_design.keys())) == set(hourly_names), "Model name key incorrect"  
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Check trained model
+        assert set(non_linear_models_hourly.keys()) == set(hourly_names), "Model name key incorrect"
+        
+        # Unpack dict
+        model = non_linear_models_hourly[name][0]
+        dp = non_linear_models_hourly[name][1]
+        hybrid = non_linear_models_hourly[name][2]
+        lags = non_linear_models_hourly[name][3]
+
+        # Get the model params, note expected_params will only be a subset of this as we do not manually set all parameters
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+def test_create_train_linear():
+    """ test the create_train_linear function in modelling_helpers.py
+    """
+    from jfk_taxis import modelling_helpers
+    from sklearn.linear_model import LinearRegression
+
+    daily_lags = [1, 7, 14, 30, 60]
+    hourly_lags = [1, 24, 168, 336, 720]
+    daily_fourier_features = ["YE", "W"]
+    hourly_fourier_features = ["D", "W"]
+
+    expected_daily_lags = [f"y_lag_{lag}" for lag in daily_lags]
+    expected_hourly_lags = [f"y_lag_{lag}" for lag in hourly_lags]
+
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+
+    # First model is order 3 second order 2 
+    order_list = [3, 2]
+    expected_3_order_terms = ["const", "trend", "trend_squared", "trend_cubed"]
+    expected_2_order_terms = ["const", "trend", "trend_squared"]
+
+
+    daily_ts = create_ts("D")
+    hourly_ts = create_ts("h")
+
+    daily_names = ["model_1", "model_2"]
+    hourly_names = ["model_2", "model_3"]
+
+    # Daily case
+    linear_design, linear_models_daily = modelling_helpers.create_train_linear(daily_names, order_list, daily_lags, daily_fourier_features, "D", daily_ts)
+
+    for name, expected_order_terms in zip(daily_names, [expected_3_order_terms, expected_2_order_terms]):
+        # Checks on design
+        assert set(list(linear_design.keys())) == set(daily_names), "Model name key incorrect"
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10 + len(expected_order_terms), "Linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier + expected_order_terms), "Linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+        # Model checks
+        assert set(list(linear_models_daily.keys())) == set(daily_names), "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_daily[name][0]
+        dp = linear_models_daily[name][1]
+        hybrid = linear_models_daily[name][2]
+        lags = linear_models_daily[name][3]
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Hourly case
+    linear_design, linear_models_hourly = modelling_helpers.create_train_linear(hourly_names, order_list, hourly_lags, hourly_fourier_features, "h", hourly_ts)
+
+    for name, expected_order_terms in zip(hourly_names, [expected_3_order_terms, expected_2_order_terms]):
+        # Design checks 
+        assert set(list(linear_design.keys())) == set(hourly_names), "Model name key incorrect"
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10 + len(expected_order_terms), "linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier + expected_order_terms), "linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Model checks 
+        assert set(list(linear_models_hourly.keys())) == {"model_2", "model_3"}, "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_hourly[name][0]
+        dp = linear_models_hourly[name][1]
+        hybrid = linear_models_hourly[name][2]
+        lags = linear_models_hourly[name][3]
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+def test_create_train_hybrid():
+    """ tests the create_train_hybrid function in modelling_helpers.py
+    """    
+    from jfk_taxis import modelling_helpers
+    from sklearn.linear_model import LinearRegression
+    import copy
+
+    daily_lags = [1, 7, 14, 30, 60]
+    hourly_lags = [1, 24, 168, 336, 720]
+    daily_fourier_features = ["YE", "W"]
+    hourly_fourier_features = ["D", "W"]
+
+    expected_daily_lags = [f"y_lag_{lag}" for lag in daily_lags]
+    expected_hourly_lags = [f"y_lag_{lag}" for lag in hourly_lags]
+
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+
+    # First model is order 3 second order 2 
+    order_list = [3, 2]
+    expected_3_order_terms = ["const", "trend", "trend_squared", "trend_cubed"]
+    expected_2_order_terms = ["const", "trend", "trend_squared"]
+
+    # XGBRegressor to use
+    xgbregressor = default_xgb_model()
+
+    # Expected params for this model
+    expected_params = expected_xgbregressor_params()
+
+    daily_ts = create_ts("D")
+    hourly_ts = create_ts("h")
+
+    daily_names = ["model_1", "model_2"]
+    hourly_names = ["model_2", "model_3"]
+
+    # Create and train model, daily
+    hybrid = copy.deepcopy(xgbregressor) # so we don't get errors from fitting same instance twice
+    linear_design, linear_models_daily = modelling_helpers.create_train_hybrid(daily_names, hybrid, order_list, daily_lags, daily_fourier_features, "D", daily_ts)
+
+    # Checks
+    for name, expected_order_terms in zip(daily_names, [expected_3_order_terms, expected_2_order_terms]):
+        assert set(list(linear_design.keys())) == set(daily_names), "Model name key incorrect"  
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10 + len(expected_order_terms), "Linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier + expected_order_terms), "Linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+        assert set(list(linear_models_daily.keys())) == set(daily_names), "Model name key incorrect"
+        
+        # Unpack dict
+        model = linear_models_daily[name][0]
+        dp = linear_models_daily[name][1]
+        hybrid = linear_models_daily[name][2]
+        lags = linear_models_daily[name][3]
+
+        # Get the hybrid params, note expected_params will only be a subset of this as we do not manually set all parameters
+        hybrid_params = hybrid.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(expected_params.keys()) <= set(hybrid_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert hybrid_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert isinstance(hybrid, XGBRegressor), "Hybrid model is not an XGBRegressor instance"
+        assert lags == daily_lags, "Lags returned incorrectly"
+    
+    # Repeat for hourly
+    hybrid = copy.deepcopy(xgbregressor)
+    linear_design, linear_models_hourly = modelling_helpers.create_train_hybrid(hourly_names, hybrid, order_list, hourly_lags, hourly_fourier_features, "h", hourly_ts)
+
+    for name, expected_order_terms in zip(hourly_names, [expected_3_order_terms, expected_2_order_terms]):
+        # Design checks 
+        assert set(list(linear_design.keys())) == set(hourly_names), "Model name key incorrect"  
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10 + len(expected_order_terms), "linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier + expected_order_terms), "linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Model checks
+        assert set(list(linear_models_hourly.keys())) == set(hourly_names), "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_hourly[name][0]
+        dp = linear_models_hourly[name][1]
+        hybrid = linear_models_hourly[name][2]
+        lags = linear_models_hourly[name][3]
+
+        # Get the hybrid params, note expected_params will only be a subset of this as we do not manually set all parameters
+        hybrid_params = hybrid.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(expected_params.keys()) <= set(hybrid_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert hybrid_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert isinstance(hybrid, XGBRegressor), "Hybrid model is not an XGBRegressor instance"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+def test_create_train_save_models():
+    """ test the create_train_save_models function in modelling_helpers.py
+    """    
+    from jfk_taxis import modelling_helpers
+    from jfk_taxis import load_models, load_design
+    import copy
+    from sklearn.linear_model import LinearRegression
+
+    # This function just combines all the previous functions so we will essentially just run the same checks again
+    # We will need to do two sets one for linear and one for hybrid
+    daily_lags = [1, 7, 14, 30, 60]
+    hourly_lags = [1, 24, 168, 336, 720]
+    daily_fourier_features = ["YE", "W"]
+    hourly_fourier_features = ["D", "W"]
+
+    expected_daily_lags = [f"y_lag_{lag}" for lag in daily_lags]
+    expected_hourly_lags = [f"y_lag_{lag}" for lag in hourly_lags]
+
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+
+    # First model is order 3 second order 2 
+    order_list = [3, 2]
+    expected_3_order_terms = ["const", "trend", "trend_squared", "trend_cubed"]
+    expected_2_order_terms = ["const", "trend", "trend_squared"]
+
+    # XGBRegressor to use
+    xgbregressor = default_xgb_model()
+
+    # Expected params for this model
+    expected_params = expected_xgbregressor_params()
+
+    daily_ts = create_ts("D")
+    hourly_ts = create_ts("h")
+
+    daily_names_linear = ["model_1", "model_2"]
+    hourly_names_linear = ["model_2", "model_3"]
+
+    daily_names_non_linear = ["model_4", "model_5"]
+    hourly_names_non_linear = ["model_5", "model_6"]
+
+    daily_names_hybrid = ["model_7", "model_8"]
+    hourly_names_hybrid = ["model_8", "model_9"]
+
+    # We will run the function twice per time step once for linear, once for hybrid
+    # To reload the models for checking we are going to have to use load_models and load_designs from training_helpers 
+    daily_linear_sig = "linear_daily"
+    hourly_linear_sig = "linear_hourly"
+
+    daily_hybrid_sig = "hybrid_daily"
+    hourly_hybrid_sig = "hybrid_hourly"
+
+    # Daily linear
+    modelling_helpers.create_train_save_models(daily_names_linear, daily_names_non_linear, None, daily_linear_sig, order_list, daily_lags, daily_fourier_features, "D", daily_ts)
+
+    # Daily hybrid
+    hybrid = copy.deepcopy(xgbregressor)
+    modelling_helpers.create_train_save_models(daily_names_hybrid, daily_names_non_linear, hybrid, daily_hybrid_sig, order_list, daily_lags, daily_fourier_features, "D", daily_ts)
+
+    # Hourly linear
+    modelling_helpers.create_train_save_models(hourly_names_linear, hourly_names_non_linear, None, hourly_linear_sig, order_list, hourly_lags, hourly_fourier_features, "h", hourly_ts)
+
+    # Hourly hybrid
+    hybrid = copy.deepcopy(xgbregressor)
+    modelling_helpers.create_train_save_models(hourly_names_hybrid, hourly_names_non_linear, hybrid, hourly_hybrid_sig, order_list, hourly_lags, hourly_fourier_features, "h", hourly_ts)
+
+    # Load the models and designs back in and perform checks
+
+    # Daily linear
+    linear_design, non_linear_design = load_design(daily_linear_sig)
+    linear_models_daily, non_linear_models_daily = load_models(daily_linear_sig)
+
+    # Check linear models and design
+    for name, expected_order_terms in zip(daily_names_linear, [expected_3_order_terms, expected_2_order_terms]):
+        # Checks on design
+        assert set(list(linear_design.keys())) == set(daily_names_linear), "Model name key incorrect"
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10 + len(expected_order_terms), "Linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier + expected_order_terms), "Linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+        # Model checks
+        assert set(list(linear_models_daily.keys())) == set(daily_names_linear), "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_daily[name][0]
+        dp = linear_models_daily[name][1]
+        hybrid = linear_models_daily[name][2]
+        lags = linear_models_daily[name][3]
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Check non-linear models and design 
+    for name in daily_names_non_linear:
+        assert set(non_linear_design.keys()) == set(daily_names_non_linear), "Model name key incorrect"
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+    
+        assert set(list(non_linear_models_daily.keys())) == set(daily_names_non_linear), "Model name key incorrect"
+
+        # Unpack dict
+        model = non_linear_models_daily[name][0]
+        dp = non_linear_models_daily[name][1]
+        hybrid = non_linear_models_daily[name][2]
+        lags = non_linear_models_daily[name][3]
+
+        # Get the model params
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Daily hybrid (we still with the naming convention linear_design even though it is hybrid here, the model is a linear regression boosted on residuals)
+    linear_design, non_linear_design = load_design(daily_hybrid_sig)
+    linear_models_daily, non_linear_models_daily = load_models(daily_hybrid_sig)
+
+    # Checks hybrid model
+    for name, expected_order_terms in zip(daily_names_hybrid, [expected_3_order_terms, expected_2_order_terms]):
+        assert set(list(linear_design.keys())) == set(daily_names_hybrid), "Model name key incorrect"  
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10 + len(expected_order_terms), "Linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier + expected_order_terms), "Linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+        assert set(list(linear_models_daily.keys())) == set(daily_names_hybrid), "Model name key incorrect"
+        
+        # Unpack dict
+        model = linear_models_daily[name][0]
+        dp = linear_models_daily[name][1]
+        hybrid = linear_models_daily[name][2]
+        lags = linear_models_daily[name][3]
+
+        # Get the hybrid params, note expected_params will only be a subset of this as we do not manually set all parameters
+        hybrid_params = hybrid.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(expected_params.keys()) <= set(hybrid_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert hybrid_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert isinstance(hybrid, XGBRegressor), "Hybrid model is not an XGBRegressor instance"
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Checks non linear model
+    for name in daily_names_non_linear:
+        assert set(non_linear_design.keys()) == set(daily_names_non_linear), "Model name key incorrect"
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        # A lot of these checks are similar to those in test_preprocess where there are more explanations to the constants
+        assert X.shape[0] == daily_ts.shape[0] - daily_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(daily_lags) + 20 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_daily_lags + expected_daily_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == daily_ts.shape[0] - daily_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert lags == daily_lags, "Lags returned incorrectly"
+    
+        assert set(list(non_linear_models_daily.keys())) == set(daily_names_non_linear), "Model name key incorrect"
+
+        # Unpack dict
+        model = non_linear_models_daily[name][0]
+        dp = non_linear_models_daily[name][1]
+        hybrid = non_linear_models_daily[name][2]
+        lags = non_linear_models_daily[name][3]
+
+        # Get the model params
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == daily_lags, "Lags returned incorrectly"
+
+    # Repeat for hourly linear
+    linear_design, non_linear_design = load_design(hourly_linear_sig)
+    linear_models_hourly, non_linear_models_hourly = load_models(hourly_linear_sig)
+
+    # Check linear models and design
+    for name, expected_order_terms in zip(hourly_names_linear, [expected_3_order_terms, expected_2_order_terms]):
+        # Design checks 
+        assert set(list(linear_design.keys())) == set(hourly_names_linear), "Model name key incorrect"
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10 + len(expected_order_terms), "linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier + expected_order_terms), "linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Model checks 
+        assert set(list(linear_models_hourly.keys())) == {"model_2", "model_3"}, "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_hourly[name][0]
+        dp = linear_models_hourly[name][1]
+        hybrid = linear_models_hourly[name][2]
+        lags = linear_models_hourly[name][3]
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+    # Check non-linear models and design
+    for name in hourly_names_non_linear:
+        # Unpack non linear design
+        assert set(list(non_linear_design.keys())) == set(hourly_names_non_linear), "Model name key incorrect"  
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Check trained model
+        assert set(non_linear_models_hourly.keys()) == set(hourly_names_non_linear), "Model name key incorrect"
+        
+        # Unpack dict
+        model = non_linear_models_hourly[name][0]
+        dp = non_linear_models_hourly[name][1]
+        hybrid = non_linear_models_hourly[name][2]
+        lags = non_linear_models_hourly[name][3]
+
+        # Get the model params, note expected_params will only be a subset of this as we do not manually set all parameters
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+    # Repeat for hourly hybrid
+    linear_design, non_linear_design = load_design(hourly_hybrid_sig)
+    linear_models_hourly, non_linear_models_hourly = load_models(hourly_hybrid_sig)
+
+    # Checks hybrid model and design
+    for name, expected_order_terms in zip(hourly_names_hybrid, [expected_3_order_terms, expected_2_order_terms]):
+        # Design checks 
+        assert set(list(linear_design.keys())) == set(hourly_names_hybrid), "Model name key incorrect"  
+        X = linear_design[name][0]
+        y = linear_design[name][1]
+        dp = linear_design[name][2]
+        lags = linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10 + len(expected_order_terms), "linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier + expected_order_terms), "linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Model checks
+        assert set(list(linear_models_hourly.keys())) == set(hourly_names_hybrid), "Model name key incorrect"
+
+        # Unpack dict
+        model = linear_models_hourly[name][0]
+        dp = linear_models_hourly[name][1]
+        hybrid = linear_models_hourly[name][2]
+        lags = linear_models_hourly[name][3]
+
+        # Get the hybrid params, note expected_params will only be a subset of this as we do not manually set all parameters
+        hybrid_params = hybrid.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, LinearRegression), "Model is not a LinearRegression instance"
+        assert set(expected_params.keys()) <= set(hybrid_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert hybrid_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), "Deterministic Process has incorrect columns"
+        assert isinstance(hybrid, XGBRegressor), "Hybrid model is not an XGBRegressor instance"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+    # Checks non linear model and designs 
+    for name in hourly_names_non_linear:
+        # Upack non linear design
+        assert set(list(non_linear_design.keys())) == set(hourly_names_non_linear), "Model name key incorrect"  
+        X = non_linear_design[name][0]
+        y = non_linear_design[name][1]
+        dp = non_linear_design[name][2]
+        lags = non_linear_design[name][3]
+
+
+        # Checks (note we have already checked preprocess implements lags and fourier features correctly in test_preprocess)
+        assert X.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "Non-linear design matrix has incorrect number of rows"
+        assert X.shape[1] == len(hourly_lags) + 10 + 10, "Non-linear design matrix has incorrect number of columns"
+        assert set(X.columns.tolist()) == set(expected_hourly_lags + expected_hourly_fourier), "Non-linear design matrix has incorrect column names"
+        assert y.shape[0] == hourly_ts.shape[0] - hourly_lags[-1], "y has incorrect number of rows"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+        # Check trained model
+        assert set(non_linear_models_hourly.keys()) == set(hourly_names_non_linear), "Model name key incorrect"
+
+        # Unpack dict
+        model = non_linear_models_hourly[name][0]
+        dp = non_linear_models_hourly[name][1]
+        hybrid = non_linear_models_hourly[name][2]
+        lags = non_linear_models_hourly[name][3]
+
+        # Get the model params, note expected_params will only be a subset of this as we do not manually set all parameters
+        model_params = model.get_params()
+
+        # Again we have already checked that dps lags and fourier features are correct in test_preprocess
+        assert isinstance(model, XGBRegressor), "Model is not a XGBRegressor instance"
+        assert set(expected_params.keys()) <= set(model_params.keys()), "Expected params not a subset of model params"
+        for key in expected_params.keys():
+            assert model_params[key] == expected_params[key], "Model params and expected params differ in values"
+        assert set(dp.out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), "Deterministic Process has incorrect columns"
+        assert hybrid == None, "Hybrid should be None for non-hybrid model"  
+        assert lags == hourly_lags, "Lags returned incorrectly"
+
+     
