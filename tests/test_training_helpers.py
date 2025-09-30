@@ -190,4 +190,21 @@ def test_save_models():
     for f in expected_files:
         assert f.exists(), f"Expected file {f} does not exist"
 
+def test_save_design():
+    """ test the save_design function in training_helpers.py
+    """    
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+    from test_modelling_helpers import create_ts
+    import pandas as pd
+
+    # Load config
+    config, PROJECT_ROOT =  load_config()
+
+    # We will use a daily time series for the first design and an hourly one for the second
+    ts_daily = create_ts("D")
+    ts_hourly = create_ts("h")
+
+    # Create dummy designs, lags and dp's, the ts above are the targets
+    dummy_X_daily_1 = pd.DataFrame({"feature1": range(len(ts_daily)), "feature2": range(len(ts_daily))})
 
