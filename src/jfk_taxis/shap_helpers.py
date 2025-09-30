@@ -209,8 +209,6 @@ def save_extracted_features_to_config(features_dict: dict, config: dict) -> dict
         config (dict): configuration dictionary to update
     """   
 
-    # TODO save locally to config
-
     for key, value in features_dict.items():
         lags, fourier_features, trends = value
 
