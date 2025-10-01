@@ -5,9 +5,6 @@ test_training_helpers.py
 Unit test for training_helpers.py.
 """   
 
-from distutils import config
-
-
 def test_load_ts_data():
     """ test the load_ts_data function in training_helpers.py, note this test will only pass if there is actual some time series data to load.
     So to run the test properly you will first need to have run the data processing notebook. We have also checked manually that the time series loaded
@@ -239,7 +236,7 @@ def test_save_design():
 
     # Save the models
     sig = "test_model_sig"
-    training_helpers.save_models(linear_design, non_linear_design, sig)
+    training_helpers.save_design(linear_design, non_linear_design, sig)
 
     # Now check that the models exist in the correct directory
     SAVED_OBJECTS_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["saved_objects_path"]
