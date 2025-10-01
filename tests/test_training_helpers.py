@@ -5,6 +5,9 @@ test_training_helpers.py
 Unit test for training_helpers.py.
 """   
 
+from distutils import config
+
+
 def test_load_ts_data():
     """ test the load_ts_data function in training_helpers.py, note this test will only pass if there is actual some time series data to load.
     So to run the test properly you will first need to have run the data processing notebook. We have also checked manually that the time series loaded
@@ -197,6 +200,8 @@ def test_save_design():
     from jfk_taxis import load_config
     from test_modelling_helpers import create_ts
     import pandas as pd
+    import numpy as np
+    from statsmodels.tsa.deterministic import DeterministicProcess
 
     # Load config
     config, PROJECT_ROOT =  load_config()
@@ -205,6 +210,55 @@ def test_save_design():
     ts_daily = create_ts("D")
     ts_hourly = create_ts("h")
 
+    # Daily case
+
     # Create dummy designs, lags and dp's, the ts above are the targets
-    dummy_X_daily_1 = pd.DataFrame({"feature1": range(len(ts_daily)), "feature2": range(len(ts_daily))})
+    np.random.seed(37)
+    n = len(ts_daily) # Number of rows
+    columns = ["sin(1,freq=YE-DEC)", "lag_6", "trend", "cos(3,freq=D)", "lag_15"]
+    dummy_X_daily_1 = pd.DataFrame(np.random.rand(n, len(columns)), columns = columns) 
+    dummy_X_daily_2 = pd.DataFrame(np.random.rand(n, len(columns)), columns = columns)
+    dp_daily_1 = DeterministicProcess(index = ts_daily.index, order = 3, constant = True)
+    dp_daily_2 = DeterministicProcess(index = ts_daily.index, order = 0, seasonal=True, constant = True) 
+    lags_daily_1 = [1,2,3,4,5,6]
+    lags_daily_2 = [1, 2, 3]
+    
+    linear_design_names = ["test_linear_design", "test_linear_design_2"]
+    non_linear_design_names = ["test_non_linear_design", "test_non_linear_design_2"]
+
+
+    linear_design = {
+        linear_design_names[0]: (dummy_X_daily_1, ts_daily, dp_daily_1, lags_daily_1), 
+        linear_design_names[1]: (dummy_X_daily_2, ts_daily, dp_daily_2, lags_daily_2) 
+    }
+
+    non_linear_design = {
+        non_linear_design_names[0]: (dummy_X_daily_1, ts_daily, dp_daily_1, lags_daily_1),
+        non_linear_design_names[1]: (dummy_X_daily_2, ts_daily, dp_daily_2, lags_daily_2)
+    }
+
+    # Save the models
+    sig = "test_model_sig"
+    training_helpers.save_models(linear_design, non_linear_design, sig)
+
+    # Now check that the models exist in the correct directory
+    SAVED_OBJECTS_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["saved_objects_path"]
+
+    # Saving constants
+    DESIGN = config["saving"]["design_file_suffix"]
+    TARGET = config["saving"]["target_file_suffix"]
+    DP = config["saving"]["dp_file_suffix"]
+    LAGS =  config["saving"]["lags_file_suffix"]
+
+    expected_files = [
+        SAVED_OBJECTS_DIR / f"{name}_{sig}_{suffix}"
+        for name in linear_design_names + non_linear_design_names
+        for suffix in [DESIGN, TARGET, DP, LAGS]
+    ]
+
+    # Check that the files exist
+    for f in expected_files:
+        assert f.exists(), f"Expected file {f} does not exist"
+
+
 
