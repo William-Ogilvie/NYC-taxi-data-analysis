@@ -8,6 +8,14 @@ import pandas as pd
 from xgboost import XGBRegressor
 
 def create_ts(time_step: str) -> pd.Series:
+    """ creates time series for testing
+
+    Args:
+        time_step (str): time step of series
+
+    Returns:
+        pd.Series: time series
+    """    
     if time_step == "D":
         return pd.Series(data = range(1, 365*3 + 1), index = pd.date_range(start = "2021-01-01 00:00:00+0000", periods = 365*3, freq = "D"))
     elif time_step == "h":

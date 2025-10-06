@@ -257,5 +257,130 @@ def test_save_design():
     for f in expected_files:
         assert f.exists(), f"Expected file {f} does not exist"
 
+def test_load_models():
+    """ test for load_models from training_helpers.py
 
+        We will reuse the same setup for save models, we will then simply reload all the models and check they match what we think they should have saved as.
+        This essentially tests two parts of the functionality, does the save_models function actually save the model correctly and does this load_models function load them correctly.
+        It is easier to combine the tests this way, the test for save_models primarily tests that the files themselves look correct from the outside but doesn't actually look at the contents 
+        of the files. 
 
+        We will make some slight modifications in that we will now fit the models properly as well.
+    """    
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+    from sklearn.linear_model import LinearRegression
+    from xgboost import XGBRegressor
+    from statsmodels.tsa.deterministic import DeterministicProcess
+    from test_modelling_helpers import create_ts
+
+    # Load config
+    config, PROJECT_ROOT =  load_config()
+
+    # We will use a daily time series for the first model and an hourly one for the second
+    ts_daily = create_ts("D")
+    ts_hourly = create_ts("h")
+
+    # Create a test train split for the time series data
+    ts_daily_train = ts_daily[:"2022-12-31"]
+    ts_daily_test = ts_daily["2023-01-01":]
+
+    ts_hourly_train = ts_hourly[:"2022-12-31 23:00:00+0000"]
+    ts_hourly_test = ts_hourly["2023-01-01 00:00+0000":]
+
+    print(ts_hourly_train.head())
+ 
+
+    # To test that the save models function works we will create some dummy models, and save them and check they exist in the correct form in the right directory
+    # we won't actually load them back in this test as that will be done in the test_load_models function
+
+    # We create two dummy linear models (one hybrid and one not) and two dummy non-linear models   
+    dummy_linear_model_daily = LinearRegression()
+    dummy_linear_model_hourly = LinearRegression()
+    dummy_hybrid_component = XGBRegressor()
+    dummy_dp_linear_daily = DeterministicProcess(index = ts_daily_train.index, order=3, seasonal=True, constant = True)
+    dummy_dp_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, order=3, seasonal=True, constant = True) 
+    dummy_lags_linear = [1,2,3,4,5]
+    dummy_lags_linear_2 = [1,2,3]
+    
+    dummy_non_linear_model_daily = XGBRegressor()
+    dummy_non_linear_model_hourly = XGBRegressor()
+    dummy_non_linear_hybrid = None
+    dummy_dp_non_linear_daily = DeterministicProcess(index = ts_daily_train.index, constant = False, order = 0, seasonal = True)
+    dummy_dp_non_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, constant = False, order = 0, seasonal = True) 
+    dummy_lags_non_linear = [1,2,3,4,5,6,7,8,9,10]
+    dummy_lags_non_linear_2 = [1,2,3,4,5]
+
+    linear_model_names = ["test_linear_model", "test_linear_model_2"]
+    non_linear_model_names = ["test_non_linear_model", "test_non_linear_model_2"]
+
+    # We are now going to fit the model to the design matricies
+    X_linear_1 = dummy_dp_linear_daily.in_sample()
+    dummy_linear_model_daily.fit(X_linear_1, ts_daily_train)
+    y_fit_linear_1 = dummy_linear_model_daily.predict(X_linear_1)
+    y_resid_1 = ts_daily_train - y_fit_linear_1  
+    dummy_hybrid_component.fit(X_linear_1, y_resid_1)
+    X_linear_2 = dummy_dp_linear_hourly.in_sample()
+    dummy_linear_model_hourly.fit(X_linear_2, ts_hourly_train)
+
+    X_non_linear_1 = dummy_dp_non_linear_daily.in_sample()
+    dummy_non_linear_model_daily = dummy_non_linear_model_daily.fit(X_non_linear_1, ts_daily_train)
+    X_non_linear_2 = dummy_dp_non_linear_daily.in_sample()
+    dummy_non_linear_model_hourly = dummy_non_linear_model_hourly.fit(X_non_linear_2, ts_hourly_train)
+
+    linear_models = {
+        linear_model_names[0]: (dummy_linear_model_daily, dummy_dp_linear_daily, dummy_hybrid_component, dummy_lags_linear), 
+        linear_model_names[1]: (dummy_linear_model_daily, dummy_dp_linear_hourly, None, dummy_lags_linear_2) 
+    }
+
+    non_linear_models = {
+        non_linear_model_names[0]: (dummy_non_linear_model_daily, dummy_dp_non_linear_daily, dummy_non_linear_hybrid, dummy_lags_non_linear),
+        non_linear_model_names[1]: (dummy_non_linear_model_hourly, dummy_dp_non_linear_hourly, dummy_non_linear_hybrid, dummy_lags_non_linear_2)
+    }
+
+    # Save the models
+    sig = "test_model_sig"
+    training_helpers.save_models(linear_models, non_linear_models, sig)
+
+    # Reload the models
+    linear_models_loaded, non_linear_models_loaded = training_helpers.load_models(sig)
+
+    # Get test design matricies to use
+    X_test_daily_linear = dummy_dp_linear_daily.out_of_sample(30)
+    X_test_hourly_linear = dummy_dp_linear_hourly.out_of_sample(30)
+    X_test_daily_non_linear = dummy_dp_non_linear_daily.out_of_sample(30)
+    X_test_hourly_non_linear = dummy_dp_non_linear_hourly.out_of_sample(30)
+
+    # Predictions to check against
+    daily_preds_linear = dummy_linear_model_daily.predict(X_test_daily_linear)
+    daily_preds_hybrid = dummy_hybrid_component.predict(X_test_daily_linear)
+    hourly_preds_linear = dummy_linear_model_hourly.predict(X_test_hourly_linear)
+    daily_preds_non_linear = dummy_non_linear_model_daily.predict(X_test_daily_non_linear)
+    hourly_preds_non_linear = dummy_non_linear_model_hourly.predict(X_test_hourly_non_linear) 
+
+    # Checks
+    assert len(linear_models_loaded.keys()) == len(linear_model_names), "linear_models does not have the same number of keys as length of linear_model_names"
+    assert set(linear_models_loaded.keys()) == set(linear_model_names), "linear_models doesn't have the same keys as in linear_model_names"
+    assert len(non_linear_models_loaded.keys()) == len(non_linear_model_names), "non_linear_models does not have the same number of keys as length of non_linear_model_names"
+    assert set(non_linear_models_loaded.keys()) == set(non_linear_model_names), "non_linear_models does not have the same keys as in non_linear_model_names"
+    assert linear_models_loaded[linear_model_names[0]][0].get_params() == dummy_linear_model_daily.get_params(), f"linear model params do not match for {linear_model_names[0]}" 
+    assert linear_models_loaded[linear_model_names[0]][0].predict(X_test_daily_linear) ==  daily_preds_linear, f"model predictions do not match for {linear_model_names[0]}"
+    assert linear_models_loaded[linear_model_names[0]][1] == dummy_dp_linear_daily, f"dp doesn't match for {linear_model_names[0]}"
+    assert linear_models_loaded[linear_model_names[0]][2].get_params() == dummy_hybrid_component.get_params(), f"hybrid params do not match for {linear_model_names[0]}"
+    assert linear_models_loaded[linear_model_names[0]][2].predict(X_test_daily_linear) == daily_preds_hybrid, f"hybrid predictions do not match for {linear_model_names[0]}" 
+    assert linear_models_loaded[linear_model_names[0]][3] == dummy_lags_linear, f"lags don't match for {linear_model_names[0]}"
+    assert linear_models_loaded[linear_model_names[1]][0].get_params() == dummy_linear_model_hourly.get_params(), f"linear model doesn't match for {linear_model_names[1]}"
+    assert linear_models_loaded[linear_model_names[1]][0].predict(X_test_hourly_linear) == hourly_preds_linear, f"linear model predictions do not match for {linear_model_names[1]}"  
+    assert linear_models_loaded[linear_model_names[1]][1] == dummy_dp_linear_hourly, f"dp doesn't match for {linear_model_names[1]}"
+    assert linear_models_loaded[linear_model_names[1]][2] == None, f"hybrid doesn't match for {linear_model_names[1]}"
+    assert linear_models_loaded[linear_model_names[1]][3] == dummy_lags_linear_2, f"lags don't match for {linear_model_names[1]}"
+    assert non_linear_models_loaded[non_linear_model_names[0]][0].get_params() == dummy_non_linear_model_daily.get_params(), f"non linear model params do not match for {non_linear_model_names[0]}"
+    assert non_linear_models_loaded[non_linear_model_names[0]][0].predict(X_test_daily_non_linear) == daily_preds_non_linear, f"non linear model does not match expected predictions for {non_linear_model_names[0]}"   
+    assert non_linear_models_loaded[non_linear_model_names[0]][1] == dummy_dp_non_linear_daily, f"dp doesn't match for {non_linear_model_names[0]}"
+    assert non_linear_models_loaded[non_linear_model_names[0]][2] == dummy_non_linear_hybrid, f"hybrid doesn't match for {non_linear_model_names[0]}"
+    assert non_linear_models_loaded[non_linear_model_names[0]][3] == dummy_lags_non_linear, f"lags don't match for {non_linear_model_names[0]}"
+    assert non_linear_models_loaded[non_linear_model_names[1]][0].get_params() == dummy_non_linear_model_hourly.get_params(), f"non linear model params do not match for {non_linear_model_names[1]}"
+    assert non_linear_models_loaded[non_linear_model_names[1]][0].predict(X_test_hourly_non_linear) == hourly_preds_non_linear, f"non linear model does not match expected predictions for {non_linear_model_names[1]}"  
+    assert non_linear_models_loaded[non_linear_model_names[1]][1] == dummy_dp_non_linear_hourly, f"dp doesn't match for {non_linear_model_names[1]}"
+    assert non_linear_models_loaded[non_linear_model_names[1]][2] == dummy_non_linear_hybrid, f"hybrid doesn't match for {non_linear_model_names[1]}"
+    assert non_linear_models_loaded[non_linear_model_names[1]][3] == dummy_lags_non_linear_2, f"lags don't match for {non_linear_model_names[1]}" 
