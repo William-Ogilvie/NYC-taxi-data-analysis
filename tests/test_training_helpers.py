@@ -198,7 +198,7 @@ def test_save_design():
     from test_modelling_helpers import create_ts
     import pandas as pd
     import numpy as np
-    from statsmodels.tsa.deterministic import DeterministicProcess
+    from statsmodels.tsa.deterministic import DeterministicProcess, CalendarFourier
 
     # Load config
     config, PROJECT_ROOT =  load_config()
@@ -207,31 +207,49 @@ def test_save_design():
     ts_daily = create_ts("D")
     ts_hourly = create_ts("h")
 
-    # Daily case
+    # We need to remove the time zone so we can add fourier features
+    ts_daily.index = ts_daily.index.tz_localize(None)
+    ts_hourly.index = ts_hourly.index.tz_localize(None)
+
+    # We also need to reset the frequencies
+    ts_daily = ts_daily.asfreq("D").fillna(0)
+    ts_hourly = ts_hourly.asfreq("h").fillna(0)
 
     # Create dummy designs, lags and dp's, the ts above are the targets
     np.random.seed(37)
-    n = len(ts_daily) # Number of rows
-    columns = ["sin(1,freq=YE-DEC)", "lag_6", "trend", "cos(3,freq=D)", "lag_15"]
-    dummy_X_daily_1 = pd.DataFrame(np.random.rand(n, len(columns)), columns = columns) 
-    dummy_X_daily_2 = pd.DataFrame(np.random.rand(n, len(columns)), columns = columns)
-    dp_daily_1 = DeterministicProcess(index = ts_daily.index, order = 3, constant = True)
-    dp_daily_2 = DeterministicProcess(index = ts_daily.index, order = 0, seasonal=True, constant = True) 
-    lags_daily_1 = [1,2,3,4,5,6]
-    lags_daily_2 = [1, 2, 3]
+
+    # Fourier features
+    daily_fourier = [CalendarFourier(freq = "YE", order = 10), CalendarFourier(freq = "W", order = 5)]
+    hourly_fourier = [CalendarFourier(freq = "W", order = 5), CalendarFourier(freq = "D", order = 5)]
+
+    n_daily = len(ts_daily) # Number of rows
+    n_hourly = len(ts_hourly) # Number of rows
+    dp_daily = DeterministicProcess(index = ts_daily.index, order = 3, seasonal = False, constant = True, additional_terms = daily_fourier)
+    dp_daily_2 = DeterministicProcess(index = ts_daily.index, order = 0, seasonal=False, constant = True, additional_terms = daily_fourier) 
+    dp_hourly = DeterministicProcess(index = ts_hourly.index, order = 3, seasonal = False, constant = True, additional_terms = hourly_fourier)
+    dp_hourly_2 = DeterministicProcess(index = ts_hourly.index, order = 0, seasonal = False, constant = False, additional_terms = hourly_fourier)
+    
+
+    dummy_X_daily_linear = dp_daily.in_sample()
+    dummy_X_daily_non_linear = dp_daily_2.in_sample()
+    dummy_X_hourly_linear = dp_hourly.in_sample()
+    dummy_X_hourly_non_linear = dp_hourly_2.in_sample()
+
+    lags_daily = [1,2,3,4,5,6]
+    lags_hourly = [1, 2, 3, 480]
     
     linear_design_names = ["test_linear_design", "test_linear_design_2"]
     non_linear_design_names = ["test_non_linear_design", "test_non_linear_design_2"]
 
 
     linear_design = {
-        linear_design_names[0]: (dummy_X_daily_1, ts_daily, dp_daily_1, lags_daily_1), 
-        linear_design_names[1]: (dummy_X_daily_2, ts_daily, dp_daily_2, lags_daily_2) 
+        linear_design_names[0]: (dummy_X_daily_linear, ts_daily, dp_daily, lags_daily), 
+        linear_design_names[1]: (dummy_X_hourly_linear, ts_hourly, dp_hourly, lags_hourly) 
     }
 
     non_linear_design = {
-        non_linear_design_names[0]: (dummy_X_daily_1, ts_daily, dp_daily_1, lags_daily_1),
-        non_linear_design_names[1]: (dummy_X_daily_2, ts_daily, dp_daily_2, lags_daily_2)
+        non_linear_design_names[0]: (dummy_X_daily_non_linear, ts_daily, dp_daily_2, lags_daily),
+        non_linear_design_names[1]: (dummy_X_hourly_non_linear, ts_daily, dp_hourly_2, lags_hourly)
     }
 
     # Save the models
@@ -271,7 +289,7 @@ def test_load_models():
     from jfk_taxis import load_config
     from sklearn.linear_model import LinearRegression
     from xgboost import XGBRegressor
-    from statsmodels.tsa.deterministic import DeterministicProcess
+    from statsmodels.tsa.deterministic import DeterministicProcess, CalendarFourier
     from test_modelling_helpers import create_ts
 
     # Load config
@@ -288,7 +306,17 @@ def test_load_models():
     ts_hourly_train = ts_hourly[:"2022-12-31 23:00:00+0000"]
     ts_hourly_test = ts_hourly["2023-01-01 00:00+0000":]
 
-    print(ts_hourly_train.head())
+    # For passing to the deterministic process we will need to drop the time zone
+    ts_daily_train.index = ts_daily_train.index.tz_localize(None)
+    ts_daily_test.index = ts_daily_test.index.tz_localize(None)
+    ts_hourly_train.index = ts_hourly_train.index.tz_localize(None)
+    ts_hourly_test.index = ts_hourly_test.index.tz_localize(None)
+
+    # We also need to set the frequency of the time series again
+    ts_daily_train = ts_daily_train.asfreq("D").fillna(0)
+    ts_daily_test = ts_daily_test.asfreq("D").fillna(0)
+    ts_hourly_train = ts_hourly_train.asfreq("h").fillna(0)
+    ts_hourly_test = ts_hourly_test.asfreq("h").fillna(0)
  
 
     # To test that the save models function works we will create some dummy models, and save them and check they exist in the correct form in the right directory
@@ -298,16 +326,18 @@ def test_load_models():
     dummy_linear_model_daily = LinearRegression()
     dummy_linear_model_hourly = LinearRegression()
     dummy_hybrid_component = XGBRegressor()
-    dummy_dp_linear_daily = DeterministicProcess(index = ts_daily_train.index, order=3, seasonal=True, constant = True)
-    dummy_dp_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, order=3, seasonal=True, constant = True) 
+    daily_fourier = [CalendarFourier(freq = "YE", order = 10), CalendarFourier(freq = "W", order = 5)]
+    hourly_fourier = [CalendarFourier(freq = "W", order = 5), CalendarFourier(freq = "D", order = 5)]
+    dummy_dp_linear_daily = DeterministicProcess(index = ts_daily_train.index, order=3, seasonal=False, constant = True, additional_terms=daily_fourier)
+    dummy_dp_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, order=3, seasonal=False, constant = True, additional_terms=hourly_fourier) 
     dummy_lags_linear = [1,2,3,4,5]
     dummy_lags_linear_2 = [1,2,3]
     
     dummy_non_linear_model_daily = XGBRegressor()
     dummy_non_linear_model_hourly = XGBRegressor()
     dummy_non_linear_hybrid = None
-    dummy_dp_non_linear_daily = DeterministicProcess(index = ts_daily_train.index, constant = False, order = 0, seasonal = True)
-    dummy_dp_non_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, constant = False, order = 0, seasonal = True) 
+    dummy_dp_non_linear_daily = DeterministicProcess(index = ts_daily_train.index, constant = False, order = 0, seasonal = False, additional_terms=daily_fourier)
+    dummy_dp_non_linear_hourly = DeterministicProcess(index = ts_hourly_train.index, constant = False, order = 0, seasonal = False, additional_terms=hourly_fourier) 
     dummy_lags_non_linear = [1,2,3,4,5,6,7,8,9,10]
     dummy_lags_non_linear_2 = [1,2,3,4,5]
 
@@ -325,12 +355,12 @@ def test_load_models():
 
     X_non_linear_1 = dummy_dp_non_linear_daily.in_sample()
     dummy_non_linear_model_daily = dummy_non_linear_model_daily.fit(X_non_linear_1, ts_daily_train)
-    X_non_linear_2 = dummy_dp_non_linear_daily.in_sample()
+    X_non_linear_2 = dummy_dp_non_linear_hourly.in_sample()
     dummy_non_linear_model_hourly = dummy_non_linear_model_hourly.fit(X_non_linear_2, ts_hourly_train)
 
     linear_models = {
         linear_model_names[0]: (dummy_linear_model_daily, dummy_dp_linear_daily, dummy_hybrid_component, dummy_lags_linear), 
-        linear_model_names[1]: (dummy_linear_model_daily, dummy_dp_linear_hourly, None, dummy_lags_linear_2) 
+        linear_model_names[1]: (dummy_linear_model_hourly, dummy_dp_linear_hourly, None, dummy_lags_linear_2) 
     }
 
     non_linear_models = {
@@ -358,29 +388,201 @@ def test_load_models():
     daily_preds_non_linear = dummy_non_linear_model_daily.predict(X_test_daily_non_linear)
     hourly_preds_non_linear = dummy_non_linear_model_hourly.predict(X_test_hourly_non_linear) 
 
+    # Expected fourier terms
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+
+    # Expected order terms
+    expected_order_terms = ["const", "trend", "trend_squared", "trend_cubed"]
+
     # Checks
     assert len(linear_models_loaded.keys()) == len(linear_model_names), "linear_models does not have the same number of keys as length of linear_model_names"
     assert set(linear_models_loaded.keys()) == set(linear_model_names), "linear_models doesn't have the same keys as in linear_model_names"
     assert len(non_linear_models_loaded.keys()) == len(non_linear_model_names), "non_linear_models does not have the same number of keys as length of non_linear_model_names"
     assert set(non_linear_models_loaded.keys()) == set(non_linear_model_names), "non_linear_models does not have the same keys as in non_linear_model_names"
     assert linear_models_loaded[linear_model_names[0]][0].get_params() == dummy_linear_model_daily.get_params(), f"linear model params do not match for {linear_model_names[0]}" 
-    assert linear_models_loaded[linear_model_names[0]][0].predict(X_test_daily_linear) ==  daily_preds_linear, f"model predictions do not match for {linear_model_names[0]}"
-    assert linear_models_loaded[linear_model_names[0]][1] == dummy_dp_linear_daily, f"dp doesn't match for {linear_model_names[0]}"
-    assert linear_models_loaded[linear_model_names[0]][2].get_params() == dummy_hybrid_component.get_params(), f"hybrid params do not match for {linear_model_names[0]}"
-    assert linear_models_loaded[linear_model_names[0]][2].predict(X_test_daily_linear) == daily_preds_hybrid, f"hybrid predictions do not match for {linear_model_names[0]}" 
+    assert all(linear_models_loaded[linear_model_names[0]][0].predict(X_test_daily_linear) ==  daily_preds_linear), f"model predictions do not match for {linear_model_names[0]}"
+    assert len(linear_models_loaded[linear_model_names[0]][1].out_of_sample(10).columns.tolist()) == len(expected_daily_fourier + expected_order_terms), f"dp doesn't have correct number of columns for {linear_model_names[0]}"
+    assert set(linear_models_loaded[linear_model_names[0]][1].out_of_sample(10).columns.tolist()) == set(expected_daily_fourier + expected_order_terms), f"dp doesn't match columns for {linear_model_names[0]}"
+    assert set(linear_models_loaded[linear_model_names[0]][2].get_params()) == set(dummy_hybrid_component.get_params()), f"hybrid params do not match for {linear_model_names[0]}"
+    assert all(linear_models_loaded[linear_model_names[0]][2].predict(X_test_daily_linear) == daily_preds_hybrid), f"hybrid predictions do not match for {linear_model_names[0]}" 
     assert linear_models_loaded[linear_model_names[0]][3] == dummy_lags_linear, f"lags don't match for {linear_model_names[0]}"
     assert linear_models_loaded[linear_model_names[1]][0].get_params() == dummy_linear_model_hourly.get_params(), f"linear model doesn't match for {linear_model_names[1]}"
-    assert linear_models_loaded[linear_model_names[1]][0].predict(X_test_hourly_linear) == hourly_preds_linear, f"linear model predictions do not match for {linear_model_names[1]}"  
-    assert linear_models_loaded[linear_model_names[1]][1] == dummy_dp_linear_hourly, f"dp doesn't match for {linear_model_names[1]}"
+    assert all(linear_models_loaded[linear_model_names[1]][0].predict(X_test_hourly_linear) == hourly_preds_linear), f"linear model predictions do not match for {linear_model_names[1]}"  
+    assert len(linear_models_loaded[linear_model_names[1]][1].out_of_sample(10).columns.tolist()) == len(expected_hourly_fourier + expected_order_terms), f"dp doesn't have correct number of columns for {linear_model_names[1]}"
+    assert set(linear_models_loaded[linear_model_names[1]][1].out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier + expected_order_terms), f"dp doesn't match columns for {linear_model_names[1]}" 
     assert linear_models_loaded[linear_model_names[1]][2] == None, f"hybrid doesn't match for {linear_model_names[1]}"
     assert linear_models_loaded[linear_model_names[1]][3] == dummy_lags_linear_2, f"lags don't match for {linear_model_names[1]}"
-    assert non_linear_models_loaded[non_linear_model_names[0]][0].get_params() == dummy_non_linear_model_daily.get_params(), f"non linear model params do not match for {non_linear_model_names[0]}"
-    assert non_linear_models_loaded[non_linear_model_names[0]][0].predict(X_test_daily_non_linear) == daily_preds_non_linear, f"non linear model does not match expected predictions for {non_linear_model_names[0]}"   
-    assert non_linear_models_loaded[non_linear_model_names[0]][1] == dummy_dp_non_linear_daily, f"dp doesn't match for {non_linear_model_names[0]}"
+    assert set(non_linear_models_loaded[non_linear_model_names[0]][0].get_params()) == set(dummy_non_linear_model_daily.get_params()), f"non linear model params do not match for {non_linear_model_names[0]}"
+    assert all(non_linear_models_loaded[non_linear_model_names[0]][0].predict(X_test_daily_non_linear) == daily_preds_non_linear), f"non linear model does not match expected predictions for {non_linear_model_names[0]}"   
+    assert len(non_linear_models_loaded[non_linear_model_names[0]][1].out_of_sample(10).columns.tolist()) == len(expected_daily_fourier), f"dp doesn't have correct number of columns for {non_linear_model_names[0]}"
+    assert set(non_linear_models_loaded[non_linear_model_names[0]][1].out_of_sample(10).columns.tolist()) == set(expected_daily_fourier), f"dp doesn't match columns for {non_linear_model_names[0]}" 
     assert non_linear_models_loaded[non_linear_model_names[0]][2] == dummy_non_linear_hybrid, f"hybrid doesn't match for {non_linear_model_names[0]}"
     assert non_linear_models_loaded[non_linear_model_names[0]][3] == dummy_lags_non_linear, f"lags don't match for {non_linear_model_names[0]}"
-    assert non_linear_models_loaded[non_linear_model_names[1]][0].get_params() == dummy_non_linear_model_hourly.get_params(), f"non linear model params do not match for {non_linear_model_names[1]}"
-    assert non_linear_models_loaded[non_linear_model_names[1]][0].predict(X_test_hourly_non_linear) == hourly_preds_non_linear, f"non linear model does not match expected predictions for {non_linear_model_names[1]}"  
-    assert non_linear_models_loaded[non_linear_model_names[1]][1] == dummy_dp_non_linear_hourly, f"dp doesn't match for {non_linear_model_names[1]}"
+    assert set(non_linear_models_loaded[non_linear_model_names[1]][0].get_params()) == set(dummy_non_linear_model_hourly.get_params()), f"non linear model params do not match for {non_linear_model_names[1]}"
+    assert all(non_linear_models_loaded[non_linear_model_names[1]][0].predict(X_test_hourly_non_linear) == hourly_preds_non_linear), f"non linear model does not match expected predictions for {non_linear_model_names[1]}"  
+    assert len(non_linear_models_loaded[non_linear_model_names[1]][1].out_of_sample(10).columns.tolist()) == len(expected_hourly_fourier), f"dp doesn't have correct number of columns for {non_linear_model_names[1]}"
+    assert set(non_linear_models_loaded[non_linear_model_names[1]][1].out_of_sample(10).columns.tolist()) == set(expected_hourly_fourier), f"dp doesn't match columns for {non_linear_model_names[1]}"
     assert non_linear_models_loaded[non_linear_model_names[1]][2] == dummy_non_linear_hybrid, f"hybrid doesn't match for {non_linear_model_names[1]}"
     assert non_linear_models_loaded[non_linear_model_names[1]][3] == dummy_lags_non_linear_2, f"lags don't match for {non_linear_model_names[1]}" 
+
+def test_load_design():
+    """ test for load_design from training_helpers.py
+    """     
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+    from test_modelling_helpers import create_ts
+    import pandas as pd
+    from pandas.testing import assert_series_equal, assert_frame_equal
+    import numpy as np
+    from statsmodels.tsa.deterministic import DeterministicProcess, CalendarFourier
+
+    # Load config
+    config, PROJECT_ROOT =  load_config()
+
+    # We will use a daily time series for the first design and an hourly one for the second
+    ts_daily = create_ts("D")
+    ts_hourly = create_ts("h")
+
+    # We need to remove the time zone so we can add fourier features
+    ts_daily.index = ts_daily.index.tz_localize(None)
+    ts_hourly.index = ts_hourly.index.tz_localize(None)
+
+    # We also need to reset the frequencies
+    ts_daily = ts_daily.asfreq("D").fillna(0)
+    ts_hourly = ts_hourly.asfreq("h").fillna(0)
+
+    # Create dummy designs, lags and dp's, the ts above are the targets
+    np.random.seed(37)
+
+    # Fourier features
+    daily_fourier = [CalendarFourier(freq = "YE", order = 10), CalendarFourier(freq = "W", order = 5)]
+    hourly_fourier = [CalendarFourier(freq = "W", order = 5), CalendarFourier(freq = "D", order = 5)]
+
+    n_daily = len(ts_daily) # Number of rows
+    n_hourly = len(ts_hourly) # Number of rows
+    dp_daily = DeterministicProcess(index = ts_daily.index, order = 3, seasonal = False, constant = True, additional_terms = daily_fourier)
+    dp_daily_2 = DeterministicProcess(index = ts_daily.index, order = 0, seasonal=False, constant = True, additional_terms = daily_fourier) 
+    dp_hourly = DeterministicProcess(index = ts_hourly.index, order = 3, seasonal = False, constant = True, additional_terms = hourly_fourier)
+    dp_hourly_2 = DeterministicProcess(index = ts_hourly.index, order = 0, seasonal = False, constant = False, additional_terms = hourly_fourier)
+    
+
+    dummy_X_daily_linear = dp_daily.in_sample()
+    dummy_X_daily_non_linear = dp_daily_2.in_sample()
+    dummy_X_hourly_linear = dp_hourly.in_sample()
+    dummy_X_hourly_non_linear = dp_hourly_2.in_sample()
+
+    lags_daily = [1,2,3,4,5,6]
+    lags_hourly = [1, 2, 3, 480]
+    
+    linear_design_names = ["test_linear_design", "test_linear_design_2"]
+    non_linear_design_names = ["test_non_linear_design", "test_non_linear_design_2"]
+
+
+    linear_design = {
+        linear_design_names[0]: (dummy_X_daily_linear, ts_daily, dp_daily, lags_daily), 
+        linear_design_names[1]: (dummy_X_hourly_linear, ts_hourly, dp_hourly, lags_hourly) 
+    }
+
+    non_linear_design = {
+        non_linear_design_names[0]: (dummy_X_daily_non_linear, ts_daily, dp_daily_2, lags_daily),
+        non_linear_design_names[1]: (dummy_X_hourly_non_linear, ts_daily, dp_hourly_2, lags_hourly)
+    }
+
+    # Save the models
+    sig = "test_model_sig"
+    training_helpers.save_design(linear_design, non_linear_design, sig)
+
+    # Load the models
+    linear_design_loaded, non_linear_design_loaded = training_helpers.load_design(sig)
+
+    # Expected fourier terms
+    expected_daily_fourier = [f"cos({x},freq=YE-DEC)" for x in range(1, 11)] + [f"sin({x},freq=YE-DEC)" for x in range(1, 11)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+    expected_hourly_fourier = [f"cos({x},freq=D)" for x in range(1, 6)] + [f"sin({x},freq=D)" for x in range(1, 6)] + \
+                            [f"cos({x},freq=W-SUN)" for x in range(1, 6)] + [f"sin({x},freq=W-SUN)" for x in range(1, 6)]
+
+    # Expected order terms
+    expected_order_terms = ["const", "trend", "trend_squared", "trend_cubed"]
+
+    # Checks
+    assert len(linear_design_loaded.keys()) == len(linear_design_names), "linear design loaded has incorrect key length"
+    assert set(linear_design_loaded.keys()) == set(linear_design_names), "linear design loaded has incorrect keys"
+    assert len(non_linear_design_loaded.keys()) == len(non_linear_design_names), "non linear design loaded has incorrect key length"
+    assert set(non_linear_design_loaded.keys()) == set(non_linear_design_names), "non linear design loaded has incorrect keys"
+    assert_frame_equal(
+        linear_design_loaded[linear_design_names[0]][0],
+        dummy_X_daily_linear,
+        check_dtype = True,
+        check_exact = True, 
+    ), f"X doesn't match for {linear_design_names[0]}"
+    assert_series_equal(
+        linear_design_loaded[linear_design_names[0]][1],
+        ts_daily,
+        check_dtype = True,
+        check_freq = True,
+        check_exact = True,
+        check_names = True,
+    ), f"ts doesn't match for {linear_design_names[0]}"
+    assert len(linear_design_loaded[linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == len(expected_daily_fourier + expected_order_terms), f"dp doesn't have correct number of columns for {linear_design_names[0]}"
+    assert set(linear_design_loaded[linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == set(expected_daily_fourier + expected_order_terms), f"dp doesn't have correct columns for {linear_design_names[0]}"
+    assert linear_design_loaded[linear_design_names[0]][3] == lags_daily, f"lags don't match for {linear_design_names[0]}"
+    assert_frame_equal(
+        linear_design_loaded[linear_design_names[1]][0],
+        dummy_X_hourly_linear,
+        check_dtype = True,
+        check_exact = True, 
+    )
+    assert_series_equal(
+        linear_design_loaded[linear_design_names[1]][1],
+        ts_hourly,
+        check_dtype = True,
+        check_freq = True,
+        check_exact = True,
+        check_names = True,
+    ), f"ts doesn't match for {linear_design_names[1]}"
+    assert len(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_fourier + expected_order_terms)
+    assert set(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_fourier + expected_order_terms)
+    assert linear_design_loaded[linear_design_names[1]][3] == lags_hourly
+
+    assert_frame_equal(
+        non_linear_design_loaded[non_linear_design_names[0]][0],
+        dummy_X_daily_non_linear,
+        check_dtype = True,
+        check_exact = True, 
+    )
+    assert_series_equal(
+        non_linear_design_loaded[non_linear_design_names[0]][1],
+        ts_daily,
+        check_dtype = True,
+        check_freq = True,
+        check_exact = True,
+        check_names = True,
+    ), f"ts doesn't match for {non_linear_design_names[0]}"
+    # dp_daily_2 has order=0, constant=True, so only "const" plus fourier terms
+    expected_daily_non_linear_terms = ["const"] + expected_daily_fourier
+    assert len(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == len(expected_daily_non_linear_terms)
+    assert set(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == set(expected_daily_non_linear_terms)
+    assert non_linear_design_loaded[non_linear_design_names[0]][3] == lags_daily
+
+    assert_frame_equal(
+        non_linear_design_loaded[non_linear_design_names[1]][0],
+        dummy_X_hourly_non_linear,
+        check_dtype = True,
+        check_exact = True, 
+    )
+    assert_series_equal(
+        non_linear_design_loaded[non_linear_design_names[1]][1],
+        ts_daily,
+        check_dtype = True,
+        check_freq = True,
+        check_exact = True,
+        check_names = True,
+    ), f"ts doesn't match for {non_linear_design_names[1]}"
+    # dp_hourly_2 has order=0, constant=False, so only fourier terms
+    expected_hourly_non_linear_terms = expected_hourly_fourier
+    assert len(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_non_linear_terms)
+    assert set(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_non_linear_terms)
+    assert non_linear_design_loaded[non_linear_design_names[1]][3] == lags_hourly
