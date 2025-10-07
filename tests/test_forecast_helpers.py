@@ -2,8 +2,7 @@
 test_forecast_helpers.py
 =========================
 
-Unit tests for forecast helpers.py. Note to_numpy, fit_linear, fit_non_linear are just wrappers around sklearn functions so don't need their own unit tests.
-truncate_lags is a simple function that just truncates a list so doesn't need its own unit test.
+Unit tests for forecast helpers.py. 
 
 We will also not test forecast_dicts or run_forecasts, this is because these functions essentially just call the other functions and plot the output, so we have checked their plots themselves.
 In a similar vein we will not test any of the other functions that only plot things like create_avg_mae_barplot, however we will test the componenets they rely on like create_avg_mae_df.
@@ -336,6 +335,107 @@ def test_preprocess():
     assert check_lags_and_fourier_preprocess(dp_hourly_order_2_no_const, X_hourly_order_2_no_const, hourly_lags, series_hourly_full, "h") == True
     assert check_lags_and_fourier_preprocess(dp_hourly_order_2_const, X_hourly_order_2_const, hourly_lags, series_hourly_full, "h") == True
 
+def test_to_numpy():
+    """ test for to_numpy function in forecast_helpers.py
+    """
+    import numpy as np
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # Prepare simple DataFrame/Series inputs
+    X = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    y = pd.Series([10, 20, 30], name="y")
+
+    X_np, y_np = forecast_helpers.to_numpy(X, y)
+
+    # Type and shape checks
+    assert isinstance(X_np, np.ndarray)
+    assert isinstance(y_np, np.ndarray)
+    assert X_np.shape == (3, 2)
+    assert y_np.shape == (3,)
+
+    # Exact content checks (no copy semantics assumed)
+    np.testing.assert_array_equal(X_np, X.to_numpy(copy=False))
+    np.testing.assert_array_equal(y_np, y.to_numpy(copy=False))
+
+def test_fit_linear():
+    """ test for fit_linear function in forecast_helpers.py
+    """
+    import numpy as np
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # fit_linear uses LinearRegression(fit_intercept=False)
+    # Use a zero-intercept relationship: y = 2x
+    X = pd.DataFrame({"x": [1, 2, 3, 4, 5]})
+    y = pd.Series([2, 4, 6, 8, 10])
+
+    model = forecast_helpers.fit_linear(X, y)
+
+    assert hasattr(model, "coef_")
+    assert hasattr(model, "intercept_")
+    np.testing.assert_allclose(model.coef_, [2.0], atol=1e-6)
+    np.testing.assert_allclose(model.intercept_, 0.0, atol=1e-12)
+
+    # Predictions should match closely due to small dataset and simple linear relationship
+    y_pred = model.predict(X.to_numpy(copy=False))
+    np.testing.assert_allclose(y_pred, y.to_numpy(copy=False), atol=1e-6)
+
+def test_fit_non_linear():
+    """ test for fit_non_linear function in forecast_helpers.py
+    """
+    import numpy as np
+    import pandas as pd
+    from jfk_taxis import forecast_helpers
+
+    # Non-linear relationship: y = x^2
+    X = pd.DataFrame({"x": [1, 2, 3, 4, 5]})
+    y = pd.Series([1, 4, 9, 16, 25])
+
+    model = forecast_helpers.fit_non_linear(X, y)
+
+    assert hasattr(model, "fit")
+    assert hasattr(model, "predict")
+
+    y_pred = model.predict(X.to_numpy(copy=False))
+    # Allow some tolerance for small dataset fitting
+    assert np.allclose(y_pred, y.to_numpy(copy=False), atol=3.0)
+
+def test_truncate_lags():
+    """ test for truncate_lags function in forecast_helpers.py
+    """
+    from jfk_taxis import forecast_helpers
+
+    # Case list beyond truncated value
+    lags = [1, 2, 3, 4, 5]
+    truncate_to = 3
+    truncated = forecast_helpers.truncate_lags(lags, truncate_to)
+    assert truncated == [1, 2, 3]
+
+    # Case list entirely beyond truncated value
+    lags = [10, 20]
+    truncate_to = 5
+    truncated = forecast_helpers.truncate_lags(lags, truncate_to)
+    assert truncated == []
+
+    # Case list entirely within truncated value
+    lags = [7, 9]
+    truncate_to = 10
+    truncated = forecast_helpers.truncate_lags(lags, truncate_to)
+    assert truncated == [7, 9]
+
+    # Case with truncate_to = 0 
+    lags = [1, 2, 3]
+    truncate_to = 0
+    truncated = forecast_helpers.truncate_lags(lags, truncate_to)
+    assert truncated == []
+
+    # Case with empty list
+    lags = []
+    truncate_to = 7
+    truncated = forecast_helpers.truncate_lags(lags, truncate_to)
+    assert truncated == []
+
 def test_to_NYC():
     """ test for to_NYC function in forecast_helpers.py 
 
@@ -561,10 +661,6 @@ def test_save_mae_scores():
     assert model_mae_list["model_2"].scores[0].offset == offset
     assert model_mae_list["model_3"].scores[0].offset == offset
 
-
-# To debug tests run:
-# 
-
 def test_create_avg_mae_df():
     """ test for create_avg_mae_df function in forecast_helpers.py, we will reuse the save_mae_scores function from the above test as we know it works now.
     """    
@@ -674,9 +770,249 @@ def test_create_avg_mae_df():
     assert avg_mae_df.loc[42, "model_3"] == (480.5 + 490.2) / 2
     assert avg_mae_df.loc[42, "Naive"] == (280.2 + 285.3) / 2
 
+def test_create_avg_mae_barplot():
+    """ test for create_avg_mae_barplot function in forecast_helpers.py """
+    import pandas as pd
+    import matplotlib
+    from jfk_taxis import forecast_helpers
 
+    # Create a sample avg_mae_df with multiple steps (rows) and models (columns)
+    data = {
+        "model_1": [100.0, 200.0, 300.0],
+        "model_2": [110.0, 210.0, 310.0],
+        "model_3": [120.0, 220.0, 320.0],
+    }
+    steps_index = [1, 2, 3]
+    avg_mae_df = pd.DataFrame(data, index=steps_index)
 
-    
+    # Call the function; it should return a matplotlib Figure
+    fig = forecast_helpers.create_avg_mae_barplot(avg_mae_df)
+
+    assert isinstance(fig, matplotlib.figure.Figure)
+
+    # There should be one subplot per step (row)
+    axes = fig.get_axes()
+    assert len(axes) == len(steps_index)
+
+    # Check subplot titles match the expected step labels
+    for ax, step in zip(axes, steps_index):
+        assert ax.get_title() == f"Average MAE for step {step}"
+
+    # Check x-tick labels include all model names on each subplot
+    expected_models = set(avg_mae_df.columns)
+    for ax in axes:
+        xtick_labels = {tick.get_text() for tick in ax.get_xticklabels()}
+        # Some backends may render differently; ensure at least all models are present
+        assert expected_models.issubset(xtick_labels)
+
+    # Each subplot should have exactly len(models) bars since dodge=False and one bar per model
+    for ax in axes:
+        assert len(ax.patches) == len(avg_mae_df.columns)
+
+def test_forecast_dicts_side_effects(monkeypatch):
+    """ unit test for forecast_dicts: verify side-effects and wiring via stubs """
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from statsmodels.tsa.deterministic import DeterministicProcess
+    import jfk_taxis.forecast_helpers as fh
+
+    # Minimal data (daily)
+    y_hist = pd.Series([10, 11, 12, 13], index=pd.date_range("2025-01-01", periods=4, freq="D", tz="UTC"))
+    y_test = pd.Series([14, 15, 16, 17], index=pd.date_range("2025-01-05", periods=4, freq="D", tz="UTC"))
+    steps = [2]
+    offsets = [0, 1]
+    show_offsets = []
+    time_step = "D"
+
+    # Dummy DeterministicProcess with matching index to y_hist (tz-naive per preprocess requirement)
+    dp_idx = pd.date_range("2025-01-01", periods=len(y_hist), freq=time_step)
+    dp = DeterministicProcess(index=dp_idx, constant=True, order=1, seasonal=False, additional_terms=[], drop=False)
+
+    # Build model dicts in the shape expected: (model, dp, hybrid, lags)
+    class DummyModel:
+        def predict(self, X):
+            # shape-aware constant prediction
+            import numpy as _np
+            if hasattr(X, "shape"):
+                return _np.zeros(X.shape[0])
+            return _np.zeros(len(X))
+
+    linear_models = {"LinearA": (DummyModel(), dp, None, [1])}
+    non_linear_models = {"XGB": (DummyModel(), dp, None, [1])}
+
+    # Stub forecast: return exact real slice so MAE should be 0.0
+    def fake_forecast(model, y, lags, step, offset, dp_arg, hybrid, gpu):
+        start = offset
+        end = offset + step
+        out = y_test.iloc[start:end]
+        # make index tz-naive to match internal pipeline expectations
+        out.index = out.index.tz_localize(None)
+        return out
+    monkeypatch.setattr(fh, "forecast", fake_forecast)
+
+    # Stub mean_absolute_error to capture calls and return 0.0
+    mae_calls = []
+    def fake_mae(y_true, y_pred):
+        mae_calls.append((y_true.index.tolist(), y_pred.index.tolist()))
+        return 0.0
+    monkeypatch.setattr(fh, "mean_absolute_error", fake_mae)
+
+    # Neutralize plotting and NYC conversion
+    monkeypatch.setattr(fh, "to_NYC", lambda s, f: s)
+    monkeypatch.setattr(plt, "show", lambda: None)
+    monkeypatch.setattr(plt, "close", lambda *a, **k: None)
+    monkeypatch.setattr(sns, "barplot", lambda *a, **k: None)
+
+    # Capture save_mae_scores payloads
+    saved_payloads = []
+    def fake_save_mae_scores(model_mae_list, mae_scores, step, offset):
+        saved_payloads.append((dict(mae_scores), step, offset))
+        return model_mae_list
+    monkeypatch.setattr(fh, "save_mae_scores", fake_save_mae_scores)
+
+    # Final aggregation stubs
+    monkeypatch.setattr(fh, "create_avg_mae_df", lambda *a, **k: pd.DataFrame({"LinearA":[0.0], "XGB":[0.0], "Naive":[0.0]}))
+    monkeypatch.setattr(fh, "create_avg_mae_barplot", lambda df: plt.figure())
+
+    # Silence display
+    from IPython import display as ipd
+    monkeypatch.setattr(ipd, "display", lambda *a, **k: None)
+
+    # Run unit under test
+    fh.forecast_dicts(steps, y_test, y_hist, offsets, show_offsets, linear_models, non_linear_models, naive=True, time_step=time_step)
+
+    # Assertions: one save per (step, offset)
+    assert len(saved_payloads) == len(steps) * len(offsets)
+    # Check keys contain both models and Naive, values as arranged by fake_mae
+    for payload, step, offset in saved_payloads:
+        assert set(payload.keys()) == {"LinearA", "XGB", "Naive"}
+        assert payload["LinearA"] == payload["XGB"] == payload["Naive"] == 0.0
+
+    # MAE called at least for linear and non-linear across offsets
+    assert len(mae_calls) >= len(offsets) * 2
+
+def test_run_forecasts_delegation(monkeypatch):
+    """ run_forecasts should delegate to forecast_dicts with proper args """
+    import pandas as pd
+    import numpy as np
+    import jfk_taxis.forecast_helpers as fh
+
+    # Small synthetic data
+    y_hist = pd.Series(np.arange(10), index=pd.date_range("2025-01-01", periods=10, freq="D", tz="UTC"))
+    y_test = pd.Series(np.arange(10, 20), index=pd.date_range("2025-01-11", periods=10, freq="D", tz="UTC"))
+
+    steps = [2, 3]
+    offset_list = [0, 1]
+    offsets_to_show = [1]
+    time_step = "D"
+    linear_models = {"A": ("model", "dp", None, [1])}
+    non_linear_models = {"B": ("model", "dp", None, [1])}
+
+    called = {"args": None, "kwargs": None}
+    def fake_forecast_dicts(*args, **kwargs):
+        called["args"] = args
+        called["kwargs"] = kwargs
+        return None
+    monkeypatch.setattr(fh, "forecast_dicts", fake_forecast_dicts)
+
+    fh.run_forecasts(steps, offset_list, offsets_to_show, linear_models, non_linear_models, True, time_step, y_hist, y_test)
+
+    # Validate delegated parameters (positionally)
+    d_args = called["args"]
+    assert d_args[0] == steps
+    assert d_args[1].equals(y_test)
+    assert d_args[2].equals(y_hist)
+    assert d_args[3] == offset_list
+    assert d_args[4] == offsets_to_show
+    assert d_args[5] == linear_models
+    assert d_args[6] == non_linear_models
+    assert d_args[7] is True
+    assert d_args[8] == time_step
+
+def test_forecast_dicts_app_returns(monkeypatch):
+    """ forecast_dicts_app should return dicts of figures and an avg figure """
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from statsmodels.tsa.deterministic import DeterministicProcess
+    import jfk_taxis.forecast_helpers as fh
+    import matplotlib
+
+    # Data
+    y_hist = pd.Series(np.arange(10), index=pd.date_range("2025-01-01", periods=10, freq="D", tz="UTC"))
+    y_test = pd.Series(np.arange(10, 20), index=pd.date_range("2025-01-11", periods=10, freq="D", tz="UTC"))
+    offsets = [0, 2]
+    steps = 2
+    time_step = "D"
+
+    # Minimal dp and models
+    dp_idx = pd.date_range("2025-01-01", periods=len(y_hist), freq=time_step)
+    dp = DeterministicProcess(index=dp_idx, constant=True, order=1, seasonal=False, additional_terms=[], drop=False)
+    class DummyModel:
+        def predict(self, X):
+            import numpy as _np
+            if hasattr(X, "shape"):
+                return _np.zeros(X.shape[0])
+            return _np.zeros(len(X))
+    linear_models = {"L": (DummyModel(), dp, None, [1])}
+    non_linear_models = {"N": (DummyModel(), dp, None, [1])}
+
+    # Stubs to keep fast
+    def fake_forecast(model, y, lags, step, offset, dp_arg, hybrid, gpu):
+        out = y_test.iloc[offset:offset+step]
+        out.index = out.index.tz_localize(None)
+        return out
+    monkeypatch.setattr(fh, "forecast", fake_forecast)
+    monkeypatch.setattr(fh, "to_NYC", lambda s, f: s)
+    monkeypatch.setattr(plt, "close", lambda *a, **k: None)
+    monkeypatch.setattr(sns, "barplot", lambda *a, **k: None)
+
+    forecast_figs, bar_plot_figs, avg_bar_plot_fig = fh.forecast_dicts_app(
+        steps, y_test, y_hist, offsets, linear_models, non_linear_models, naive=True, time_step=time_step
+    )
+
+    # Assertions on returns
+    assert set(forecast_figs.keys()) == set(offsets)
+    assert set(bar_plot_figs.keys()) == set(offsets)
+    for fig in list(forecast_figs.values()) + list(bar_plot_figs.values()) + [avg_bar_plot_fig]:
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+def test_run_forecasts_app_returns(monkeypatch):
+    """ run_forecasts_app should pass through results from forecast_dicts_app """
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import jfk_taxis.forecast_helpers as fh
+    import matplotlib
+
+    # Data
+    y_hist = pd.Series(np.arange(6), index=pd.date_range("2025-01-01", periods=6, freq="D", tz="UTC"))
+    y_test = pd.Series(np.arange(6, 12), index=pd.date_range("2025-01-07", periods=6, freq="D", tz="UTC"))
+
+    steps = 2
+    offset_list = [0, 1]
+    linear_models = {"L": ("model", "dp", None, [1])}
+    non_linear_models = {"N": ("model", "dp", None, [1])}
+
+    # Prepare canned returns
+    canned_forecast_figs = {o: plt.figure() for o in offset_list}
+    canned_bar_figs = {o: plt.figure() for o in offset_list}
+    canned_avg = plt.figure()
+
+    def fake_fda(*args, **kwargs):
+        return canned_forecast_figs, canned_bar_figs, canned_avg
+    monkeypatch.setattr(fh, "forecast_dicts_app", fake_fda)
+
+    forecast_figs, bar_plot_figs, avg_bar_plot_fig = fh.run_forecasts_app(
+        steps, offset_list, linear_models, non_linear_models, naive=False, time_step="D", old_ts=y_hist, new_ts=y_test
+    )
+
+    assert forecast_figs is canned_forecast_figs
+    assert bar_plot_figs is canned_bar_figs
+    assert avg_bar_plot_fig is canned_avg
 
 
 

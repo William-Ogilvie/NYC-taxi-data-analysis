@@ -58,6 +58,16 @@ WORKDIR /app
 # --allow-root means allow to run as root user 
 # --NotebookApp.token='' means disable the token authentication (not secure but ok for local dev)
 
+# Then in browser go to usual http://127.0.0.1:8888/
+
+# Similarly to run the streamlit app use the following command:
+# streamlit run home.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+# --server.addresss: network interface the app binds to. So 0.0.0.0 will accept connections from outside the container
+# --server.port TCP port to listen on 
+# --server.headless run wihtout auto-opening a browser window.
+
+# To open the app in browser got to http://127.0.0.1:8501/
+
 # We also need to expose the gpu to the container, this is done with --gpus all
 # docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
 

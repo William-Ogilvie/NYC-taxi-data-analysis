@@ -525,7 +525,7 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> plt.Figure:
     
     for (i, row), ax in zip(df.iterrows(), axes):
 
-        steps = row["index"]
+        steps = int(row["index"])
         df_long = row.drop("index").reset_index()
         df_long.columns = ["model", "mae"]
 
@@ -741,16 +741,6 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
     bar_plot_fig = create_avg_mae_barplot(df_avg_mae)
     display(bar_plot_fig)
     
-
-
-    
-
-
-    
-    
-
-
-
 def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
 

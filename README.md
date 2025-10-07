@@ -1,9 +1,9 @@
-# NYC Taxi Data Analysis
-Exploring and visualising New York City Taxi trip data (2024). 
+# NYC and JFK Airport Taxi Data Analysis
+Exploring and visualising New York City Taxi trip data (2011-2025). With modelling of daily and hourly taxi counts for JFK Airport using linear regresssion, xgboost and linear regression boosted on the residuals.  
 
 ## Objective
-Explain what the data is and why it's interesting.
-Mention the timeframe (2024) and key goals (visulaizations, forecasting, etc)
+
+Our objective was to do some basic exploration of NYC taxi data using choropleths. Then to explore fitting various models two time series for the taxi count at JFK Airport, one daily and one hourly.
 
 ## Data Sources
 
@@ -18,6 +18,8 @@ Clone the repository:
 git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 cd NYC-taxi-data-analysis
 ```
+
+
 
 - The data you will need are the Taxi Zone Shapefile (PARQUET), Taxi Zone Lookup Table (CSV) and the Yellow Taxi Trip Records (PARQUET) for Januaray 2025. (change once add more data)
 - All of which can be downloaded from [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
@@ -49,6 +51,18 @@ jupyter lab
 NOte setup.py will now test for gpu/cpu and set xgboost to appropriate device
 
 ## Reults / Key Findings
+
+We initally perform EDA for the entire of the NYC taxi data, primarily using choropleths. We then shift our focus to JFK Airport and create two time series that count the total number of taxis at the Airport, one daily, one hourly. We explore these time series to try and find relevant predictive features that we could use for models. Our intial exploration suggests that daily and weekly fourier features could be good for our hourly time series, and weekly and yearly fourier features for our daily time series. We also get back a considerable number of lags for both time series that cover at least one year into the past. 
+
+Then we fit some inital models to these featuers. We test three strands of model linear regression, xgboost (usually reffered to as our non linear model in notebooks) and boosted linear regression on the residuals (so xgboost is fitted to the residuals of a linear regression, and added to its predictions). We will use a Naive baseline of just predicting the current value as the same as that one time step (day or hour) ago. The use of this baseline originally was from trial and error among others like 1 week ago. However it is supported via the SHAP values as most models have a very large mean SHAP value for lag_1. Suggesting that the previous time step has considerable predictive power. (comment on findings here).
+
+Later we explore feature importance using SHAP values for all the models. We take the top 30 features by average SHAP value and see if they retain most of the predictive signal. It turns out for xgboost the reduced feature set is similarly effective. However for just pure linear regression it does seem to be considerably worse and potentially not worth using as the computational savings are smaller compared to with xgboost. 
+
+Finally we perform bayesian hyperparameter tuning with optuna. I personally ran this in on AWS EC2 instance over a few days to do 1000 trials (maybe change this idk?) but the improvements seem to be minimal unfortunately (maybe?!).
+
+We conclude with the best models for the two cases (add here). 
+
+
 
 Note explain the install of XGBoost for gpus carefully because we assume that u run one
 
