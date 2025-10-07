@@ -534,7 +534,7 @@ def test_load_design():
         dummy_X_hourly_linear,
         check_dtype = True,
         check_exact = True, 
-    )
+    ), f"X doesn't match for {linear_design_names[1]}"
     assert_series_equal(
         linear_design_loaded[linear_design_names[1]][1],
         ts_hourly,
@@ -543,16 +543,16 @@ def test_load_design():
         check_exact = True,
         check_names = True,
     ), f"ts doesn't match for {linear_design_names[1]}"
-    assert len(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_fourier + expected_order_terms)
-    assert set(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_fourier + expected_order_terms)
-    assert linear_design_loaded[linear_design_names[1]][3] == lags_hourly
+    assert len(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_fourier + expected_order_terms), f"dp doesn't have correct number of columns for {linear_design_names[1]}"
+    assert set(linear_design_loaded[linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_fourier + expected_order_terms), f"dp doesn't have correct columns for {linear_design_names[1]}"
+    assert linear_design_loaded[linear_design_names[1]][3] == lags_hourly, f"lags don't match for {linear_design_names[1]}"
 
     assert_frame_equal(
         non_linear_design_loaded[non_linear_design_names[0]][0],
         dummy_X_daily_non_linear,
         check_dtype = True,
         check_exact = True, 
-    )
+    ), f"X doesn't match for {non_linear_design_names[0]}"
     assert_series_equal(
         non_linear_design_loaded[non_linear_design_names[0]][1],
         ts_daily,
@@ -563,16 +563,16 @@ def test_load_design():
     ), f"ts doesn't match for {non_linear_design_names[0]}"
     # dp_daily_2 has order=0, constant=True, so only "const" plus fourier terms
     expected_daily_non_linear_terms = ["const"] + expected_daily_fourier
-    assert len(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == len(expected_daily_non_linear_terms)
-    assert set(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == set(expected_daily_non_linear_terms)
-    assert non_linear_design_loaded[non_linear_design_names[0]][3] == lags_daily
+    assert len(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == len(expected_daily_non_linear_terms), f"dp doesn't have correct number of columns for {non_linear_design_names[0]}"
+    assert set(non_linear_design_loaded[non_linear_design_names[0]][2].out_of_sample(10).columns.to_list()) == set(expected_daily_non_linear_terms), f"dp doesn't have correct columns for {non_linear_design_names[0]}"
+    assert non_linear_design_loaded[non_linear_design_names[0]][3] == lags_daily, f"lags don't match for {non_linear_design_names[0]}"
 
     assert_frame_equal(
         non_linear_design_loaded[non_linear_design_names[1]][0],
         dummy_X_hourly_non_linear,
         check_dtype = True,
         check_exact = True, 
-    )
+    ), f"X doesn't match for {non_linear_design_names[1]}"
     assert_series_equal(
         non_linear_design_loaded[non_linear_design_names[1]][1],
         ts_daily,
@@ -583,6 +583,86 @@ def test_load_design():
     ), f"ts doesn't match for {non_linear_design_names[1]}"
     # dp_hourly_2 has order=0, constant=False, so only fourier terms
     expected_hourly_non_linear_terms = expected_hourly_fourier
-    assert len(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_non_linear_terms)
-    assert set(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_non_linear_terms)
-    assert non_linear_design_loaded[non_linear_design_names[1]][3] == lags_hourly
+    assert len(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == len(expected_hourly_non_linear_terms), f"dp doesn't have correct number of columns for {non_linear_design_names[1]}"
+    assert set(non_linear_design_loaded[non_linear_design_names[1]][2].out_of_sample(10).columns.to_list()) == set(expected_hourly_non_linear_terms), f"dp doesn't have correct columns for {non_linear_design_names[1]}"
+    assert non_linear_design_loaded[non_linear_design_names[1]][3] == lags_hourly, f"lags don't match for {non_linear_design_names[1]}"
+
+def test_save_lags_and_load_lags():
+    """Test save_lags and load_lags functions in training_helpers.py"""
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+
+    # Load config
+    config, PROJECT_ROOT = load_config()
+
+    # Constants
+    LAGS_PREFFIX = config["saving"]["lags_preffix"]
+    SAVED_OBJECTS_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["saved_objects_path"]
+ 
+    sig = f"testsig_lags"
+    lags = [1, 2, 3, 7, 14]
+    series_type = "daily"
+
+    # Save lags
+    training_helpers.save_lags(lags, series_type, sig)
+
+    # Check that the file exists
+    f = SAVED_OBJECTS_DIR / f"{LAGS_PREFFIX}_{series_type}_{sig}.pkl"
+    assert f.exists(), "lags file does not exist"
+
+    # Load lags
+    loaded_lags = training_helpers.load_lags(series_type, sig)
+    assert loaded_lags == lags, "Loaded lags do not match saved lags"
+
+def test_save_hyperparams_and_load_hyperparams():
+    """Test save_hyperparams and load_hyperparams functions in training_helpers.py"""
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+    import random
+
+    # Load config 
+    config, PROJECT_ROOT = load_config()
+    
+    # Constants
+    HYPERPARAMS_PREFFIX = config["saving"]["hyperparams_preffix"]
+    SAVED_OBJECTS_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["saved_objects_path"]
+
+    sig = f"testsig_hyperparams"
+    hyperparams = {"alpha": 0.1, "beta": 0.5, "max_depth": 3}
+
+    # Save hyperparams
+    training_helpers.save_hyperparams(hyperparams, sig)
+
+    # Check that the file exists
+    f = SAVED_OBJECTS_DIR / f"{HYPERPARAMS_PREFFIX}_{sig}.pkl"
+    assert f.exists(), "hyperparam file does not exist"
+
+    # Load hyperparams
+    loaded_hyperparams = training_helpers.load_hyperparams(sig)
+    assert loaded_hyperparams == hyperparams, "Loaded hyperparams do not match saved hyperparams"
+
+def test_save_obj_and_load_obj():
+    """Test save_obj and load_obj functions in training_helpers.py"""
+    from jfk_taxis import training_helpers
+    from jfk_taxis import load_config
+    
+    # Load config
+    config, PROJECT_ROOT = load_config()
+    
+    # Constants
+    SAVED_OBJECTS_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["saved_objects_path"]
+ 
+    sig = f"testsig_obj"
+    # Use a simple object, e.g., a dict
+    obj = {"foo": [1, 2, 3], "bar": {"baz": 42}}
+
+    # Save object
+    training_helpers.save_obj(obj, sig)
+
+    # Check that the file exists
+    f =  SAVED_OBJECTS_DIR / f"{sig}.pkl"
+    assert f.exists(), "obj file does not exist"
+
+    # Load object
+    loaded_obj = training_helpers.load_obj(sig)
+    assert loaded_obj == obj, "Loaded object does not match saved object"
