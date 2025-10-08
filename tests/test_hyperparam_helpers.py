@@ -320,6 +320,146 @@ def test_split_params():
     assert hourly_hybrid_dict["reduced_hourly_hybrid_order1"] == {"param_2": 0.2, "param_3": 10}, "params of hourly hybrid dict incorrect"
 
 
+def test_define_model():
+    """ test for define_model function in hyperparam_helpers.py
+    """
+    import optuna
+    from xgboost import XGBRegressor
+    from jfk_taxis import hyperparam_helpers
+    from jfk_taxis import load_config
+
+    # Load config
+    config, PROJECT_ROOT = load_config()
+
+    # Create a fixed trial with specific hyperparameters
+    trial = optuna.trial.FixedTrial({
+        "n_estimators": 250,
+        "learning_rate": 0.07,
+        "max_depth": 4,
+        "min_child_weight": 2.5,
+        "subsample": 0.75,
+        "colsample_bytree": 0.85,
+        "reg_lambda": 5.0,
+        "reg_alpha": 0.5,
+        "gamma": 0.2,
+    })
+
+    # Call define_model
+    model = hyperparam_helpers.define_model(trial)
+
+    # Check that the returned object is an XGBRegressor
+    assert isinstance(model, XGBRegressor), "Model should be an XGBRegressor"
+
+    # Check that hyperparameters were set correctly
+    assert model.n_estimators == 250, "n_estimators should be 250"
+    assert model.learning_rate == 0.07, "learning_rate should be 0.07"
+    assert model.max_depth == 4, "max_depth should be 4"
+    assert model.min_child_weight == 2.5, "min_child_weight should be 2.5"
+    assert model.subsample == 0.75, "subsample should be 0.75"
+    assert model.colsample_bytree == 0.85, "colsample_bytree should be 0.85"
+    assert model.reg_lambda == 5.0, "reg_lambda should be 5.0"
+    assert model.reg_alpha == 0.5, "reg_alpha should be 0.5"
+    assert model.gamma == 0.2, "gamma should be 0.2"
+
+    # Check that config parameters were set correctly
+    assert model.random_state == config["xgboost_setup"]["random_state"], "random_state should match config"
+    assert model.eval_metric == config["xgboost_setup"]["eval_metric"], "eval_metric should match config"
+    assert model.tree_method == config["xgboost_setup"]["tree_method"], "tree_method should match config"
+    assert model.device == config["xgboost_setup"]["device"], "device should match config"
+
+
+def test_test_hyperparams():
+    """ test for test_hyperparams function in hyperparam_helpers.py
+    
+    This is a smoke test - we just verify the function runs without errors with sample data. 
+    """
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from jfk_taxis import hyperparam_helpers
+    from jfk_taxis import load_config
+
+    # Load config
+    config, PROJECT_ROOT = load_config()
+
+    # Use non-interactive backend and stub show
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    old_show = plt.show
+    plt.show = lambda *args, **kwargs: None
+
+    try:
+        # Create sample time series data (timezone-naive to avoid matplotlib issues)
+        # Then convert to UTC which is what the actual functions expect
+        ts_daily_train = pd.Series(
+            data=np.random.uniform(3500, 5500, size=365*2), 
+            index=pd.date_range(start="2021-01-01", periods=365*2, freq="D", tz="UTC")
+        )
+        ts_daily_test = pd.Series(
+            data=np.random.uniform(3500, 5500, size=60), 
+            index=pd.date_range(start="2023-01-01", periods=60, freq="D", tz="UTC")
+        )
+        
+        ts_hourly_train = pd.Series(
+            data=np.random.uniform(50, 400, size=365*24*2), 
+            index=pd.date_range(start="2021-01-01", periods=365*24*2, freq="h", tz="UTC")
+        )
+        ts_hourly_test = pd.Series(
+            data=np.random.uniform(50, 400, size=168*2), 
+            index=pd.date_range(start="2023-01-01", periods=168*2, freq="h", tz="UTC")
+        )
+
+        # Create sample hyperparameter dictionaries (minimal for smoke test)
+        dict_full = {
+            config["hyperparameter_tuning"]["daily_linear_key"]: {
+                "test_daily_non_linear": {
+                    "n_estimators": 200,
+                    "learning_rate": 0.05,
+                    "max_depth": 5,
+                    "min_child_weight": 1,
+                    "subsample": 0.8,
+                    "colsample_bytree": 0.8,
+                    "reg_lambda": 1.0,
+                    "reg_alpha": 1.0,
+                    "gamma": 0.1,
+                    "random_state": config["xgboost_setup"]["random_state"],
+                    "eval_metric": config["xgboost_setup"]["eval_metric"],
+                    "tree_method": config["xgboost_setup"]["tree_method"],
+                    "device": config["xgboost_setup"]["device"]
+                }
+            }
+        }
+
+        # Define steps and offsets (small values for quick testing)
+        daily_steps = [7]
+        hourly_steps = [24]
+        daily_offsets = [0, 7]
+        hourly_offsets = [0, 24]
+        daily_offsets_to_show = [0]
+        hourly_offsets_to_show = [0]
+
+        # Run the function - should not raise any errors
+        hyperparam_helpers.test_hyperparams(
+            dict_full, 
+            ts_daily_train, 
+            ts_daily_test, 
+            ts_hourly_train, 
+            ts_hourly_test,
+            daily_steps, 
+            hourly_steps, 
+            daily_offsets, 
+            hourly_offsets, 
+            daily_offsets_to_show, 
+            hourly_offsets_to_show
+        )
+
+        # Close plots to avoid warnings
+        plt.close("all")
+
+    finally:
+        plt.show = old_show
+
+
 
 
 

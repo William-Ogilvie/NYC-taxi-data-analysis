@@ -232,6 +232,46 @@ def test_compute_shap_values():
     np.testing.assert_allclose(shap_values_check.data, shap_values.data, rtol = 1e-5, atol = 1e-5), "SHAP data do not match"  
     assert X.equals(X_check), "Design matrices do not match"
 
+def test_shap_plots():
+    """ test the shap_plots function to ensure it runs without errors.
+    
+    This is a smoke test - we just verify the function runs successfully with valid inputs.
+    """
+    from jfk_taxis import shap_helpers
+    from jfk_taxis import load_design, load_models
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Use non-interactive backend and stub show
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    old_show = plt.show
+    plt.show = lambda *args, **kwargs: None
+
+    try:
+        # Create models and designs for testing
+        daily_linear_sig, hourly_linear_sig, daily_hybrid_sig, hourly_hybrid_sig = create_models_designs_for_shap_tests()
+
+        # Load a model and design to get SHAP values
+        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_1", linear=True, hybrid=False)
+
+        # Run shap_plots - should not raise any errors
+        shap_helpers.shap_plots(shap_values, X, "model_1")
+
+        # Close plots to avoid warnings
+        plt.close("all")
+
+        # Test with a non-linear model as well
+        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_4", linear=False, hybrid=False)
+        shap_helpers.shap_plots(shap_values, X, "model_4")
+
+        # Close plots to avoid warnings
+        plt.close("all")
+
+    finally:
+        plt.show = old_show
+
+
 def test_return_top_X_SHAP():
     """ test the return_top_X_SHAP function to ensure it returns the top X SHAP values.
     """    

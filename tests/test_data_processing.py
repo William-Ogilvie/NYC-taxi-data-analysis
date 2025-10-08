@@ -2,8 +2,7 @@
 test_data_processing.py
 =========================
 
-Unit test for data_processing.py. Note we don't test all the functions here as some of them are for plotting or just combine these smaller base functions.
-To run just do pytest test_data_processing.py
+Unit test for data_processing.py.
 """ 
 
 def test_load_parquet():
@@ -530,7 +529,8 @@ def test_ts_plots():
     import matplotlib.pyplot as plt
     from jfk_taxis import data_processing
 
-    # Use non-interactive backend and stub show
+    # Use non-interactive backend and stub show, essentially so that trying to show plots doesn't interupt tests
+    # we just want to test that the functions run the plots have been checked manually
     import matplotlib
     matplotlib.use("Agg", force=True)
     old_show = plt.show
@@ -549,6 +549,9 @@ def test_ts_plots():
 
         # Should run without error
         data_processing.ts_plots(df_daily, feature="daily", year=2020, month=[])
+
+        # Cloase all plots to avoid warnings
+        plt.close("all")
 
         # Hourly plot input: timezone-naive strings (as would come from CSV)
         df_hour = pd.DataFrame({
