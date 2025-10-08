@@ -39,7 +39,7 @@ docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="
 ```
 or
 ```bash
-docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:cpu
+docker run -it --rm -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:cpu
 ```
 
 Now we will need to do some intial setup before we can run the notebooks. First we will need to install the package jfk_taxis which is located inside src/jfk_taixs. This package contains helper functions that do most of the heavy lifting and make our notebooks more readable. It also has unittests for all modules that you cand find in the tests dir. To install the package use the following command whilst in the \app dir:
