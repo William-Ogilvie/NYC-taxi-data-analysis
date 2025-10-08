@@ -369,3 +369,225 @@ def test_combine_ts():
     shutil.move(DATA_SAVE / "temp" / f"{TS_PREFIX}_{TS_DAILY}2021.csv", DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}2021.csv")
     shutil.move(DATA_SAVE / "temp" / f"{TS_PREFIX}_{TS_HOURLY}2021.csv", DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}2021.csv")
     os.rmdir(DATA_SAVE / "temp")
+
+
+def test_process_taxi_data():
+    """ test for process_taxi_data function in data_processing.py
+    """
+    import pandas as pd
+    import os
+    from jfk_taxis import load_config
+    from jfk_taxis import data_processing
+
+    # Get config
+    config, PROJECT_ROOT = load_config()
+
+    # Constants for dir and file names
+    # Data directories
+    DATA_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
+    DATA_SAVE = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["processed_path"]
+
+    # Saving conventions
+    ORIGINAL_PARQUET_PREFIX = config["saving"]["original_parquet_prefix"]
+    JFK_PARQUET_PREFIX = config["saving"]["jfk_parquet_prefix"]
+    TS_PREFIX = config["saving"]["ts_prefix"]
+    TS_DAILY = config["saving"]["ts_daily"]
+    TS_HOURLY = config["saving"]["ts_hourly"]
+
+    YEAR = 1976
+
+    # Create minimal raw parquet inputs for the year
+    # Mix of JFK (132) and non-JFK pickups across two months
+    df_1976_01 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1976-01-05 10:15:00",
+            "1976-01-05 23:50:00",
+            "1976-01-06 00:10:00",
+            "1976-01-07 15:30:00",
+        ]),
+        "PULocationID": [132, 1, 132, 5],
+        "DOLocationID": [4, 5, 6, 7]
+    })
+
+    df_1976_07 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1976-07-02 14:28:00",
+            "1976-07-12 23:50:00",
+            "1976-07-26 00:10:00",
+            "1976-07-30 15:30:00",
+        ]),
+        "PULocationID": [100, 132, 46, 132],
+        "DOLocationID": [3, 55, 56, 9]
+    })
+
+    # Save files with slightly differing naming formats (to match real-world variance)
+    raw_f1 = DATA_DIR / "yellow_tripdata_1976-01.parquet"
+    raw_f2 = DATA_DIR / "yellow_trip____HELLOOOOOOOO!_data_1976-07.parquet"
+    df_1976_01.to_parquet(raw_f1, index=False)
+    df_1976_07.to_parquet(raw_f2, index=False)
+
+    try:
+        # Run the processing pipeline
+        data_processing.process_taxi_data([YEAR], ["hour", "daily"])
+
+        # Expected output paths
+        parquet_original_path = DATA_SAVE / f"{ORIGINAL_PARQUET_PREFIX}_{YEAR}.parquet"
+        parquet_jfk_path = DATA_SAVE / f"{JFK_PARQUET_PREFIX}_{YEAR}.parquet"
+        ts_daily_path = DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{YEAR}.csv"
+        ts_hourly_path = DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{YEAR}.csv"
+
+        # Basic existence checks
+        assert parquet_original_path.exists()
+        assert parquet_jfk_path.exists()
+        assert ts_daily_path.exists()
+        assert ts_hourly_path.exists()
+
+        # Load outputs and validate content
+        df_jfk = pd.read_parquet(parquet_jfk_path)
+        assert not df_jfk.empty
+        assert (df_jfk["PULocationID"] == 132).all()
+
+        # Count of JFK trips in inputs
+        expected_jfk_trips = (df_1976_01["PULocationID"] == 132).sum() + (df_1976_07["PULocationID"] == 132).sum()
+
+        df_daily = pd.read_csv(ts_daily_path)
+        df_hourly = pd.read_csv(ts_hourly_path)
+
+        # Ensure index columns are present and trip totals match expected JFK count
+        assert set(["pickup_date", "trips"]).issubset(df_daily.columns)
+        assert set(["dt", "trips"]).issubset(df_hourly.columns)
+
+        assert df_daily["trips"].sum() == expected_jfk_trips
+        assert df_hourly["trips"].sum() == expected_jfk_trips
+    finally:
+        # Clean up created raw and processed files
+        if os.path.exists(raw_f1):
+            os.remove(raw_f1)
+        if os.path.exists(raw_f2):
+            os.remove(raw_f2)
+
+        # Outputs
+        out_files = [
+            DATA_SAVE / f"{ORIGINAL_PARQUET_PREFIX}_{YEAR}.parquet",
+            DATA_SAVE / f"{JFK_PARQUET_PREFIX}_{YEAR}.parquet",
+            DATA_SAVE / f"{TS_PREFIX}_{TS_DAILY}{YEAR}.csv",
+            DATA_SAVE / f"{TS_PREFIX}_{TS_HOURLY}{YEAR}.csv",
+        ]
+        for p in out_files:
+            if os.path.exists(p):
+                os.remove(p)
+
+
+def test_taxi_data_visuals():
+    """ test for taxi_data_visuals function in data_processing.py
+    """
+    import pandas as pd
+    import os
+    import matplotlib.pyplot as plt
+    from jfk_taxis import load_config
+    from jfk_taxis import data_processing
+
+    # Get config and paths
+    config, PROJECT_ROOT = load_config()
+    DATA_DIR = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
+
+    YEAR = 1977
+
+    # Create minimal raw parquet input
+    df_1977_01 = pd.DataFrame({
+        "tpep_pickup_datetime": pd.to_datetime([
+            "1977-01-05 10:15:00",
+            "1977-01-05 23:50:00",
+            "1977-01-06 00:10:00",
+        ]),
+        "PULocationID": [132, 1, 132],
+        "DOLocationID": [4, 5, 6]
+    })
+
+    raw_f = DATA_DIR / "yellow_tripdata_1977-01.parquet"
+    df_1977_01.to_parquet(raw_f, index=False)
+
+    # Stub plt.show to avoid GUI blocking
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    old_show = plt.show
+    plt.show = lambda *args, **kwargs: None
+
+    try:
+        # Should run without raising
+        data_processing.taxi_data_visuals([YEAR])
+    finally:
+        # Restore show and cleanup
+        plt.show = old_show
+        if os.path.exists(raw_f):
+            os.remove(raw_f)
+
+
+def test_ts_plots():
+    """ test for ts_plots function in data_processing.py
+    """
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from jfk_taxis import data_processing
+
+    # Use non-interactive backend and stub show
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    old_show = plt.show
+    plt.show = lambda *args, **kwargs: None
+
+    try:
+        # Daily plot input: timezone-naive strings (as would come from CSV)
+        df_daily = pd.DataFrame({
+            "pickup_date": [
+                "2020-05-25 00:00:00+00:00",
+                "2020-05-26 00:00:00+00:00",
+                "2020-05-28 00:00:00+00:00",
+            ],
+            "trips": [1, 3, 2]
+        })
+
+        # Should run without error
+        data_processing.ts_plots(df_daily, feature="daily", year=2020, month=[])
+
+        # Hourly plot input: timezone-naive strings (as would come from CSV)
+        df_hour = pd.DataFrame({
+            "dt": [
+                "2020-05-25 18:00:00+00:00",
+                "2020-05-26 04:00:00+00:00",
+                "2020-05-28 19:00:00+00:00",
+            ],
+            "trips": [1, 1, 2]
+        })
+
+        data_processing.ts_plots(df_hour, feature="hour", year=2020, month=[5, 6])
+    finally:
+        plt.show = old_show
+
+
+def test_plot_full_ts():
+    """ test for plot_full_ts function in data_processing.py
+    """
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from jfk_taxis import data_processing
+
+    # Non-interactive backend and stub show
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    old_show = plt.show
+    plt.show = lambda *args, **kwargs: None
+
+    try:
+        df_daily = pd.DataFrame({
+            "pickup_date": [
+                "2020-05-25 00:00:00+00:00",
+                "2020-05-26 00:00:00+00:00",
+                "2021-01-01 00:00:00+00:00",
+            ],
+            "trips": [1, 3, 2]
+        })
+
+        data_processing.plot_full_ts(df_daily, years=[2020, 2021])
+    finally:
+        plt.show = old_show

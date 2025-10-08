@@ -19,36 +19,132 @@ git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 cd NYC-taxi-data-analysis
 ```
 
+There is a Dockerfile inside the repository that you can build an image from. It has micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was noticably improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
 
-
-- The data you will need are the Taxi Zone Shapefile (PARQUET), Taxi Zone Lookup Table (CSV) and the Yellow Taxi Trip Records (PARQUET) for Januaray 2025. (change once add more data)
-- All of which can be downloaded from [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
-- Extract any zip files and place all data in a data/raw directory.
-
-To run the notebook you will need to install the dependencies in requirements.txt. Create a virtual enviroment and install all dependencies:
+The full docker commands are below:
 
 ```bash
-pyton -m venv venv
-source venv/bin/activate   # on MAC/Linux
-venv/Scripts/activate      # On Windows
+docker build -t jfk-taxi:gpu --build-arg ENV_FILE=environment_gpu.yml .
 ```
+or
 ```bash
-pip install -r requirements.txt
+docker build -t jfk-taxi:cpu --build-arg ENV_FILE=environemnt_cpu.yml .
 ```
 
-All the scripts in src/ are under a package called jfk_taxis (the setup is in setup.py). This will need to be installed on top. The -e means the pacakge is in editable mode so any changes will be made available without a reinstall.  
+To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to them.
+
+So the full docker run command is as follows:
+```bash
+docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
+```
+or
+```bash
+docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:cpu
+```
+
+Now we will need to do some intial setup before we can run the notebooks. First we will need to install the package jfk_taxis which is located inside src/jfk_taixs. This package contains helper functions that do most of the heavy lifting and make our notebooks more readable. It also has unittests for all modules that you cand find in the tests dir. To install the package use the following command whilst in the \app dir:
 
 ```bash
-pip install -e .
+pip install -e . 
 ```
 
-You will now be able to run the Notebooks. Note any output will be stored in a reports directory. 
+Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do note exist already. Go to the scripts dir and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
 
 ```bash
-jupyter lab
+cd scripts
+python setup.py
 ```
 
-NOte setup.py will now test for gpu/cpu and set xgboost to appropriate device
+Then we need to download the data. Within scripts there is a file called get_parquet.py. This scrapes https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page using BeautifulSoup to get the urls to download the parquet files containing the taxi data, the .shap file for the taxi zones and the taxi zone lookup csv. This will then be saved to parquet_files.txt. So first run this script:
+
+```bash
+python get_parquet.py
+```
+
+Then we have a small bash script called download_and_extract.sh that just loops through all the files in parquet_files.txt and downloads them. To make the bash script executable run:
+
+```bash
+chmod +x donwload_and_extract.sh
+```
+
+Then run the script with:
+
+```bash
+./download_and_extract.sh
+```
+
+Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data, before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
+
+```bash
+jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
+```
+
+You will then be able to open jupyter lab on your host machine by visting http://127.0.0.1:8888/ in a browser. From here you will be able to see the projects notebooks inside the notebooks dir. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from intial exploration of the data for completness although they may have errors within them. Once you have completed notebook 3_data_processing.ipynb the time series data will now have been processed allowing you to launch the streamlit app. However it is recommened to complete notebooks 4 and 5 first as they will provide better context for the app itself. 
+
+To then launch the streamlit app run the following commands:
+
+```bash 
+cd appp
+streamlit run home.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+```
+
+You will then be able to view the app on the host machine by going to http://127.0.0.1:8501/ in a browser. The app home page will give a brief explanation of how the app works and hopefully from reading notebooks 1_EDA.ipynb, 4_modelling.ipynb and 5_model_selection.ipynb you can understand and follow what parts of the project it is demonstrating.
+
+### Using AWS for hyperparamter tuning
+
+One of the things I found on my machine was that the Bayesian hyperparamter tuning in 5_model_selection.ipynb took a long time for a large number of trials. So I used an AWS EC2 instance to run the tuning over the course of several days whilst I worked on other parts of the project. We will briefly explain how to do this here. 
+
+First you will need to create an S3 bucket to store both the time series data but also the results of the hyperparameter tuning. I named the S3 bucket jfk-taxi-data-william-ogilvie. If you choose a different name you will need to manually alter the bash script hyperparam_tuning_bash.sh, change BUCKET to the name of your bucket. Inside the S3 bucket place the full time series data (ts_daily2011-2025.csv, ts_hourly2011-2025.csv) inside a data/time_series directory. 
+
+You will need to create an IAM role with AmazonS3FullAcess policy if you do not have one already. Then create the EC2 instance, I decided to use the Deep Learning Ubuntu 20.04 AMI as it has already got the Nividia drivers installed as well as docker, git and AWS CLI. Although I did only have access to CPU instances so wasn't able to test the GPU functionality on AWS. Make sure you give it the IAM role with AmazonS3FullAcess policy. 
+
+Now if you are going to use a GPU isntance you will need to modify the hyperparam_tuning_bash.sh script. Specifically change USE_GPU to be 1 rather than 0. Then change ENV to environment_gpu.yml rather than enviornment_cpu.yml. You may also want to change the name of the docker image under IMAGE for completness. 
+
+Then once you connect to the instance run the following commands inside the home dir:
+
+```bash
+mkdir -p project logs
+cd project 
+git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
+```
+
+We wil be using tmux to run the hyperparam_tuning_bash.sh script even when we disconnect from the instance. So we will need to install it:
+
+```bash
+sudo apt-get update && sudo apt-get install -y tmux
+```
+
+We will create a new tmux session:
+
+```bash
+tmux new -s hyperparam_tuning
+```
+
+Inside the tmux session we will then run the hyperparm_tuning_bash.sh script inside the scripts dir. This script will load the data from the S3 bucket. It will then build the docker image and run a container of this image. Inside this container it will install the jfk-taxis package, run scripts/setup.py and then run scripts/hyperparam_tuning.py. It will produce logs and save them into the logs dir on the instance as well as save the tuned hyperparamters into outputs/$RUN_ID in your S3 bucket.
+
+Run the hyperparam_tuning_bash.sh script inside the tmux session:
+
+```bash
+cd project/NYC-taxi-data-analysis/scripts
+bash hyperparam_tuning_bash.sh 2>&1
+```
+
+You can then download the tuned hyperparameters from the S3 bucket and place them inside the data/saved_objects folder on your local version of the repository. To see them plotted run the first four cells of the 5_model_selection.ipynb notebook. Then run all remaining cells from the following cell:
+
+```python
+# Load signatures
+hyper_sig = load_obj("hyperparam_sigs")
+
+# Dict of hyperparams
+hyper_dict = {}
+
+# Load the hyperparams for each model
+for sig in hyper_sig:
+    hyper_params = load_hyperparams(sig)
+    hyper_dict[sig] = hyper_params# Load signatures
+hyper_sig = load_obj("hyperparam_sigs")
+```
+
 
 ## Reults / Key Findings
 

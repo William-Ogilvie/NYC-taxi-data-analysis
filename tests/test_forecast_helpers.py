@@ -3,9 +3,6 @@ test_forecast_helpers.py
 =========================
 
 Unit tests for forecast helpers.py. 
-
-We will also not test forecast_dicts or run_forecasts, this is because these functions essentially just call the other functions and plot the output, so we have checked their plots themselves.
-In a similar vein we will not test any of the other functions that only plot things like create_avg_mae_barplot, however we will test the componenets they rely on like create_avg_mae_df.
 """
 
 import pytest

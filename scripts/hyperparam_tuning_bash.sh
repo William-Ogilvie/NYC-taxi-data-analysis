@@ -18,6 +18,7 @@ cd "$PROJECT_DIR" # ensure we are in the project directory
 
 BUCKET="jfk-taxi-data-william-ogilvie" # S3 bucket to pull data from / push results to
 IMAGE="jfk-taxi:cpu"          # docker image to use
+ENV="environement_cpu.yml"    # YAML file to build docker image from
 USE_GPU=0                     # set to 1 to add --gpu all to docker run command
 DATA_DIR="$PROJECT_DIR/data/processed" # data stored here locally
 OUT_DIR="$PROJECT_DIR/data/saved_objects" # outputs stored here locally
@@ -48,6 +49,9 @@ log "Starting container run..."
 
 # If USE_GPU is 1 then GPU_FLAG is --gpus all otherwise it's empty
 GPU_FLAG=$([ "$USE_GPU" -eq 1 ] && echo "--gpus all" || true)
+
+# --- Create the docker image ---
+docker build -t $IMAGE --build-arg ENV_FILE=$ENV .
 
 # --- Run the hyperparameter tuning in a docker container ---
 # Run the container, mount the project directory, pass the UIC/GID to match host user and run the hyperparam tuning script
