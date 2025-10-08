@@ -3,7 +3,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 
 ## Objective
 
-Our objective was to do some basic exploration of NYC taxi data using choropleths. Then to explore fitting various models two time series for the taxi count at JFK Airport, one daily and one hourly.
+Our objective was to do some basic exploration of NYC taxi data using choropleths. Then to explore fitting various models to two time series for the taxi count at JFK Airport, one daily and one hourly.
 
 ## Data Sources
 
@@ -19,7 +19,7 @@ git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 cd NYC-taxi-data-analysis
 ```
 
-There is a Dockerfile inside the repository that you can build an image from. It has micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was noticably improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
+There is a Dockerfile inside the repository that you can build an image from. It has micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was a noticable improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
 
 The full docker commands are below:
 
@@ -31,7 +31,7 @@ or
 docker build -t jfk-taxi:cpu --build-arg ENV_FILE=environemnt_cpu.yml .
 ```
 
-To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to them.
+To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to it.
 
 So the full docker run command is as follows:
 ```bash
@@ -48,7 +48,7 @@ Now we will need to do some intial setup before we can run the notebooks. First 
 pip install -e . 
 ```
 
-Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do note exist already. Go to the scripts dir and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
+Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do not exist already. Go to the scripts dir and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
 
 ```bash
 cd scripts
@@ -73,7 +73,7 @@ Then run the script with:
 ./download_and_extract.sh
 ```
 
-Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data, before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
+Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data. Before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
 
 ```bash
 jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
@@ -84,7 +84,7 @@ You will then be able to open jupyter lab on your host machine by visting http:/
 To then launch the streamlit app run the following commands:
 
 ```bash 
-cd appp
+cd app
 streamlit run home.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
 ```
 
@@ -143,6 +143,15 @@ for sig in hyper_sig:
     hyper_params = load_hyperparams(sig)
     hyper_dict[sig] = hyper_params# Load signatures
 hyper_sig = load_obj("hyperparam_sigs")
+```
+
+### Testing
+
+There are unittests for our custom package jfk_taxis. They are written for pytest if you would like to run them simply run the following commands:
+
+```bash
+cd tests
+pytest
 ```
 
 
