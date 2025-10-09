@@ -254,12 +254,15 @@ def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_loo
             if (year == 2025) and (int(month) > config["eda"]["max_month_2025"]):
                 continue
 
-            # Load data frame for this year and month
-            df = pd.read_parquet(DATA_DIR_RAW / f"yellow_tripdata_{year}-{month:02}.parquet")
+            # Load data frame for this year and month, load only PULocationID and DOLocationID columns to save memory
+            df = pd.read_parquet(
+                DATA_DIR_RAW / f"yellow_tripdata_{year}-{month:02}.parquet",
+                columns = ["PULocationID", "DOLocationID"]
+            )
 
             # We need two data frames, one where we drop in the pick ups, one where we drop in the drop offs
-            df_pu = df.copy()
-            df_do = df.copy()
+            df_pu = df[["PULocationID"]].copy()
+            df_do = df[["DOLocationID"]].copy()
 
             # Drop boroughs from the df
             for borough in drop_boroughs: 
@@ -282,6 +285,10 @@ def create_save_listed_adjusted_choropleths(geo_data: gpd.GeoDataFrame, zone_loo
 
             # Export to HTML file
             m_4.save(DATA_DIR_MAPS / f"DOLocationID_count_by_zone_{str(year)}_{month}_{save_file_suffix}.html")
+
+            # Explicitly delete all large objects to free up memory
+            del df, df_pu, df_do, m_4, m_3
+
 
 def multiplot_choropleths(geo_data: gpd.GeoDataFrame, scale: list[int], years: list[int], months: list[int]) -> None:
     """ Function creates choropleth maps for pick ups and drop offs for each year and month provided, in the same figure on a fixed scale.

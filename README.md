@@ -147,7 +147,7 @@ hyper_sig = load_obj("hyperparam_sigs")
 
 ### Testing
 
-There are unittests for our custom package jfk_taxis. They are written for pytest if you would like to run them simply run the following commands:
+There are unittests for the custom package jfk_taxis. They are written for pytest if you would like to run them simply run the following commands:
 
 ```bash
 cd tests

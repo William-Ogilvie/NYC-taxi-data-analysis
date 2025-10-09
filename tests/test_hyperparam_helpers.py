@@ -2,7 +2,7 @@
 test_hyperparam_helpers.py
 ============================
 
-Unit tests for hyperparam_helpers.py. Again we won't test test_hyperparams because it essentially calls all the other smaller functions and plots the output. So just checking the plots manually is enough.
+Unit tests for hyperparam_helpers.py. 
 """
 
 from jfk_taxis import hyperparam_helpers
@@ -393,20 +393,20 @@ def test_test_hyperparams():
         # Then convert to UTC which is what the actual functions expect
         ts_daily_train = pd.Series(
             data=np.random.uniform(3500, 5500, size=365*2), 
-            index=pd.date_range(start="2021-01-01", periods=365*2, freq="D", tz="UTC")
+            index=pd.date_range(start="2021-01-01 00:00:00+00:00", periods=365*2, freq="D")
         )
         ts_daily_test = pd.Series(
             data=np.random.uniform(3500, 5500, size=60), 
-            index=pd.date_range(start="2023-01-01", periods=60, freq="D", tz="UTC")
+            index=pd.date_range(start="2023-01-01 00:00:00+00:00", periods=60, freq="D")
         )
         
         ts_hourly_train = pd.Series(
             data=np.random.uniform(50, 400, size=365*24*2), 
-            index=pd.date_range(start="2021-01-01", periods=365*24*2, freq="h", tz="UTC")
+            index=pd.date_range(start="2021-01-01 00:00:00+00:00", periods=365*24*2, freq="h")
         )
         ts_hourly_test = pd.Series(
             data=np.random.uniform(50, 400, size=168*2), 
-            index=pd.date_range(start="2023-01-01", periods=168*2, freq="h", tz="UTC")
+            index=pd.date_range(start="2023-01-01 00:00:00+00:00", periods=168*2, freq="h")
         )
 
         # Create sample hyperparameter dictionaries (minimal for smoke test)
