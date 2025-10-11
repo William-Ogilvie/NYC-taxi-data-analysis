@@ -79,7 +79,7 @@ Once the data has been downloaded you will want to start with the notebooks at l
 jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
 ```
 
-You will then be able to open jupyter lab on your host machine by visting http://127.0.0.1:8888/ in a browser. From here you will be able to see the projects notebooks inside the notebooks dir. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from intial exploration of the data for completness although they may have errors within them. Once you have completed notebook 3_data_processing.ipynb the time series data will now have been processed allowing you to launch the streamlit app. However it is recommened to complete notebooks 4 and 5 first as they will provide better context for the app itself. 
+You will then be able to open jupyter lab on your host machine by visting http://127.0.0.1:8888/ in a browser. From here you will be able to see the projects notebooks inside the notebooks dir. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from intial exploration of the data for completness although they may have errors within them. Once you have completed notebook 2_data_processing.ipynb the time series data will now have been processed allowing you to launch the streamlit app. However it is recommened to complete notebooks 3 through 5 first as they will provide better context for the app itself. 
 
 To then launch the streamlit app run the following commands:
 

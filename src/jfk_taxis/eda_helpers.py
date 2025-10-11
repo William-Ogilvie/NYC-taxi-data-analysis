@@ -342,7 +342,7 @@ def multiplot_choropleths(geo_data: gpd.GeoDataFrame, scale: list[int], years: l
         num_row = len(pu_dict) // 3 + 1    
     
     # Create the pick up plots
-    fig_pu, axes_pu = plt.subplots(nrows =  num_row, ncols = 3, figsize = (20, num_row * 7))
+    fig_pu, axes_pu = plt.subplots(nrows =  num_row, ncols = 3, figsize = (30, num_row * 10))
     
     i = 0 # To track which axis we are on
     for year_month, trips_count in pu_dict.items(): 
