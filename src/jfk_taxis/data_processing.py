@@ -277,7 +277,7 @@ def process_taxi_data(years: list[int], features: list[str]) -> None:
         bar.close()
 
 def taxi_data_visuals(years: list[int]) -> None:
-    """ Generates visualizations for taxi data (head and basic forecast plot).
+    """ Generates visualizations for taxi data (head and basic forecast plot). This function has to be optimised to avoid crashing the docker container by using too much memory
 
     Args:
         years (list[int]): the years of taxi data to visualize.
@@ -285,25 +285,38 @@ def taxi_data_visuals(years: list[int]) -> None:
     import gc
 
     for year in tqdm(years, desc= "Year"):
-       
-        # Load data 
-        df = load_parquet(year)
+        # Get all files for that year
+        files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
 
-        # Visualise data
-        display(df.head())
-        print("Shape:", df.shape)
-        display(df.isna().sum().to_frame("nulls"))
+        # As these are slightly different ways these files are formatted we will need to order them by month so when we concatonate we don't do it in the wrong order
+        files = sorted(files, key = lambda x: int(x.stem.split("-")[-1])) # x.stem is the file name without the suffix, so when we split on "-" the month will be the last one in the list
+
+        # Load just first file for display
+        df_first = pd.read_parquet(files[0], columns = ["tpep_pickup_datetime", "PULocationID"])
+        display(df_first.head())
+        del df_first
+
+        # Process files incrementally for counts
+        daily_counts = {}
+        total_rows = 0
+
+        for f in tqdm(files, desc="Processing files", leave = False):
+            df_chunk = pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"])
+            total_rows += len(df_chunk)
+
+            # Get dates and count
+            dates = df_chunk["tpep_pickup_datetime"].dt.date
+            for date, count in dates.value_counts().items():
+                daily_counts[date] = daily_counts.get(date, 0) + count
+            
+            del df_chunk
+            del dates
+            gc.collect()
         
-        # Daily time series
-        pickup_dates = df['tpep_pickup_datetime'].dt.date
+        print(f"Shape: ({total_rows}, 2)")
 
-        # Trips per day
-        df_daily_counts = pickup_dates.value_counts().sort_index()
-
-        # Explicitly delete df early before plotting
-        del df
-        del pickup_dates
-        gc.collect() # Force garbage collection
+        # Convert to Series for plotting
+        df_daily_counts = pd.Series(daily_counts).sort_index()
 
         # Plot
         ax = df_daily_counts.plot(figsize = (12, 6), title=f"Trips per day - {year}")
@@ -314,7 +327,9 @@ def taxi_data_visuals(years: list[int]) -> None:
 
         # Clean up
         del df_daily_counts
+        del daily_counts
         gc.collect()
+       
 
 def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> None:
     """ Creates time series plots for the specified feature and year.
