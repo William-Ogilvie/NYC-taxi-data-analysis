@@ -37,7 +37,7 @@
       304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 318, 319, 321,
       322, 323, 325, 326, 328, 329, 330, 333, 336, 343, 350, 357, 364, 371], daily_linear_trends: [
       0, 1, 2, 3, 4, 5], daily_offset: [11, 36, 63, 94, 112, 137, 192, 216, 233, 264,
-      309, 328, 373, 404, 411, 436, 465, 500], daily_offset_size: 30, daily_offsets_to_show: [
+      309, 328, 373, 404, 411, 436, 465], daily_offset_size: 30, daily_offsets_to_show: [
       11], daily_steps: [7, 30, 60], hourly_extra_lags: [4316, 4317, 4318, 4319, 4320,
       4321, 4322, 4323, 4333, 4340, 8733, 8734, 8735, 8736, 8757, 8758, 8759, 8760,
       8781, 8782, 8783, 8784], hourly_fourier_features: [WE, D], hourly_hybrid_trends: [
@@ -885,7 +885,7 @@
       33432, 33600, 33768, 33936, 34104, 34272, 34440, 34608, 34776, 34944, 35112],
     hourly_linear_trends: [0, 1, 2, 3, 4, 5], hourly_num_lags: 336, hourly_offset: [
       246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419, 7884, 8961,
-      9706, 9877, 10486, 11172, 12012, 13003], hourly_offset_size: 720, hourly_offsets_to_show: [
+      9706, 9877, 10486, 11172, 12012], hourly_offset_size: 720, hourly_offsets_to_show: [
       246], hourly_steps: [24, 168, 720], ts_daily_test_boundary: '2024-01-01', ts_daily_train_boundary: '2023-12-31',
     ts_hourly_test_boundary: '2024-01-01 05:00:00+00:00', ts_hourly_train_boundary: '2024-01-01
       04:00:00+00:00'}, saving: {daily_lags: daily, daily_ts_file_name: ts_daily2011-2025.csv,
