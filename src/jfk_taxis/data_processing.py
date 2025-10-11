@@ -282,6 +282,7 @@ def taxi_data_visuals(years: list[int]) -> None:
     Args:
         years (list[int]): the years of taxi data to visualize.
     """    
+    import gc
 
     for year in tqdm(years, desc= "Year"):
        
@@ -294,10 +295,15 @@ def taxi_data_visuals(years: list[int]) -> None:
         display(df.isna().sum().to_frame("nulls"))
         
         # Daily time series
-        df['pickup_date'] = df['tpep_pickup_datetime'].dt.date
+        pickup_dates = df['tpep_pickup_datetime'].dt.date
 
         # Trips per day
-        df_daily_counts = df.groupby('pickup_date').size()
+        df_daily_counts = pickup_dates.value_counts().sort_index()
+
+        # Explicitly delete df early before plotting
+        del df
+        del pickup_dates
+        gc.collect() # Force garbage collection
 
         # Plot
         ax = df_daily_counts.plot(figsize = (12, 6), title=f"Trips per day - {year}")
@@ -305,6 +311,10 @@ def taxi_data_visuals(years: list[int]) -> None:
         ax.set_ylabel("Trips")
         plt.tight_layout()
         plt.show()
+
+        # Clean up
+        del df_daily_counts
+        gc.collect()
 
 def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> None:
     """ Creates time series plots for the specified feature and year.
