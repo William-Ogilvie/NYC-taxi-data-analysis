@@ -19,7 +19,7 @@ import re
 config, PROJECT_ROOT = load_config()
 
 # --- Functions ---
-def compute_shap_values(design_sig: str, model_sig: str, model_prefix: str, linear: bool, hybrid: bool) -> tuple[shap.Explainer, pd.DataFrame]:
+def compute_shap_values(design_sig: str, model_sig: str, model_prefix: str, linear: bool, hybrid: bool, sample_size: int) -> tuple[shap.Explainer, pd.DataFrame]:
     """Compute SHAP values for a given model.
 
     Args:
@@ -28,6 +28,7 @@ def compute_shap_values(design_sig: str, model_sig: str, model_prefix: str, line
         model_prefix (str): the model prefix.
         linear (bool): whether the model is linear.
         hybrid (bool): whether the model is hybrid.
+        sample_size (int): number of samples to use for SHAP computation
 
     Returns:
         tuple[np.ndarray, pd.DataFrame]: the SHAP values and the design matrix.
@@ -55,12 +56,19 @@ def compute_shap_values(design_sig: str, model_sig: str, model_prefix: str, line
 
         model = non_linear_model_loaded[model_prefix][0]
 
+    # Due to memory constraints on the container we only do shap values for a sample of the data
+    if len(X) > sample_size:
+        print(f"Sampling {sample_size} rows from {len(X)} for SHAP computation")
+        X_sample = X.sample(n=sample_size, random_state = 37, axis = 0)
+    else:
+        X_sample = X
+
     # Compute SHAP values
-    explainer = shap.Explainer(model, X)
-    shap_values = explainer(X)
+    explainer = shap.Explainer(model, X_sample)
+    shap_values = explainer(X_sample)
 
     # Return SHAP values and the design matrix
-    return shap_values, X
+    return shap_values, X_sample
 
 def shap_plots(shap_values: shap.Explainer, X: pd.DataFrame, model_name: str) -> None:
     """Create SHAP plots for the given SHAP values and design matrix.

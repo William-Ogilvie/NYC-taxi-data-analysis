@@ -31,7 +31,7 @@ or
 docker build -t jfk-taxi:cpu --build-arg ENV_FILE=environemnt_cpu.yml .
 ```
 
-To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to it.
+To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to it. It is also worth noting that some of the project can be slightly memory intensive so it is worth ensuring your container will have access to at least 8 GBs of RAM.
 
 So the full docker run command is as follows:
 ```bash

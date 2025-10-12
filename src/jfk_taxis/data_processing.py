@@ -367,11 +367,14 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         # Create a subset using month:
         if len(month) != 0:
             plot_series = plot_series[plot_series.index.month.isin([month[0], month[1]])]
+            month_disp = f"{month[0]} to {month[1]}"
+        else:
+            month_disp = ""
             
         
 
         ax = sns.lineplot(data = plot_series)
-        ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year}", xlabel = "", ylabel = "Trips")
+        ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year} {month_disp}", xlabel = "", ylabel = "Trips")
         
         plt.xticks(rotation = 45, ha = "right")
         plt.show()
