@@ -154,6 +154,10 @@ cd tests
 pytest
 ```
 
+## Project Overview
+
+Just give overview to the setup, jfk_taxis package plus each notebook and what each one does.
+
 
 ## Reults / Key Findings
 
