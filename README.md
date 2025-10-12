@@ -11,6 +11,30 @@ Data source: [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-t
 via [NYC Open Data](https://opendata.cityofnewyork.us/).  
 © City of New York. Data made available under the NYC Open Data Terms of Use.
 
+## Project Overview
+
+The project is setup around the five notebooks you can find in the notebooks directory. I have written a python package inside the src directory called jfk_taxis that contains helper functions for the notebooks that do a lot of the heavy lifting behind the scenes. We will briefly explain roughly what each notebook does here and later on in the README comment on our results/findings.
+
+### 1_EDA.ipynb
+
+This notebook is focused on doing some inital EDA of taxi drop offs and pick ups in the entire of NYC. We create interactive folium choropleths across both the years and months from 2011-2025, and comment on a few things that appear to be going on within the data.
+
+### 2_data_processing.ipynb
+
+This notebook handles the processing of the raw parquet files into the daily and hourly time series of taxi pick ups at JFK Airport.
+
+### 3_EDA_JFK.ipynb
+
+This notebook does some intial EDA into the time series themselves. Mostly to try and work out what seasonality might be within the time series (yearly, weekly, daily etc) and also to find what lags would be a good idea to use as features. 
+
+### 4_modelling.ipynb
+
+This notebook does our inital modelling. We start with three strands of model: linear regression, XGBoost (referred to as the non_linear model in our notebooks) and a hybrid model which is linear regression with boosted residuals (so linear regression with XGBoost fitted to the residuals of the linear regression). We split the data into a training and test set. To assess the quality of the model on the test set we compute the MAE for multi step forecasts of different step length (so for daily step lengths of 7, 30, 60 and for hourly 24, 168 and 720) as well as starting at different offsets throughout the test series. We then take the average MAE across all the offsets and use that as a score to compare the models on each different step length. 
+
+### 5_model_selection.ipynb
+
+In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune the all the XGBoost models. Finally we again evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
+
 ## Usage
 
 Clone the repository:
