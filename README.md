@@ -179,3 +179,12 @@ Explain time zone conversions maybe? like converting to UTC to avoid DST errors
 
 maybe comment on how offsets work? every 30 days with a bit of jitter, so in total 7 offsets
 
+Comments on what we discovered in 1_EDA so like the change over years, the seasonality of taxis how that informs us to be interested in seasonality at JFK Airport.
+
+Comments on 3_EDA_JFK how we found seasonlaity + lags
+
+Comments on 4_modelling maybe the best models found + explanation of how we measure "best model"
+
+Comments on 5_model_selection comments on the fact the reduced feature sets go hard + the hyperparamter tuning etc.
+
+
