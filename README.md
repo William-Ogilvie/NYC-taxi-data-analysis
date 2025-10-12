@@ -13,7 +13,7 @@ via [NYC Open Data](https://opendata.cityofnewyork.us/).
 
 ## Project Overview
 
-The project is setup around the five notebooks you can find in the notebooks directory. I have written a python package inside the src directory called jfk_taxis that contains helper functions for the notebooks that do a lot of the heavy lifting behind the scenes. We will briefly explain roughly what each notebook does here and later on in the README comment on our results/findings.
+The project is setup around the five notebooks you can find in the notebooks directory. I have written a python package inside the src directory called jfk_taxis that contains helper functions for the notebooks that do a lot of the heavy lifting behind the scenes. We will briefly explain roughly what each notebook does here. Then later on in the README comment on our results/findings.
 
 ### 1_EDA.ipynb
 
