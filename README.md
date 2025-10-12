@@ -178,11 +178,6 @@ cd tests
 pytest
 ```
 
-## Project Overview
-
-Just give overview to the setup, jfk_taxis package plus each notebook and what each one does.
-
-
 ## Reults / Key Findings
 
 We initally perform EDA for the entire of the NYC taxi data, primarily using choropleths. We then shift our focus to JFK Airport and create two time series that count the total number of taxis at the Airport, one daily, one hourly. We explore these time series to try and find relevant predictive features that we could use for models. Our intial exploration suggests that daily and weekly fourier features could be good for our hourly time series, and weekly and yearly fourier features for our daily time series. We also get back a considerable number of lags for both time series that cover at least one year into the past. 
