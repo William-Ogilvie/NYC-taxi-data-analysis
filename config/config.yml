@@ -896,7 +896,7 @@
     shap_values_file: shap_values, target_file_suffix: target.pkl, ts_daily: daily,
     ts_hourly: hour, ts_prefix: ts}, shap: {daily_base_non_linear: {extracted_fourier_features: [
         YE, W], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 9, 10, 14, 19, 21, 23, 24, 28,
-        35, 84, 140, 330, 357, 364, 371], extracted_trends: []}, daily_hybrid_order: 3,
+        35, 84, 140, 330, 357, 364, 371], extracted_trends: []}, daily_hybrid_order: 0,
     daily_hybrid_order2: {extracted_fourier_features: [YE], extracted_lags: [1, 2,
         3, 4, 8, 10, 14, 23, 33, 41, 71, 78, 100, 105, 147, 152, 168, 232, 246, 281,
         297, 350, 357, 364], extracted_trends: [trend, trend_squared]}, daily_hybrid_order_list: [
