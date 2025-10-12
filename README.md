@@ -33,7 +33,7 @@ This notebook does our inital modelling. We start with three strands of model: l
 
 ### 5_model_selection.ipynb
 
-In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune the all the XGBoost models. Finally we again evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
+In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. Finally we again evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
 
 ## Usage
 
