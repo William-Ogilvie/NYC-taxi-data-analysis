@@ -448,20 +448,20 @@ def create_app_choropleths(geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame
     return M
 
 def load_geo_data_and_zone_lookup_app() -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
-    """ Loads the geo data and zone lookup data from the app data directory
+    """ Loads the geo data and zone lookup data
 
     Returns:
         tuple[gpd.GeoDataFrame, pd.DataFrame]: tuple containing the geo data and zone lookup data
     """    
 
     # Load the taxi zones shapefile using geopandas
-    geo_data = gpd.read_file(DATA_DIR_APP / "taxi_zones.shp")
+    geo_data = gpd.read_file(DATA_DIR_RAW / "taxi_zones.shp")
 
     # Reproject to EPSG 4326 for folium
     geo_data = geo_data.to_crs(epsg = 4326)
 
     # Load the taxi zone lookup file using pandas
-    zone_lookup = pd.read_csv(DATA_DIR_APP / "taxi_zone_lookup.csv")
+    zone_lookup = pd.read_csv(DATA_DIR_RAW / "taxi_zone_lookup.csv")
 
     return geo_data, zone_lookup
 

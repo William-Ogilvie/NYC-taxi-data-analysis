@@ -29,27 +29,27 @@ def test_load_ts_data():
     for i in range(0, len(ts_hourly) - 1):
         assert (ts_hourly.index[i+1] - ts_hourly.index[i]).seconds == 3600, "ts_hourly does not have hourly frequency"
 
-def test_load_ts_data_app():
-    """ test the load_ts_data_app function in training_helpers.py, note this test will only pass if there is actual some time series data to load for the app.
-    """    
-    from jfk_taxis import training_helpers
-    import pandas as pd
+# def test_load_ts_data_app():
+#     """ test the load_ts_data_app function in training_helpers.py, note this test will only pass if there is actual some time series data to load for the app.
+#     """    
+#     from jfk_taxis import training_helpers
+#     import pandas as pd
 
 
-    # Load data
-    ts_daily, ts_hourly = training_helpers.load_ts_data_app()
+#     # Load data
+#     ts_daily, ts_hourly = training_helpers.load_ts_data_app()
 
-    # Check types
-    assert isinstance(ts_daily, pd.Series), "ts_daily is not a pd.Series"
-    assert isinstance(ts_hourly, pd.Series), "ts_hourly is not a pd.Series"
-    assert isinstance(ts_daily.index, pd.DatetimeIndex), "ts_daily index is not a pd.DatetimeIndex"
-    assert isinstance(ts_hourly.index, pd.DatetimeIndex), "ts_hourly index is not a pd.DatetimeIndex"
+#     # Check types
+#     assert isinstance(ts_daily, pd.Series), "ts_daily is not a pd.Series"
+#     assert isinstance(ts_hourly, pd.Series), "ts_hourly is not a pd.Series"
+#     assert isinstance(ts_daily.index, pd.DatetimeIndex), "ts_daily index is not a pd.DatetimeIndex"
+#     assert isinstance(ts_hourly.index, pd.DatetimeIndex), "ts_hourly index is not a pd.DatetimeIndex"
 
-    # Check time step
-    for i in range(0, len(ts_daily) - 1):
-        assert (ts_daily.index[i+1] - ts_daily.index[i]).days == 1, "ts_daily does not have daily frequency"
-    for i in range(0, len(ts_hourly) - 1):
-        assert (ts_hourly.index[i+1] - ts_hourly.index[i]).seconds == 3600, "ts_hourly does not have hourly frequency"
+#     # Check time step
+#     for i in range(0, len(ts_daily) - 1):
+#         assert (ts_daily.index[i+1] - ts_daily.index[i]).days == 1, "ts_daily does not have daily frequency"
+#     for i in range(0, len(ts_hourly) - 1):
+#         assert (ts_hourly.index[i+1] - ts_hourly.index[i]).seconds == 3600, "ts_hourly does not have hourly frequency"
 
 def test_split_test_train_sets():
     """ Test the split_test_train_sets function in training_helpers.py

@@ -1,5 +1,5 @@
 import streamlit as st
-from jfk_taxis import load_config, load_ts_data_app, split_test_train_sets, create_train_save_models, load_models, run_forecasts_app, compute_shap_values
+from jfk_taxis import load_config, load_ts_data, split_test_train_sets, create_train_save_models, load_models, run_forecasts_app, compute_shap_values
 from xgboost import XGBRegressor
 import shap
 import matplotlib.pyplot as plt
@@ -15,7 +15,6 @@ HOURLY_LINEAR_SIG = "hourly_linear_models"
 HOURLY_NON_LINEAR_SIG = "hourly_non_linear_models"
 
 
-
 st.set_page_config(page_title="Time series", layout="wide")
 
 
@@ -25,7 +24,7 @@ def get_training_test_data():
     """Load and split the time series data into training and testing sets, store in session state.
     """    
 
-    ts_daily, ts_hourly = load_ts_data_app()
+    ts_daily, ts_hourly = load_ts_data()
 
     ts_daily_train, ts_daily_test, ts_hourly_train, ts_hourly_test = split_test_train_sets(ts_daily, ts_hourly)
 

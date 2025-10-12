@@ -67,29 +67,29 @@ def load_ts_data() -> tuple[pd.Series, pd.Series]:
 
     return ts_daily, ts_hourly
 
-def load_ts_data_app() -> tuple[pd.Series, pd.Series]:
-    """Load the time series data but from the app data dir.
+# def load_ts_data_app() -> tuple[pd.Series, pd.Series]:
+#     """Load the time series data but from the app data dir.
 
-    Returns:
-        tuple[pd.Series, pd.Series]: daily and hourly time series as pandas Series inxeded by datetime objects
-    """    
+#     Returns:
+#         tuple[pd.Series, pd.Series]: daily and hourly time series as pandas Series inxeded by datetime objects
+#     """    
 
-    # Get both the full daily and hourly time series
-    df_daily = pd.read_csv(DATA_DIR_APP / config["saving"]["daily_ts_file_name"])
-    df_hourly = pd.read_csv(DATA_DIR_APP / config["saving"]["hourly_ts_file_name"])
+#     # Get both the full daily and hourly time series
+#     df_daily = pd.read_csv(DATA_DIR_APP / config["saving"]["daily_ts_file_name"])
+#     df_hourly = pd.read_csv(DATA_DIR_APP / config["saving"]["hourly_ts_file_name"])
 
-    # Convert dates to datetime objects
-    df_daily["pickup_date"] = pd.to_datetime(df_daily["pickup_date"])
-    df_hourly["dt"] = pd.to_datetime(df_hourly["dt"])
+#     # Convert dates to datetime objects
+#     df_daily["pickup_date"] = pd.to_datetime(df_daily["pickup_date"])
+#     df_hourly["dt"] = pd.to_datetime(df_hourly["dt"])
 
     
 
-    # To pass the time series through our helper functions they need to be a pandas series indexed by a datetime object:
-    ts_hourly = pd.Series(df_hourly["trips"].values, index = df_hourly["dt"])
+#     # To pass the time series through our helper functions they need to be a pandas series indexed by a datetime object:
+#     ts_hourly = pd.Series(df_hourly["trips"].values, index = df_hourly["dt"])
 
-    ts_daily = pd.Series(df_daily["trips"].values, index = df_daily["pickup_date"])
+#     ts_daily = pd.Series(df_daily["trips"].values, index = df_daily["pickup_date"])
 
-    return ts_daily, ts_hourly
+#     return ts_daily, ts_hourly
 
 
 def split_test_train_sets(ts_daily: pd.Series, ts_hourly: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
