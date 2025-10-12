@@ -96,7 +96,7 @@ One of the things I found on my machine was that the Bayesian hyperparamter tuni
 
 First you will need to create an S3 bucket to store both the time series data but also the results of the hyperparameter tuning. I named the S3 bucket jfk-taxi-data-william-ogilvie. If you choose a different name you will need to manually alter the bash script hyperparam_tuning_bash.sh, change BUCKET to the name of your bucket. Inside the S3 bucket place the full time series data (ts_daily2011-2025.csv, ts_hourly2011-2025.csv) inside a data/time_series directory. 
 
-You will need to create an IAM role with AmazonS3FullAcess policy if you do not have one already. Then create the EC2 instance, I decided to use the Deep Learning Ubuntu 20.04 AMI as it has already got the Nividia drivers installed as well as docker, git and AWS CLI. Although I did only have access to CPU instances so wasn't able to test the GPU functionality on AWS. Make sure you give it the IAM role with AmazonS3FullAcess policy. 
+You will need to create an IAM role with AmazonS3FullAcess policy if you do not have one already. Then create the EC2 instance, I decided to use the Deep Learning Base AMI with Single CUDA (Ubuntu 22.04) AMI as it comes with git, docker and the AWS CLI pre installed and configured. I only have access to CPU instances so wasn't able to test the GPU functionality on AWS, but this instance should allow you to make use of the GPU if you would like. Make sure you give it the IAM role with AmazonS3FullAcess policy. 
 
 Now if you are going to use a GPU isntance you will need to modify the hyperparam_tuning_bash.sh script. Specifically change USE_GPU to be 1 rather than 0. Then change ENV to environment_gpu.yml rather than enviornment_cpu.yml. You may also want to change the name of the docker image under IMAGE for completness. 
 
@@ -125,7 +125,7 @@ Inside the tmux session we will then run the hyperparm_tuning_bash.sh script ins
 Run the hyperparam_tuning_bash.sh script inside the tmux session:
 
 ```bash
-cd project/NYC-taxi-data-analysis/scripts
+cd NYC-taxi-data-analysis/scripts
 bash hyperparam_tuning_bash.sh 2>&1
 ```
 
