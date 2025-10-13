@@ -885,7 +885,7 @@
       33432, 33600, 33768, 33936, 34104, 34272, 34440, 34608, 34776, 34944, 35112],
     hourly_linear_trends: [0, 1, 2, 3, 4, 5], hourly_num_lags: 336, hourly_offset: [
       246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419, 7884, 8961,
-      9706, 9877, 10486, 11172, 12012], hourly_offset_size: 720, hourly_offsets_to_show: [
+      9706, 9877, 10486, 11172, 12012, 13003], hourly_offset_size: 720, hourly_offsets_to_show: [
       246], hourly_steps: [24, 48, 168], ts_daily_test_boundary: '2024-01-01', ts_daily_train_boundary: '2023-12-31',
     ts_hourly_test_boundary: '2024-01-01 05:00:00+00:00', ts_hourly_train_boundary: '2024-01-01
       04:00:00+00:00'}, saving: {daily_lags: daily, daily_ts_file_name: ts_daily2011-2025.csv,
