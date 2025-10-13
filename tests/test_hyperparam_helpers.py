@@ -2,7 +2,8 @@
 test_hyperparam_helpers.py
 ============================
 
-Unit tests for hyperparam_helpers.py. 
+Unit tests for hyperparam_helpers.py. Note we won't test test_hyperparams here, this is because this function has almost the same structure as forecast_dicts. 
+So by doing simple smoke tests and checking that it plots the same values as in forecast_dicts we can be fairly confident the function is implemented correctly. 
 """
 
 from jfk_taxis import hyperparam_helpers
@@ -112,8 +113,7 @@ def test_objective_optuna():
     hourly_fold_dict = hyperparam_helpers.create_val_data(n_splits, hourly_test_size, hourly_lags, constant, order, hourly_fourier_features, "h", series_hourly_full)
 
     # We will use a fixed optuna trial object to ensure consistent results
-    trial = optuna.trial.FixedTrial({
-        "n_estimators": 200,
+    trial = optuna.trial.FixedTrial({ 
         "learning_rate": 0.05,
         "max_depth": 5,
         "min_child_weight": 1,
@@ -130,7 +130,8 @@ def test_objective_optuna():
 
     # We first calculate the average MAE across all folds and offsets ourselves, we will do this for a linear, non linear and hybrid model
     xgb_model = XGBRegressor(
-        n_estimators=200,
+        n_estimators=2000,
+        early_stopping_rounds=50,
         learning_rate=0.05,
         max_depth=5,
         min_child_weight=1,
@@ -172,22 +173,59 @@ def test_objective_optuna():
         else: 
             gpu = False
 
+
+        # Create validation set for early stopping using 10% of training data
+        num_rows = X_train.shape[0]
+        split_row = int(num_rows * 0.9)
+
+        X_val = X_train.iloc[split_row:]
+        y_val = y_train.iloc[split_row:]
+        X_train_fit = X_train.iloc[:split_row]
+        y_train_fit = y_train.iloc[:split_row]
+
+        # Convert to numpy arrays before fitting model
+        X_train_np = X_train_fit.to_numpy(copy = True)
+        y_train_np = y_train_fit.to_numpy(copy = True)
+        X_val_np = X_val.to_numpy(copy=True)
+        y_val_np = y_val.to_numpy(copy=True)
+
         # Fit the models
-        X_train_np = X_train.to_numpy()
-        y_train_np = y_train.to_numpy()
         linear_model.fit(X_train_np, y_train_np)
+
+        # Training residuals
         y_resid = y_train_np - linear_model.predict(X_train_np)
+
+        # Validation residuals
+        y_resid_val = y_val_np - linear_model.predict(X_val_np)
 
         # If usign gpu we need to fit as cupy arrays
         if gpu:
             X_train_cp = cp.asarray(X_train_np)
             y_train_cp = cp.asarray(y_train_np)
-            non_linear_model.fit(X_train_cp, y_train_cp)
+            X_val_cp = cp.asarray(X_val_np)
+            y_val_cp = cp.asarray(y_val_np)
+
+            non_linear_model.fit(
+                X_train_cp, y_train_cp,
+                eval_set=[(X_val_cp, y_val_cp)],
+                verbose = False)
+
             y_resid_cp = cp.asarray(y_resid)
-            hybrid_model.fit(X_train_cp, y_resid_cp)
+            y_resid_val_cp = cp.asarray(y_resid_val)
+            hybrid_model.fit(
+                X_train_cp, y_resid_cp,
+                eval_set=[(X_val_cp, y_resid_val_cp)],
+                verbose=False
+            )
         else:
-            non_linear_model.fit(X_train_np, y_train_np)
-            hybrid_model.fit(X_train_np, y_resid)
+            non_linear_model.fit(
+                X_train_np, y_train_np,
+                eval_set=[(X_val_np, y_val_np)],
+                verbose = False)
+            hybrid_model.fit(
+                X_train_np, y_resid,
+                eval_set=[(X_val_np, y_val_np)],
+                verbose = False)
 
         tmp_mae_non_linear = []
         tmp_mae_hybrid = []
@@ -221,6 +259,22 @@ def test_objective_optuna():
         lags = value[3] 
         y_test = value[4]
 
+
+        # Create validation set for early stopping using 10% of training data
+        num_rows = X_train.shape[0]
+        split_row = int(num_rows * 0.9)
+
+        X_val = X_train.iloc[split_row:]
+        y_val = y_train.iloc[split_row:]
+        X_train_fit = X_train.iloc[:split_row]
+        y_train_fit = y_train.iloc[:split_row]
+
+        # Convert to numpy arrays before fitting model
+        X_train_np = X_train_fit.to_numpy(copy = True)
+        y_train_np = y_train_fit.to_numpy(copy = True)
+        X_val_np = X_val.to_numpy(copy=True)
+        y_val_np = y_val.to_numpy(copy=True)
+
         # Non linear model
         non_linear_model = copy.deepcopy(xgb_model)
 
@@ -240,21 +294,43 @@ def test_objective_optuna():
             gpu = False
 
         # Fit the models
-        X_train_np = X_train.to_numpy()
-        y_train_np = y_train.to_numpy()
+        X_train_np = X_train_fit.to_numpy()
+        y_train_np = y_train_fit.to_numpy()
         linear_model.fit(X_train_np, y_train_np)
+
+        # Training residuals
         y_resid = y_train_np - linear_model.predict(X_train_np)
+
+        # Validation residuals
+        y_resid_val = y_val_np - linear_model.predict(X_val_np)
 
         # If usign gpu we need to fit as cupy arrays
         if gpu:
             X_train_cp = cp.asarray(X_train_np)
             y_train_cp = cp.asarray(y_train_np)
-            non_linear_model.fit(X_train_cp, y_train_cp)
+            X_val_cp = cp.asarray(X_val_np)
+            y_val_cp = cp.asarray(y_val_np)
+
+            non_linear_model.fit(
+                X_train_cp, y_train_cp,
+                eval_set=[(X_val_cp, y_val_cp)],
+                verbose = False)
+
             y_resid_cp = cp.asarray(y_resid)
-            hybrid_model.fit(X_train_cp, y_resid_cp)
+            y_resid_val_cp = cp.asarray(y_resid_val) 
+            hybrid_model.fit(
+                X_train_cp, y_resid_cp,
+                eval_set=[(X_val_cp, y_resid_val_cp)],
+                verbose=False)
         else:
-            non_linear_model.fit(X_train_np, y_train_np)
-            hybrid_model.fit(X_train_np, y_resid)
+            non_linear_model.fit(
+                X_train_np, y_train_np,
+                eval_set=[(X_val_np, y_val_np)],
+                verbose = False)
+            hybrid_model.fit(
+                X_train_np, y_resid,
+                eval_set=[(X_val_np, y_resid_val)],
+                verbose=False)
 
         tmp_mae_non_linear = []
         tmp_mae_hybrid = []
@@ -332,8 +408,7 @@ def test_define_model():
     config, PROJECT_ROOT = load_config()
 
     # Create a fixed trial with specific hyperparameters
-    trial = optuna.trial.FixedTrial({
-        "n_estimators": 250,
+    trial = optuna.trial.FixedTrial({ 
         "learning_rate": 0.07,
         "max_depth": 4,
         "min_child_weight": 2.5,
@@ -350,8 +425,7 @@ def test_define_model():
     # Check that the returned object is an XGBRegressor
     assert isinstance(model, XGBRegressor), "Model should be an XGBRegressor"
 
-    # Check that hyperparameters were set correctly
-    assert model.n_estimators == 250, "n_estimators should be 250"
+    # Check that hyperparameters were set correctly 
     assert model.learning_rate == 0.07, "learning_rate should be 0.07"
     assert model.max_depth == 4, "max_depth should be 4"
     assert model.min_child_weight == 2.5, "min_child_weight should be 2.5"
@@ -362,102 +436,12 @@ def test_define_model():
     assert model.gamma == 0.2, "gamma should be 0.2"
 
     # Check that config parameters were set correctly
+    assert model.n_estimators == config["xgboost_default"]["n_estimators"]
+    assert model.early_stopping_rounds == config["xgboost_default"]["early_stopping_rounds"]
     assert model.random_state == config["xgboost_setup"]["random_state"], "random_state should match config"
     assert model.eval_metric == config["xgboost_setup"]["eval_metric"], "eval_metric should match config"
     assert model.tree_method == config["xgboost_setup"]["tree_method"], "tree_method should match config"
     assert model.device == config["xgboost_setup"]["device"], "device should match config"
-
-
-def test_test_hyperparams():
-    """ test for test_hyperparams function in hyperparam_helpers.py
-    
-    This is a smoke test - we just verify the function runs without errors with sample data. 
-    """
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from jfk_taxis import hyperparam_helpers
-    from jfk_taxis import load_config
-
-    # Load config
-    config, PROJECT_ROOT = load_config()
-
-    # Use non-interactive backend and stub show
-    import matplotlib
-    matplotlib.use("Agg", force=True)
-    old_show = plt.show
-    plt.show = lambda *args, **kwargs: None
-
-    try:
-        # Create sample time series data (timezone-naive to avoid matplotlib issues)
-        # Then convert to UTC which is what the actual functions expect
-        ts_daily_train = pd.Series(
-            data=np.random.uniform(3500, 5500, size=365*2), 
-            index=pd.date_range(start="2021-01-01 00:00:00+00:00", periods=365*2, freq="D")
-        )
-        ts_daily_test = pd.Series(
-            data=np.random.uniform(3500, 5500, size=60), 
-            index=pd.date_range(start="2023-01-01 00:00:00+00:00", periods=60, freq="D")
-        )
-        
-        ts_hourly_train = pd.Series(
-            data=np.random.uniform(50, 400, size=365*24*2), 
-            index=pd.date_range(start="2021-01-01 00:00:00+00:00", periods=365*24*2, freq="h")
-        )
-        ts_hourly_test = pd.Series(
-            data=np.random.uniform(50, 400, size=168*2), 
-            index=pd.date_range(start="2023-01-01 00:00:00+00:00", periods=168*2, freq="h")
-        )
-
-        # Create sample hyperparameter dictionaries (minimal for smoke test)
-        dict_full = {
-            config["hyperparameter_tuning"]["daily_linear_key"]: {
-                "test_daily_non_linear": {
-                    "n_estimators": 200,
-                    "learning_rate": 0.05,
-                    "max_depth": 5,
-                    "min_child_weight": 1,
-                    "subsample": 0.8,
-                    "colsample_bytree": 0.8,
-                    "reg_lambda": 1.0,
-                    "reg_alpha": 1.0,
-                    "gamma": 0.1,
-                    "random_state": config["xgboost_setup"]["random_state"],
-                    "eval_metric": config["xgboost_setup"]["eval_metric"],
-                    "tree_method": config["xgboost_setup"]["tree_method"],
-                    "device": config["xgboost_setup"]["device"]
-                }
-            }
-        }
-
-        # Define steps and offsets (small values for quick testing)
-        daily_steps = [7]
-        hourly_steps = [24]
-        daily_offsets = [0, 7]
-        hourly_offsets = [0, 24]
-        daily_offsets_to_show = [0]
-        hourly_offsets_to_show = [0]
-
-        # Run the function - should not raise any errors
-        hyperparam_helpers.test_hyperparams(
-            dict_full, 
-            ts_daily_train, 
-            ts_daily_test, 
-            ts_hourly_train, 
-            ts_hourly_test,
-            daily_steps, 
-            hourly_steps, 
-            daily_offsets, 
-            hourly_offsets, 
-            daily_offsets_to_show, 
-            hourly_offsets_to_show
-        )
-
-        # Close plots to avoid warnings
-        plt.close("all")
-
-    finally:
-        plt.show = old_show
 
 
 

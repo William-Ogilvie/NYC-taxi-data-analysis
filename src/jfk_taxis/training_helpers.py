@@ -26,8 +26,6 @@ SAVE_DIR = str(SAVED_OBJECTS_PATH.resolve())
 
 # Data paths
 DATA_DIR_PROCESSED = PROJECT_ROOT / Path(config["data"]["data_path"]) / Path(config["data"]["processed_path"])
-DATA_DIR_APP = PROJECT_ROOT / Path(config["data"]["app_path"]) / Path(config["data"]["app_data_path"])
-
 
 # Name saving conventions
 MODEL = config["saving"]["model_file_suffix"]

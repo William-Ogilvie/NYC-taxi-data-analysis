@@ -98,8 +98,15 @@ def test_compute_shap_values():
     """ test the compute_shap_values function to ensure it returns SHAP values and a design matrix.
     """    
     from jfk_taxis import shap_helpers
-    from jfk_taxis import load_design, load_models 
+    from jfk_taxis import load_design, load_models, load_config 
     import numpy as np
+
+    # Load config
+    config, PROJECT_ROOT = load_config()
+
+    # Get sample sizes
+    daily_sample_size = config["shap"]["daily_sample_size"]
+    hourly_sample_size = config["shap"]["hourly_sample_size"]
 
     # This function is going to expect a design sig and a model sig.
     # We will reuse the ones from the modelling_helpers tests, this is implemented in the create_models_designs_for_shap_tests above
@@ -107,7 +114,7 @@ def test_compute_shap_values():
 
     # Daily linear
     # We will look at "model_1" which is a linear model and "model4" which is a non-linear model
-    shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_1", linear=True, hybrid=False)
+    shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_1", linear=True, hybrid=False, sample_size = daily_sample_size)
 
     # We will use load_design and load_model to check the outputs
     linear_design_loaded, non_linear_design_loaded = load_design(daily_linear_sig)
@@ -127,7 +134,7 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for non linear model
-    shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_4", linear=False, hybrid=False)
+    shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_4", linear=False, hybrid=False, sample_size = daily_sample_size)
 
     X_check = non_linear_design_loaded["model_4"][0]
     model = non_linear_model_loaded["model_4"][0]
@@ -141,7 +148,7 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Now repeat for hybrid daily, we use "model_7" which is the hybrid model and "model_5" which is the non-linear model
-    shap_values, X = shap_helpers.compute_shap_values(daily_hybrid_sig, daily_hybrid_sig, "model_7", linear=True, hybrid=True)
+    shap_values, X = shap_helpers.compute_shap_values(daily_hybrid_sig, daily_hybrid_sig, "model_7", linear=True, hybrid=True, sample_size = daily_sample_size)
 
     linear_design_loaded, non_linear_design_loaded = load_design(daily_hybrid_sig)
     linear_model_loaded, non_linear_model_loaded = load_models(daily_hybrid_sig)
@@ -158,7 +165,7 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for non linear model
-    shap_values, X = shap_helpers.compute_shap_values(daily_hybrid_sig, daily_hybrid_sig, "model_5", linear=False, hybrid=False)
+    shap_values, X = shap_helpers.compute_shap_values(daily_hybrid_sig, daily_hybrid_sig, "model_5", linear=False, hybrid=False, sample_size = daily_sample_size)
 
     X_check = non_linear_design_loaded["model_5"][0]
     model = non_linear_model_loaded["model_5"][0]
@@ -172,12 +179,13 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for hourly linear, we use "model_2" which is a linear model and "model_5" which is a non-linear model
-    shap_values, X = shap_helpers.compute_shap_values(hourly_linear_sig, hourly_linear_sig, "model_2", linear=True, hybrid=False)
+    shap_values, X = shap_helpers.compute_shap_values(hourly_linear_sig, hourly_linear_sig, "model_2", linear=True, hybrid=False, sample_size = hourly_sample_size)
 
     linear_design_loaded, non_linear_design_loaded = load_design(hourly_linear_sig) 
     linear_model_loaded, non_linear_model_loaded = load_models(hourly_linear_sig)
 
-    X_check = linear_design_loaded["model_2"][0]
+    # Beacuse compute_shap_values random samples for the hourly design matricies we have to do the same here
+    X_check = linear_design_loaded["model_2"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = linear_model_loaded["model_2"][0]
 
     shap_values_check = get_shap_values(model, X)
@@ -189,8 +197,8 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for non linear model
-    shap_values, X = shap_helpers.compute_shap_values(hourly_linear_sig, hourly_linear_sig, "model_5", linear=False, hybrid=False)
-    X_check = non_linear_design_loaded["model_5"][0]
+    shap_values, X = shap_helpers.compute_shap_values(hourly_linear_sig, hourly_linear_sig, "model_5", linear=False, hybrid=False, sample_size = hourly_sample_size)
+    X_check = non_linear_design_loaded["model_5"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = non_linear_model_loaded["model_5"][0]
 
     shap_values_check = get_shap_values(model, X)
@@ -202,12 +210,12 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for hybrid hourly we use "model_8" which is the hybrid model and "model_6" which is the non-linear model
-    shap_values, X = shap_helpers.compute_shap_values(hourly_hybrid_sig, hourly_hybrid_sig, "model_8", linear=True, hybrid=True)
+    shap_values, X = shap_helpers.compute_shap_values(hourly_hybrid_sig, hourly_hybrid_sig, "model_8", linear=True, hybrid=True, sample_size = hourly_sample_size)
 
     linear_design_loaded, non_linear_design_loaded = load_design(hourly_hybrid_sig)
     linear_model_loaded, non_linear_model_loaded = load_models(hourly_hybrid_sig)
 
-    X_check = linear_design_loaded["model_8"][0]
+    X_check = linear_design_loaded["model_8"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = linear_model_loaded["model_8"][2]  # Hybrid model is index
 
     shap_values_check = get_shap_values(model, X)
@@ -219,7 +227,7 @@ def test_compute_shap_values():
     assert X.equals(X_check), "Design matrices do not match"
 
     # Repeat for non linear model
-    shap_values, X = shap_helpers.compute_shap_values(hourly_hybrid_sig, hourly_hybrid_sig, "model_6", linear=False, hybrid=False)
+    shap_values, X = shap_helpers.compute_shap_values(hourly_hybrid_sig, hourly_hybrid_sig, "model_6", linear=False, hybrid=False, sample_size = hourly_sample_size)
 
     X_check = non_linear_design_loaded["model_6"][0]
     model = non_linear_model_loaded["model_6"][0]
@@ -238,9 +246,12 @@ def test_shap_plots():
     This is a smoke test - we just verify the function runs successfully with valid inputs.
     """
     from jfk_taxis import shap_helpers
-    from jfk_taxis import load_design, load_models
+    from jfk_taxis import load_design, load_models, load_config
     import matplotlib.pyplot as plt
     import numpy as np
+
+    # Load config
+    config, PROJECT_ROOT = load_config()
 
     # Use non-interactive backend and stub show
     import matplotlib
@@ -248,12 +259,16 @@ def test_shap_plots():
     old_show = plt.show
     plt.show = lambda *args, **kwargs: None
 
+    # Daily and hourly sample size
+    daily_sample_size = config["shap"]["daily_sample_size"]
+    hourly_sample_size = config["shap"]["hourly_sample_size"]
+
     try:
         # Create models and designs for testing
         daily_linear_sig, hourly_linear_sig, daily_hybrid_sig, hourly_hybrid_sig = create_models_designs_for_shap_tests()
 
         # Load a model and design to get SHAP values
-        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_1", linear=True, hybrid=False)
+        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_1", linear=True, hybrid=False, sample_size = daily_sample_size)
 
         # Run shap_plots - should not raise any errors
         shap_helpers.shap_plots(shap_values, X, "model_1")
@@ -262,7 +277,7 @@ def test_shap_plots():
         plt.close("all")
 
         # Test with a non-linear model as well
-        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_4", linear=False, hybrid=False)
+        shap_values, X = shap_helpers.compute_shap_values(daily_linear_sig, daily_linear_sig, "model_4", linear=False, hybrid=False, sample_size = daily_sample_size)
         shap_helpers.shap_plots(shap_values, X, "model_4")
 
         # Close plots to avoid warnings

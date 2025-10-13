@@ -483,7 +483,7 @@ def test_load_geo_data_and_zone_lookup_app():
 
     # Get config
     config, PROJECT_ROOT = load_config()
-    DATA_DIR_APP = PROJECT_ROOT / config["data"]["app_path"] / config["data"]["app_data_path"]
+    DATA_DIR_APP = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
 
     # Create temporary directory for backup
     temp_dir = DATA_DIR_APP / "temp_test_backup"

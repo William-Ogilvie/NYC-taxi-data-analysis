@@ -146,7 +146,7 @@ def fit_linear(X: pd.DataFrame, y: pd.Series) -> LinearRegression:
     return model
 
 def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
-    """ Fits XGBoost to the design matrix and target vector
+    """ Fits XGBoost to the design matrix and target vector, use early stopping on 10% of training data when fitting
 
     Args:
         X (pd.DataFrame): design matrix
@@ -156,8 +156,18 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
         XGBRegressor: fitted XGBoost model
     """
 
+    # Create validation set for early stopping use 10% of training data
+    num_rows = X.shape[0]
+    split_row = int(num_rows * 0.9)
+
+    X_train = X.iloc[:split_row]
+    y_train = y.iloc[:split_row]
+    X_val = X.iloc[split_row:]
+    y_val = y.iloc[split_row:]   
+
     # Convert to numpy arrays
-    (X, y) = to_numpy(X, y)
+    (X_train, y_train) = to_numpy(X_train, y_train)
+    (X_val, y_val) = to_numpy(X_val, y_val)
     
     # XGBoost:
     model_xgb = XGBRegressor(
@@ -166,6 +176,7 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
         max_depth=config["xgboost_default"]["max_depth"],
         subsample=config["xgboost_default"]["subsample"],
         colsample_bytree=config["xgboost_default"]["colsample_bytree"],
+        early_stopping_rounds = config["xgboost_default"]["early_stopping_rounds"],
         random_state=config["xgboost_setup"]["random_state"],
         eval_metric=config["xgboost_setup"]["eval_metric"],
         tree_method=config["xgboost_setup"]["tree_method"],
@@ -174,11 +185,16 @@ def fit_non_linear(X: pd.DataFrame, y: pd.Series) -> XGBRegressor:
     
     # If using GPU convert to CUPy arrays 
     if config["xgboost_setup"]["device"] == "cuda":
-        X = cp.asarray(X)
-        y = cp.asarray(y)
+        X_train = cp.asarray(X_train)
+        y_train = cp.asarray(y_train)
+        X_val = cp.asarray(X_val)
+        y_val = cp.asarray(y_val)
 
     # Fit model
-    model_xgb.fit(X, y)
+    model_xgb.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)], 
+        verbose = False)
 
     return model_xgb
 

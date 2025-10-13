@@ -190,20 +190,41 @@ def train_hybrid_models(linear_design: dict, hybrid_model: XGBRegressor) -> dict
         dp = value[2]
         lags = value[3]
 
-        # First fit the linear model
-        linear_model = fit_linear(X, y)
+        # Create validation set for early stopping use 10% of training data
+        num_rows = X.shape[0]
+        split_row = int(num_rows * 0.9)
 
-        # Get fitted values (convert X to numpy array for prediction)
-        X_pred = X.to_numpy()
-        y_fit = linear_model.predict(X_pred)
+        X_train = X.iloc[:split_row]
+        y_train = y.iloc[:split_row]
+        X_val = X.iloc[split_row:]
+        y_val = y.iloc[split_row:]
+
+        # First fit the linear model
+        linear_model = fit_linear(X_train, y_train)
+
+        # Get fitted values (convert X_fit to numpy array for prediction)
+        X_train_np = X_train.to_numpy()
+        y_train_np = y_train.to_numpy()
+        y_fit = linear_model.predict(X_train_np)
 
         # Compute resiudals
-        y_resid = y - y_fit
+        y_resid = y_train_np - y_fit
+
+        # Repeat for the validation set
+        X_val_np = X_val.to_numpy()
+        y_val_np = y_val.to_numpy()
+        y_fit_val = linear_model.predict(X_val_np)
+
+        # Compute residuals
+        y_resid_val = y_val_np - y_fit_val
  
         # Fit the non linear component to the residuals
         # We need to make a deepcopy of the hybrid model as otherwise we will be just fitting to the same model several times
         hybrid_model_copy = copy.deepcopy(hybrid_model)
-        hybrid_model_copy.fit(X, y_resid)
+        hybrid_model_copy.fit(
+            X_train_np, y_resid,
+            eval_set=[(X_val_np, y_resid_val)],
+            verbose = False)
 
         # Update hybrid models dict, note how we pass the model in two components the linear part and the hybrid part
         # See src/jfk_taxis/forecast_helpers.py to see why

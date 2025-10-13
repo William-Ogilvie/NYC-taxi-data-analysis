@@ -16,7 +16,15 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "xgboost",
-    "statsmodels"
+    "statsmodels",
+    "shap",
+    "folium",
+    "streamlit-folium",
+    "optuna",
+    "geopandas",
+    "cupy",
+    "joblib",
+    "pytest"
 ]
 
 [tool.setuptools.packages.find]

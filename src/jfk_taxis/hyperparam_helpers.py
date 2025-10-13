@@ -254,7 +254,8 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
     # Define search space
     space = {
     # Number of trees
-    "n_estimators": trial.suggest_int("n_estimators", 100, 500),
+    "n_estimators": config["xgboost_default"]["n_estimators"], # we use early stopping to select for n_estimators
+    "early_stopping_rounds": config["xgboost_default"]["early_stopping_rounds"],
 
     # Learning rate
     # step size shrinkage, smaller = slower but more precise learning
@@ -282,8 +283,7 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
     # minimum loss reduction required to split a node, higher values = more conservative
     "gamma": trial.suggest_float("gamma", 0.0009, 10.0, log=True), # approx [0.0009, 10]
 
-    "random_state": config["xgboost_setup"]["random_state"],
-    #"early_stopping_rounds": 100,
+    "random_state": config["xgboost_setup"]["random_state"], 
     "eval_metric": config["xgboost_setup"]["eval_metric"], 
     "tree_method": config["xgboost_setup"]["tree_method"], 
     "device": config["xgboost_setup"]["device"] # Use GPU if available
@@ -291,6 +291,7 @@ def define_model(trial: optuna.trial.Trial) -> XGBRegressor:
 
     model = XGBRegressor(
         n_estimators = space["n_estimators"],
+        early_stopping_rounds = space["early_stopping_rounds"],
         
         learning_rate = space["learning_rate"],
 
@@ -351,30 +352,21 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
         dp = value[2]
         lags = value[3]
         y_test = value[4]
- 
 
-        # We are going to use early stopping, now to avoid very long computations we will take a slight shorcut in that the validation set will have 
-        # the "real lags" rather than the lags computed during the forecast on the test set of the fold. 
+        # Create validation set for early stopping using 10% of training data
+        num_rows = X_train.shape[0]
+        split_row = int(num_rows * 0.9)
 
-        # # Get the number of rows in X_train
-        # num_rows = X_train.shape[0]
-
-        # # We will validate on about 10% of the data
-        # split_row = int(num_rows * 0.9) # this tells us which row to split on
-        # X_val = X_train.iloc[split_row:]
-        # y_val = y_train.iloc[split_row:]
-    
-
-        # X_train = X_train.iloc[:split_row]
-        # y_train = y_train.iloc[:split_row]
+        X_val = X_train.iloc[split_row:]
+        y_val = y_train.iloc[split_row:]
+        X_train_fit = X_train.iloc[:split_row]
+        y_train_fit = y_train.iloc[:split_row]
 
         # Convert to numpy arrays before fitting model
-        X_train_np = X_train.to_numpy(copy = True)
-        y_train_np = y_train.to_numpy(copy = True)
-
-
-        # X_val_np = X_val.to_numpy(copy = True)
-        # y_val_np = y_val.to_numpy(copy = True)
+        X_train_np = X_train_fit.to_numpy(copy = True)
+        y_train_np = y_train_fit.to_numpy(copy = True)
+        X_val_np = X_val.to_numpy(copy=True)
+        y_val_np = y_val.to_numpy(copy=True)
 
         # Time fitting the model
         start_fit = time.time()
@@ -385,28 +377,48 @@ def objective_optuna(trial: optuna.trial.Trial, fold_dict: dict, steps: int, hyb
             if config["xgboost_setup"]["device"] == "cuda":
                 X_train_cp = cp.asarray(X_train_np)
                 y_train_cp = cp.asarray(y_train_np)
+                X_val_cp = cp.asarray(X_val_np)
+                y_val_cp = cp.asarray(y_val_np)
 
                 # Fit the model
-                model.fit(X_train_cp, y_train_cp)
+                model.fit(
+                    X_train_cp, y_train_cp,
+                    eval_set=[(X_val_cp, y_val_cp)],
+                    verbose = False)
             else:
-                model.fit(X_train_np, y_train_np)
+                model.fit(
+                    X_train_np, y_train_np,
+                    eval_set=[(X_val_np, y_val_np)],
+                    verbose = False)
 
         # If we have a hyrid model then this will need to be fit to the data first (as it is the linear part) and then we pass the XGBoost part to the forecast as hybrid
         else: 
             # Fit model to the data (we fit to the numpy arrays as model is a linear regression)
             model.fit(X_train_np, y_train_np)
 
-            # We now need to compute the residuals and fit the hybrid model to these
+            # Compute residuals on training set 
             y_fit = model.predict(X_train_np)
             y_resid = y_train_np - y_fit
+
+            # Compute residuals on validation set
+            y_fit_val = model.predict(X_val_np)
+            y_resid_val = y_val_np - y_fit_val
 
             # Convert to CuPy arrays if using GPU and fit the model
             if config["xgboost_setup"]["device"] == "cuda":
                 X_train_cp = cp.asarray(X_train_np)
                 y_resid_cp = cp.asarray(y_resid)
-                hybrid.fit(X_train_cp, y_resid_cp)
+                X_val_cp = cp.asarray(X_val_np)
+                y_resid_val_cp = cp.asarray(y_resid_val)
+                hybrid.fit(
+                    X_train_cp, y_resid_cp,
+                    eval_set=[(X_val_cp, y_resid_val_cp)],
+                    verbose = False)
             else:
-                hybrid.fit(X_train_np, y_resid)
+                hybrid.fit(
+                    X_train_np, y_resid,
+                    eval_set=[(X_val_np, y_resid_val)],
+                    verbose = False)
 
         end_fit = time.time()
 
@@ -545,21 +557,40 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     **value2 
                 )
 
+                # Create validation set for early stopping use 10% of training data
+                num_rows = X.shape[0]
+                split_row = int(num_rows * 0.9)
+
+                X_train = X.iloc[:split_row]
+                y_train = y.iloc[:split_row]
+                X_val = X.iloc[split_row:]
+                y_val = y.iloc[split_row:]   
+
                 # Check if using gpu
                 if config["xgboost_setup"]["device"] == "cuda":
                     # Convert to CuPy arrays before fitting model
-                    X_cp = cp.asarray(X)
-                    y_cp = cp.asarray(y)
+                    X_train_cp = cp.asarray(X_train)
+                    y_train_cp = cp.asarray(y_train)
+                    X_val_cp = cp.asarray(X_val)
+                    y_val_cp = cp.asarray(y_val)
 
                     # Fit the model
-                    new_non_linear.fit(X_cp,y_cp)
+                    new_non_linear.fit(
+                        X_train_cp, y_train_cp,
+                        eval_set=[(X_val_cp, y_val_cp)],
+                        verbose = False)
                 else:
                     # Convert to Numpy arrays before fitting model
-                    X_np = X.to_numpy(copy = True)
-                    y_np = y.to_numpy(copy = True)
+                    X_train_np = X_train.to_numpy(copy = True)
+                    y_train_np = y_train.to_numpy(copy = True)
+                    X_val_np = X_val.to_numpy(copy = True)
+                    y_val_np = y_val.to_numpy(copy = True)
 
                     # Fit the model
-                    new_non_linear.fit(X_np,y_np)
+                    new_non_linear.fit(
+                        X_train_np, y_train_np,
+                        eval_set=[(X_val_np, y_val_np)],
+                        verbose = False)
 
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)
@@ -602,24 +633,50 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][2])
                     lags = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][3])
 
+
+                    # Create validation set for early stopping use 10% of training data
+                    num_rows = X.shape[0]
+                    split_row = int(num_rows * 0.9)
+
+                    X_train = X.iloc[:split_row]
+                    y_train = y.iloc[:split_row]
+                    X_val = X.iloc[split_row:]
+                    y_val = y.iloc[split_row:]  
+
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
 
                     # Convert to numpy arrays before prediction
-                    X_pred = X.to_numpy(copy = True)
+                    X_train_np = X_train.to_numpy(copy = True)
+                    X_val_np = X_val.to_numpy(copy = True)
+                    y_train_np = y_train.to_numpy(copy = True)
+                    y_val_np = y_val.to_numpy(copy = True)
 
-                    # Compute residuals
-                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_pred)
-                    y_resid = y - y_fit
+                    # Compute residuals for both train and val sets
+                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_train_np)
+                    y_resid_np = y_train_np - y_fit
+                    y_fit_val = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_val_np)
+                    y_resid_val_np = y_val_np - y_fit_val
+                     
 
                     # If using GPU convert to CuPy arrays and fit the model
                     if config["xgboost_setup"]["device"] == "cuda":
-                        X_cp = cp.asarray(X)
-                        y_resid_cp = cp.asarray(y_resid)
-                        tmp_hybrid.fit(X_cp, y_resid_cp)
+                        X_train_cp = cp.asarray(X_train_np)
+                        y_resid_cp = cp.asarray(y_resid_np)
+                        X_val_cp = cp.asarray(X_val_np)
+                        y_resid_val_cp = cp.asarray(y_resid_val_np)
+
+                        tmp_hybrid.fit(
+                            X_train_cp, y_resid_cp,
+                            eval_set=[(X_val_cp, y_resid_val_cp)],
+                            verbose = False)
                     else:
+                        
                         # Fit hybrid to residuals
-                        tmp_hybrid.fit(X, y_resid)
+                        tmp_hybrid.fit(
+                            X_train_np, y_resid_np,
+                            eval_set = [(X_val_np, y_resid_val_np)],
+                            verbose = False)
                     
                     # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
                     plotting_hybrid_models_loaded[f"{key2}_order{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid, lags)
@@ -649,21 +706,41 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     **value2
                 )
 
+                # Create validation set for early stopping use 10% of training data
+                num_rows = X.shape[0]
+                split_row = int(num_rows * 0.9)
+
+                X_train = X.iloc[:split_row]
+                y_train = y.iloc[:split_row]
+                X_val = X.iloc[split_row:]
+                y_val = y.iloc[split_row:]   
+
                 # Check if using gpu
                 if config["xgboost_setup"]["device"] == "cuda":
                     # Convert to CuPy arrays before fitting model
-                    X_cp = cp.asarray(X)
-                    y_cp = cp.asarray(y)
+                    X_train_cp = cp.asarray(X_train)
+                    y_train_cp = cp.asarray(y_train)
+                    X_val_cp = cp.asarray(X_val)
+                    y_val_cp = cp.asarray(y_val)
 
                     # Fit the model
-                    new_non_linear.fit(X_cp,y_cp)
+                    new_non_linear.fit(
+                        X_train_cp, y_train_cp,
+                        eval_set=[(X_val_cp, y_val_cp)],
+                        verbose = False)
+
                 else:
                     # Convert to Numpy arrays before fitting model
-                    X_np = X.to_numpy(copy = True)
-                    y_np = y.to_numpy(copy = True)
+                    X_train_np = X_train.to_numpy(copy = True)
+                    y_train_np = y_train.to_numpy(copy = True)
+                    X_val_np = X_val.to_numpy(copy = True)
+                    y_val_np = y_val.to_numpy(copy = True)
 
                     # Fit the model
-                    new_non_linear.fit(X_np,y_np)
+                    new_non_linear.fit(
+                        X_train_np, y_train_np,
+                        eval_set=[(X_val_np, y_val_np)],
+                        verbose = False)
 
                 # Add this non linear model to the dict of non linear models
                 non_linear_models_loaded[key2] = (new_non_linear, dp, None, lags)
@@ -709,25 +786,48 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     dp = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][2])
                     lags = copy.deepcopy(hybrid_design_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][3])
 
+                    # Create validation set for early stopping use 10% of training data
+                    num_rows = X.shape[0]
+                    split_row = int(num_rows * 0.9)
+
+                    X_train = X.iloc[:split_row]
+                    y_train = y.iloc[:split_row]
+                    X_val = X.iloc[split_row:]
+                    y_val = y.iloc[split_row:]  
+
                     # Make a temporary copy of the hybrid model to avoid overwriting the original
                     tmp_hybrid = copy.deepcopy(new_hybrid)
 
                     # Convert to numpy arrays before prediction
-                    X_pred = X.to_numpy(copy = True)
+                    X_train_np = X_train.to_numpy(copy = True)
+                    X_val_np = X_val.to_numpy(copy = True)
+                    y_train_np = y_train.to_numpy(copy = True)
+                    y_val_np = y_val.to_numpy(copy = True)
 
-                    # Compute residuals
-                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0].predict(X_pred)
-                    y_resid = y - y_fit
+                    # Compute residuals for both train and val sets
+                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_train_np)
+                    y_resid_np = y_train_np - y_fit
+                    y_fit_val = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_val_np)
+                    y_resid_val_np = y_val_np - y_fit_val
 
                     # If using GPU convert to CuPy arrays and fit the model
                     if config["xgboost_setup"]["device"] == "cuda":
-                        X_cp = cp.asarray(X)
-                        y_resid_cp = cp.asarray(y_resid)
-                        tmp_hybrid.fit(X_cp, y_resid_cp)
+                        X_train_cp = cp.asarray(X_train_np)
+                        y_resid_cp = cp.asarray(y_resid_np)
+                        X_val_cp = cp.asarray(X_val_np)
+                        y_resid_val_cp = cp.asarray(y_resid_val_np)
+
+                        tmp_hybrid.fit(
+                            X_train_cp, y_resid_cp,
+                            eval_set=[(X_val_cp, y_resid_val_cp)],
+                            verbose = False)
                     else:
                         # Fit hybrid to residuals
-                        tmp_hybrid.fit(X, y_resid)
-                    
+                        tmp_hybrid.fit(
+                            X_train_np, y_resid_np,
+                            eval_set = [(X_val_np, y_resid_val_np)],
+                            verbose = False)
+                   
                     # Add this hybrid model to the dict of plotting hybrid models along with the corresponding original model
                     plotting_hybrid_models_loaded[f"{key2}_order{i}"] = (hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0], dp, tmp_hybrid, lags)
                     plotting_hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"] = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"]

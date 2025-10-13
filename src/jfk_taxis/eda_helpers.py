@@ -21,7 +21,6 @@ config, PROJECT_ROOT = load_config()
 # --- Constants and Paths ---
 DATA_DIR_MAPS = PROJECT_ROOT / config["data"]["reports_path"] / config["data"]["maps_path"]
 DATA_DIR_RAW = PROJECT_ROOT / config["data"]["data_path"] / config["data"]["raw_path"]
-DATA_DIR_APP = PROJECT_ROOT / config["data"]["app_path"] / config["data"]["app_data_path"]
 
 # --- Functions ---
 def make_choropleth(df: pd.DataFrame, count_col: str, geo_data: gpd.GeoDataFrame, zone_lookup: pd.DataFrame, extra: str, scale: list, drop_rows: bool) -> folium.Map:
