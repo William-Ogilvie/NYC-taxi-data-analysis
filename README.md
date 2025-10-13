@@ -5,7 +5,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 - [Objective](#objective)
 - [Data](#data)
 - [Project Overview](#project-overview)
-  - [1_EDA.ipynb](#1_eda.ipynb)
+  - [1_EDA.ipynb](#1_edaipynb)
 - [Usage](#usage)
 - [Results / Key Findings](#results-/-key-findings) 
 
