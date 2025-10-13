@@ -4,7 +4,7 @@
     daily_offset: [11, 36, 63, 94, 112, 137, 192, 216, 233, 264, 309, 328], daily_steps: 30,
     daily_test_size: 365, hourly_hybrid_key: hourly_hybrid, hourly_linear_key: hourly,
     hourly_offset: [246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419,
-      7884], hourly_steps: 168, hourly_test_size: 8760, max_evals: 5, n_splits: 5},
+      7884], hourly_steps: 168, hourly_test_size: 8760, max_evals: 1000, n_splits: 5},
   model_naming: {default_non_linear: base_non_linear, hybrid_model_prefix: hybrid_order,
     linear_model_prefix: linear_order, reduced_daily_hybrid_model_prefix: reduced_daily_hybrid_order,
     reduced_daily_linear_model_prefix: reduced_daily_linear_order, reduced_daily_non_linear_model_prefix: reduced_daily_non_linear,
