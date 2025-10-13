@@ -1,6 +1,14 @@
 # NYC and JFK Airport Taxi Data Analysis
 Exploring and visualising New York City Taxi trip data (2011-2025). With modelling of daily and hourly taxi pick up counts for JFK Airport using linear regresssion, xgboost and linear regression boosted on the residuals.  
 
+## Table of Contents
+- [Objective](#objective)
+- [Data](#data)
+- [Project Overview](#projectoverview)
+- [Usage](#usage)
+- [Results / Key Findings](#results/keyfindings) 
+
+
 ## Objective
 
 Our objective was to do some basic exploration of NYC taxi data using choropleths. Then to explore fitting various models to two time series for the taxi pick up count at JFK Airport, one daily and one hourly.
