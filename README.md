@@ -14,7 +14,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 - [Usage](#usage)
   - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
   - [Testing](#testing)
-- [Results / Key Findings](#results-key-findings) 
+- [Results / Key Findings](#results-/-key-findings) 
 
 
 ## Objective
