@@ -146,7 +146,7 @@ We will create a new tmux session:
 tmux new -s hyperparam_tuning
 ```
 
-Inside the tmux session we will then run the hyperparm_tuning_bash.sh script inside the scripts dir. This script will load the data from the S3 bucket. It will then build the docker image and run a container of this image. Inside this container it will install the jfk-taxis package, run scripts/setup.py and then run scripts/hyperparam_tuning.py. It will produce logs and save them into the logs dir on the instance as well as save the tuned hyperparamters into outputs/$RUN_ID in your S3 bucket.
+Inside the tmux session we will then run the hyperparm_tuning_bash.sh script inside the scripts dir. This script will load the data from the S3 bucket. It will then build the docker image and run a container of this image. Inside this container it will install the jfk-taxis package, run scripts/setup.py and then run scripts/hyperparam_tuning.py. It will produce logs and save them into the logs directory on the instance as well as save the tuned hyperparameters into outputs/$RUN_ID in your S3 bucket.
 
 Run the hyperparam_tuning_bash.sh script inside the tmux session:
 
