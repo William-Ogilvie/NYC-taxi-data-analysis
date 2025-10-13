@@ -252,6 +252,9 @@ for key, value in bayes_dict.items():
     # Get best hyperparams and add the missing ones
     best_hyperparams = study.best_trial.params
 
+
+    best_hyperparams["early_stopping_rounds"] = config["xgboost_default"]["early_stopping_rounds"]
+    
     best_hyperparams["random_state"] = config["xgboost_setup"]["random_state"]
     best_hyperparams["eval_metric"] = config["xgboost_setup"]["eval_metric"]
     best_hyperparams["tree_method"] = config["xgboost_setup"]["tree_method"]
