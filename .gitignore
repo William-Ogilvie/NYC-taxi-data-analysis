@@ -14,8 +14,6 @@ reports/
 __pycache__/
 *.__pycache__
 
-# Ignore .pkl files
-*.pkl
 
 # Ignore jfk_taxi package build files
 src/jfk_taxis.egg-info/
