@@ -8,13 +8,13 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
   - [1_EDA.ipynb](#1_edaipynb)
   - [2_data_processing.ipynb](#2_data_processingipynb)
   - [3_EDA_JFK.ipynb](#3_EDA_JFKipynb)
-  - [4_modelling.ipynb](#4_modelling.ipynb)
-  - [5_model_selection.ipynb](#5_model_selection.ipynb)
+  - [4_modelling.ipynb](#4_modellingipynb)
+  - [5_model_selection.ipynb](#5_model_selectionipynb)
   - [Notes on Hyperparameter Tuning](#notes-on-hyperparameter-tuning)
 - [Usage](#usage)
   - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
   - [Testing](#testing)
-- [Results / Key Findings](#results-/-key-findings) 
+- [Results / Key Findings](#results-key-findings) 
 
 
 ## Objective
