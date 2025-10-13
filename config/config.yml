@@ -4,7 +4,7 @@
     daily_offset: [11, 36, 63, 94, 112, 137, 192, 216, 233, 264, 309, 328], daily_steps: 30,
     daily_test_size: 365, hourly_hybrid_key: hourly_hybrid, hourly_linear_key: hourly,
     hourly_offset: [246, 866, 1535, 2276, 2708, 3289, 4616, 5186, 5601, 6349, 7419,
-      7884], hourly_steps: 168, hourly_test_size: 8760, max_evals: 100, n_splits: 5},
+      7884], hourly_steps: 168, hourly_test_size: 8760, max_evals: 5, n_splits: 5},
   model_naming: {default_non_linear: base_non_linear, hybrid_model_prefix: hybrid_order,
     linear_model_prefix: linear_order, reduced_daily_hybrid_model_prefix: reduced_daily_hybrid_order,
     reduced_daily_linear_model_prefix: reduced_daily_linear_order, reduced_daily_non_linear_model_prefix: reduced_daily_non_linear,
@@ -895,7 +895,7 @@
     model_file_suffix: model.pkl, non_linear_keys_preffix: non_linear_keys, original_parquet_prefix: processed,
     shap_values_file: shap_values, target_file_suffix: target.pkl, ts_daily: daily,
     ts_hourly: hour, ts_prefix: ts}, shap: {daily_base_non_linear: {extracted_fourier_features: [
-        YE, W], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 10, 13, 14, 21, 23, 24, 28,
+        W, YE], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 10, 13, 14, 21, 23, 24, 28,
         30, 33, 35, 84, 112, 266, 330, 343, 364, 371], extracted_trends: []}, daily_hybrid_order: 0,
     daily_hybrid_order2: {extracted_fourier_features: [YE], extracted_lags: [1, 2,
         3, 4, 6, 7, 8, 10, 33, 37, 46, 49, 57, 71, 100, 105, 116, 127, 168, 246, 258,
