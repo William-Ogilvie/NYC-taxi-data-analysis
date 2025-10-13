@@ -126,7 +126,7 @@ You will need to create an IAM role with AmazonS3FullAcess policy if you do not 
 
 Now if you are going to use a GPU isntance you will need to modify the hyperparam_tuning_bash.sh script. Specifically change USE_GPU to be 1 rather than 0. Then change ENV to environment_gpu.yml rather than enviornment_cpu.yml. You may also want to change the name of the docker image under IMAGE for completness. 
 
-Then once you connect to the instance run the following commands inside the home dir:
+Then once you connect to the instance run the following commands inside the home directory:
 
 ```bash
 mkdir -p project logs
