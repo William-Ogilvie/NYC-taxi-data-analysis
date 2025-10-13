@@ -136,7 +136,7 @@ streamlit run home.py --server.address 0.0.0.0 --server.port 8501 --server.headl
 
 You will then be able to view the app on the host machine by going to http://127.0.0.1:8501/ in a browser. The app home page will give a brief explanation of how the app works and hopefully from reading notebooks 1_EDA.ipynb, 4_modelling.ipynb and 5_model_selection.ipynb you can understand and follow what parts of the project it is demonstrating.
 
-### Using AWS for hyperparamter tuning
+### Using AWS for hyperparameter tuning
 
 One of the things I found on my machine was that the Bayesian hyperparamter tuning in 5_model_selection.ipynb took a long time for a large number of trials. So I used an AWS EC2 instance to run the tuning over the course of several days whilst I worked on other parts of the project. We will briefly explain how to do this here. 
 
@@ -200,7 +200,7 @@ cd tests
 pytest
 ```
 
-## Reults / Key Findings
+## Results / Key Findings
 
 We initally perform EDA for the entire of the NYC taxi data, primarily using choropleths. We then shift our focus to JFK Airport and create two time series that count the total number of taxis at the Airport, one daily, one hourly. We explore these time series to try and find relevant predictive features that we could use for models. Our intial exploration suggests that daily and weekly fourier features could be good for our hourly time series, and weekly and yearly fourier features for our daily time series. We also get back a considerable number of lags for both time series that cover at least one year into the past. 
 
