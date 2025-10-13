@@ -6,7 +6,14 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 - [Data](#data)
 - [Project Overview](#project-overview)
   - [1_EDA.ipynb](#1_edaipynb)
+  - [2_data_processing.ipynb](#2_data_processingipynb)
+  - [3_EDA_JFK.ipynb](#3_EDA_JFKipynb)
+  - [4_modelling.ipynb](#4_modelling.ipynb)
+  - [5_model_selection.ipynb](#5_model_selection.ipynb)
+  - [Notes on Hyperparameter Tuning](#notes-on-hyperparameter-tuning)
 - [Usage](#usage)
+  - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
+  - [Testing](#testing)
 - [Results / Key Findings](#results-/-key-findings) 
 
 
@@ -46,9 +53,9 @@ This notebook does our inital modelling. We start with three strands of model: l
 
 In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful. Using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. Finally we use the evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
 
-#### Notes on hyperparamter tuning
+#### Notes on Hyperparameter Tuning
 
-Hyperparamter tuning can take a very long time depending on your machine. I did two versions of hyperparamter tuning one with early stopping to deterimne n_estimators (number of trees for XGBoost) and one without. Add comment on which is better. I found I needed a reasonably large number of trials and at least in the without early stopping case just 100 trials wasn't enough. This means the tuning can take a long time so I have provided pretuned hyperparamters inside the results/tuned_hyperparams directory. If you would like to use them when you run 5_model_selection to avoid having to tune the hyperparameters yourself, simply copy the files into saved_objects and run the notebook skipping the hyperparamter tuning steps (there are instructions in the notebook on how to do this).
+Hyperparameter tuning can take a very long time depending on your machine. I did two versions of hyperparameter tuning one with early stopping to determine n_estimators (number of trees for XGBoost) and one without. Add comment on which is better. I found I needed a reasonably large number of trials and at least in the without early stopping case just 100 trials wasn't enough. This means the tuning can take a long time so I have provided pretuned hyperparameters inside the results/tuned_hyperparams directory. If you would like to use them when you run 5_model_selection to avoid having to tune the hyperparameters yourself, simply copy the files into saved_objects and run the notebook skipping the hyperparameter tuning steps (there are instructions in the notebook on how to do this).
 
 ## Usage
 
