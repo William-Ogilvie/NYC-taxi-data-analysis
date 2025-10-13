@@ -5,7 +5,9 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 
 Our objective was to do some basic exploration of NYC taxi data using choropleths. Then to explore fitting various models to two time series for the taxi pick up count at JFK Airport, one daily and one hourly.
 
-## Data Sources
+## Data 
+
+We use the Yellow Taxi data provided by the NYC Taxi and Limousine Commission. The datasets themselves are reasonably large parquet files that record information about every single taxi trip for each month and year. In this project we primarily focus on tpep_pickup_date_time which is the time the taxi meter was engaged, so we treat this as the time of the pick up, as well as PULocationID which is the taxi zone the pick up occurred in. We use just these two columns to construct our time series for modelling. There is a data dictionary for the parquet files here: [Yellow Taxi Data Dictionary](https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf). The taxi zones themselves are split into four boroughs: [Bronx](https://www.nyc.gov/assets/tlc/images/content/pages/about/taxi_zone_map_bronx.jpg), [Brooklyn](https://www.nyc.gov/assets/tlc/images/content/pages/about/taxi_zone_map_brooklyn.jpg), [Manhattan](https://www.nyc.gov/assets/tlc/images/content/pages/about/taxi_zone_map_manhattan.jpg), [Queens](https://www.nyc.gov/assets/tlc/images/content/pages/about/taxi_zone_map_queens.jpg) and [Staten Island](https://www.nyc.gov/assets/tlc/images/content/pages/about/taxi_zone_map_staten_island.jpg). TLC have provided maps for this zones that you can view by clicking on each of the previous boroughs if you would like. 
 
 Data source: [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), 
 via [NYC Open Data](https://opendata.cityofnewyork.us/).  
