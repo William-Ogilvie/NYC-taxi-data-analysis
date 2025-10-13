@@ -74,7 +74,7 @@ Now we will need to do some intial setup before we can run the notebooks. First 
 pip install -e . 
 ```
 
-Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do not exist already. Go to the scripts dir and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
+Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do not exist already. Go to the scripts directory and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
 
 ```bash
 cd scripts
