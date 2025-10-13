@@ -45,7 +45,7 @@ git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 cd NYC-taxi-data-analysis
 ```
 
-There is a Dockerfile inside the repository that you can build an image from. It has micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was a noticable improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
+There is a Dockerfile inside the repository that you can build an image from. It has a micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was a noticable improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
 
 The full docker commands are below:
 
