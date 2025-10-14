@@ -77,6 +77,7 @@ def shap_plots(shap_values: shap.Explainer, X: pd.DataFrame, model_name: str) ->
         shap_values (np.ndarray): the SHAP values to plot.
         X (pd.DataFrame): the design matrix corresponding to the SHAP values.
         model_name (str): the name of the model (for titles).
+        save_file_tag (str): tag for saving the SHAP plots
     """    
     # Max features to display
     max_features = 30
@@ -84,11 +85,15 @@ def shap_plots(shap_values: shap.Explainer, X: pd.DataFrame, model_name: str) ->
     # Summary plot
     shap.summary_plot(shap_values, X, max_display=max_features, show = False)
     plt.title(f"SHAP summary plot: top {max_features} features for {model_name}") 
+    plt.tight_layout()
+    plt.savefig(PROJECT_ROOT / f"images/shap_summary_{model_name}.svg")
     plt.show()
 
     # Shap bar plot by mean absolute value
     shap.plots.bar(shap_values, max_display=max_features, show = False)
     plt.title(f"Mean absoulute SHAP values: top {max_features} features for {model_name}")
+    plt.tight_layout()
+    plt.savefig(PROJECT_ROOT / f"images/shap_bar_plot_{model_name}.svg")
     plt.show()
 
 def return_top_X_SHAP(shap_values: np.ndarray, feature_names: pd.Index, x: int) ->  list:
