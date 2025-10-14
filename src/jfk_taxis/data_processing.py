@@ -372,6 +372,7 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
             month_disp_save = f"{month[0]}_to_{month[1]}"
         else:
             month_disp = ""
+            month_disp_save = ""
             
         
 
