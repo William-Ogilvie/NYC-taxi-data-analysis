@@ -609,7 +609,7 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                 steps = daily_steps
 
                 # Save file tag
-                save_file_tag = config["saving"]["daily_non_linear_tuned"]
+                save_file_tag = config["saving"]["daily_non_linear_tuned"] + "_" + key2
 
                 # Run forecasts
                 run_forecasts(steps, daily_offsets, daily_offsets_to_show, full_linear_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test, save_file_tag)
@@ -689,7 +689,7 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                 steps = daily_steps
 
                 # Save file tag
-                save_file_tag = config["saving"]["daily_hybrid_tuned"]
+                save_file_tag = config["saving"]["daily_hybrid_tuned"] + "_" + key2
 
                 # Run forecasts
                 run_forecasts(steps, daily_offsets, daily_offsets_to_show, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "D", ts_daily_train, ts_daily_test, save_file_tag)
@@ -767,7 +767,7 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                 steps = hourly_steps
 
                 # Save file tag
-                save_file_tag = config["saving"]["hourly_non_linear_tuned"]
+                save_file_tag = config["saving"]["hourly_non_linear_tuned"] + "_" + key2
 
                 # Run forecasts
                 run_forecasts(steps, hourly_offsets, hourly_offsets_to_show, full_linear_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test, save_file_tag)
@@ -847,7 +847,7 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                 steps = hourly_steps
 
                 # Save file tag
-                save_file_tag = config["saving"]["hourly_hybrid_tuned"]
+                save_file_tag = config["saving"]["hourly_hybrid_tuned"] + "_" + key2
 
                 # Run forecasts
                 run_forecasts(steps, hourly_offsets, hourly_offsets_to_show, plotting_hybrid_models_loaded, non_linear_models_loaded, True, "h", ts_hourly_train, ts_hourly_test, save_file_tag)
