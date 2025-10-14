@@ -892,7 +892,7 @@
     daily_hybrid_tuned: daily_hybrid_tuned, daily_lags: daily, daily_linear_initial: linear_models_daily_initial,
     daily_non_linear_tuned: daily_non_linear_tuned, daily_ts_file_name: ts_daily2011-2025.csv,
     design_file_suffix: design.pkl, dp_file_suffix: dp.pkl, hourly_hybrid_initial: hybrid_models_hourly_initial,
-    hourly_hybrid_tuned: null, hourly_lags: hourly, hourly_linear_initial: linear_models_hourly_initial,
+    hourly_hybrid_tuned: hourly_hybrid_tuned, hourly_lags: hourly, hourly_linear_initial: linear_models_hourly_initial,
     hourly_non_linear_tuned: hourly_non_linear_tuned, hourly_ts_file_name: ts_hour2011-2025.csv,
     hybrid_file_suffix: hybrid.pkl, hybrid_vs_linear: hybrid_vs_linear, hyperparams_preffix: hyperparams,
     jfk_parquet_prefix: processed_jfk, lags_file_suffix: lags.pkl, lags_preffix: sig_lags,

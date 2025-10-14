@@ -814,9 +814,9 @@ def test_hyperparams(dict_full: dict, ts_daily_train: pd.Series, ts_daily_test: 
                     y_val_np = y_val.to_numpy(copy = True)
 
                     # Compute residuals for both train and val sets
-                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_train_np)
+                    y_fit = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0].predict(X_train_np)
                     y_resid_np = y_train_np - y_fit
-                    y_fit_val = hybrid_models_loaded[f"{REDUCED_HYBRID_DAILY_MODEL_PREFIX}{i}"][0].predict(X_val_np)
+                    y_fit_val = hybrid_models_loaded[f"{REDUCED_HYBRID_HOURLY_MODEL_PREFIX}{i}"][0].predict(X_val_np)
                     y_resid_val_np = y_val_np - y_fit_val
 
                     # If using GPU convert to CuPy arrays and fit the model
