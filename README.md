@@ -35,7 +35,7 @@ via [NYC Open Data](https://opendata.cityofnewyork.us/).
 
 Initially we create choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general decrease across nearly all taxi zones in Yellow Taxi use since 2011. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow Taxis. The other important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. Below are screen grabs from the projects streamlit app showing some of this folium choropleths:
 
-![Alt text](images/choropleth_2011_01_full_scale.jpg)
+<img src = images/choropleth_2011_01_full_scale.jpg>
 *Figure 1 choropleth showing taxi picks ups for whole of NYC in January 2011*
 ![Alt text](images/choropleth_2025_01_full_scale.jpg)
 *Figure 2 choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*
