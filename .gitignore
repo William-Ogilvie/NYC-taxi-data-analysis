@@ -32,3 +32,11 @@ src/jfk_taxis.egg-info/
 !images/forecast_hybrid_models_daily_initial_11_30.svg
 !images/forecast_linear_models_hourly_initial_246_24.svg
 !images/forecast_hybrid_models_hourly_initial_246_168.svg
+!images/forecast_reduced_daily_non_linear_11_30.svg
+!images/forecast_reduced_daily_linear_11_7.svg
+!images/forecast_reduced_daily_hybrid_11_60.svg
+!images/forecast_reduced_hourly_non_linear_246_24.svg
+!images/forecast_reduced_hourly_linear_246_48.svg
+!images/forecast_reduced_hourly_hybrid_246_168.svg
+!images/shap_summary_daily_base_non_linear.svg
+!images/shap_bar_plot_daily_base_non_linear.svg

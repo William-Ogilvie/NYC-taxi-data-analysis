@@ -89,7 +89,24 @@ For the hourly time series we find that for the 24 hour and 48 hour forecast the
 
 We then move on to compute SHAP values for the models and rank features by their mean absolute SHAP value. We use this to produce a smaller feature set by taking just the top 30 by mean absoulute SHAP value (technical slightly more as if one of the fourier features is in the top 30 we take all fourier features of the same period). In some cases this results in an over 13 fold decrease in the number of features for the model. We test whether the models perform as well on this reduced feature set using the same regime as in our modelling section. We find that in the XGBoost and boosted linear regression case models perform similar if not slightly better on the reduced feature set. However in the purely linear regression case there is a noticable decrease in model performance on the reduced feature set particularly in the daily time series case. We choose to keep the reduced feature set for XGBoost and the boosted linear regression models, but keep the full feature set for the linear regressions. Below are some plots showing the models both on the full and reduced feature set and highliting their similar performance, as well as SHAP summary plot showing the top 30 features for one of the models:
 
-[Plots here]
+![image](images/forecast_reduced_daily_non_linear_11_30.svg)  
+*Figure 15: 30 day forecast with the XGBoost model trained both on the full and reduced feature sets (reduced_daily_non_linear is trained on reduced feature set), plus naive baseline*
+![image](images/forecast_reduced_daily_linear_11_7.svg)
+*Figure 16: 7 day forecast with the linear regressions trained on both the full and reduced feature sets*
+![image](images/forecast_reduced_daily_hybrid_11_60.svg)
+*Figure 17: 60 day forecast with the boosted linear regresssions (hybrid models) trained on both the full and reduced feature sets*
+
+![image](images/forecast_reduced_hourly_non_linear_246_24.svg)  
+*Figure 18: 24 hour forecast with the XGBoost model trained on both the full and reduced feature sets*
+![image](images/forecast_reduced_hourly_linear_246_48.svg)  
+*Figure 19: 48 hour forecast with the linear regressions trained on both the full and reduced feature sets*
+![image](images/forecast_reduced_hourly_hybrid_246_168.svg)  
+*Figure 20: 168 hour forecast with the boosted linear regressions trained on both the full and reduced feature sets*
+
+![image](images/shap_summary_daily_base_non_linear.svg)  
+*Figure 21: SHAP summary plot showing top 30 features for XGBoost on the daily time series by mean absolute SHAP value*
+![image](images/shap_bar_plot_daily_base_non_linear.svg)  
+*Figure 22: Bar plot showing the mean absolute SHAP values for each of the features in figure 21*
 
 ### Bayesian Hyperparameter Tuning
 
