@@ -35,6 +35,18 @@ via [NYC Open Data](https://opendata.cityofnewyork.us/).
 
 Initially we create choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general decrease across nearly all taxi zones in Yellow Taxi use since 2011. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow Taxis. The other important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. Below are screen grabs from the projects streamlit app showing some of this folium choropleths:
 
+![Alt text](images/choropleth_2011_01_full_scale.png)
+*Figure 1 choropleth showing taxi picks ups for whole of NYC in January 2011*
+![Alt text](images/choropleth_2025_01_full_scale.png)
+*Figure 2 choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*
+
+![Alt text](images/choropleth_2025_01_small_scale.png)
+*Figure 3 choropleth showing taxi pick ups for some of NYC in January 2025. Here we use a much smaller scale (max 20,000) and have dropped zones and boroughs over this scale.*
+![Alt text](images/choropleth_2025_06_small_scale.png)
+*Figure 4 choropleth showing taxi pick ups for some of NYC in June 2025, using same scale as figure 3. These two figures highlight what appears to be a seasonal increase in taxi use across the city from January to June.*  
+
+
+
 [plots here]
 
 We then shift our focus towards JFK Airport where we are going to attempt to model both daily and hourly Yellow Taxi pick ups. We investigate both the daily and hourly time series, fitting rolling averages to see if we can potentially identify any seasonality to the data that was hinted out from our choropleths. We identify at least weekly and yearly seasonality for the daily time series, and daily and weekly for the hourly time series. We compute the siginficant lags for both time series using autocorrelation. Rolling average and autocorrelation plots are shown below:
@@ -51,11 +63,13 @@ For the hourly time series we find that for the 24 hour and 48 hour forecast the
 
 [plots here]
 
-#### Model Selection
+#### SHAP and Reduced Feature Set
 
 We then move on to compute SHAP values for the models and rank features by their mean absolute SHAP value. We use this to produce a smaller feature set by taking just the top 30 by mean absoulute SHAP value (technical slightly more as if one of the fourier features is in the top 30 we take all fourier features of the same period). In some cases this results in an over 13 fold decrease in the number of features for the model. We test whether the models perform as well on this reduced feature set using the same regime as in our modelling section. We find that in the XGBoost and boosted linear regression case models perform similar if not slightly better on the reduced feature set. However in the purely linear regression case there is a noticable decrease in model performance on the reduced feature set particularly in the daily time series case. We choose to keep the reduced feature set for XGBoost and the boosted linear regression models, but keep the full feature set for the linear regressions. Below are some plots showing the models both on the full and reduced feature set and highliting their similar performance, as well as SHAP summary plot showing the top 30 features for one of the models:
 
 [Plots here]
+
+### Bayesian Hyperparameter Tuning
 
 Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. We find that actually including COVID improves hyperparamter tuning and that generally hyperparamter tuning improved the following models by X amount. The plots below show the tuned models plotted alongside their untuned counterparts:
 
