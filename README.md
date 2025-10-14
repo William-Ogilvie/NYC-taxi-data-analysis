@@ -60,12 +60,10 @@ We then shift our focus towards JFK Airport where we are going to attempt to mod
 *Figure 8: Statsmodels seasonal decompose for a 24 hour frequency in the hourly time series for January 2024*
 
 ![image](images/daily_autocorrelation.svg)  
-*Figure 9: Truncated daily lag autocorrelation plot*
+*Figure 9: Partial daily lag autocorrelation plot*
 
 ![image](images/hourly_autocorrelation.svg)  
-*Figure 10: Truncated hourly lag autocorrelation plot*
-
-[plots here]
+*Figure 10: Partial hourly lag autocorrelation plot*
 
 ### Modelling
 
@@ -73,9 +71,14 @@ We fit roughly three strands of model to both time series. Linear regression, XG
 
 Initially we find that for daily time series the boosted linear regression with order 1 trend (hybrid_order1 in notebooks) performs the best for a 7 day forecast with a 31.6% improvement on the naive baseline. Then linear regression with order 2 trend performs the best for both the 30 and 60 day forecast with a 34.1% and 26.5% improvement on naive baseline respectively. 
 
-For the hourly time series we find that for the 24 hour and 48 hour forecast the best model is linear regression with no trend, which results in a 38.6% and 37.7% improvement on naive baseline respectively. For the 168 hour forecast we find that the boosted linear regression with no trend performs the best with a 35.3% improvement on naive baseline. Some plots showing the models in our app are below:
+For the hourly time series we find that for the 24 hour and 48 hour forecast the best model is linear regression with no trend, which results in a 38.6% and 37.7% improvement on naive baseline respectively. For the 168 hour forecast we find that the boosted linear regression with no trend performs the best with a 35.3% improvement on naive baseline. Some plots showing the models:
 
-[plots here]
+![image](images/forecast_linear_models_daily_inital_11_60.svg)  
+*Figure 11: 60 day forecast with linear regressions, XGBoost (base_non_linear) and the naive baseline (Naive)*
+
+![image](images/forecast_hybrid_models_daily_initial_11_30.svg)  
+*Figure 12: 30 day forecast with hybrid models, XGBoost (base_non_linear) and the naive baseline (Naive)*
+
 
 #### SHAP and Reduced Feature Set
 

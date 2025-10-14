@@ -490,6 +490,8 @@ def create_rolling_average(size: int, daily_counts: pd.Series) -> None:
 
     plt.xticks(rotation = 45, ha = "right") 
 
+    plt.tight_layout()
+
     plt.savefig(PROJECT_ROOT / f"images/JFK_daily_taxi_trips-{size}-day_moving_average.svg")
 
     plt.show()
@@ -521,6 +523,8 @@ def create_rolling_average_hourly(size: int, hourly_counts: pd.Series) -> None:
     ax.xaxis.set_major_locator(mdates.YearLocator())
 
     plt.xticks(rotation = 45, ha = "right")
+
+    plt.tight_layout()
 
     plt.savefig(PROJECT_ROOT / f"images/JFK_hourly_taxi_trips-{size}-hour_moving_average.svg") 
 
