@@ -36,34 +36,35 @@ via [NYC Open Data](https://opendata.cityofnewyork.us/).
 Initially we create choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general decrease across nearly all taxi zones in Yellow Taxi use since 2011. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow Taxis. The other important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. Below are screen grabs from the projects streamlit app showing some of this folium choropleths:
 
 ![image](images/choropleth_2011_01_full_scale.png)
-*Figure 1: Choropleth showing taxi picks ups for whole of NYC in January 2011*
+*Figure 1: Choropleth showing taxi picks ups for whole of NYC in January 2011*  
+
 ![image](images/choropleth_2025_01_full_scale.png)
-*Figure 2: Choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*
+*Figure 2: Choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*  
 
 ![image](images/choropleth_2025_01_small_scale.png)
-*Figure 3: Choropleth showing taxi pick ups for some of NYC in January 2025. Here we use a much smaller scale (max 20,000) and have dropped zones and boroughs over this scale.*
+*Figure 3: Choropleth showing taxi pick ups for some of NYC in January 2025. Here we use a much smaller scale (max 20,000) and have dropped zones and boroughs over this scale.*  
 ![image](images/choropleth_2025_06_small_scale.png)
 *Figure 4: Choropleth showing taxi pick ups for some of NYC in June 2025, using same scale as figure 3. These two figures highlight what appears to be a seasonal increase in taxi use across the city from January to June.*  
 
 We then shift our focus towards JFK Airport where we are going to attempt to model both daily and hourly Yellow Taxi pick ups. We investigate both the daily and hourly time series, fitting rolling averages to see if we can potentially identify any seasonality to the data that was hinted out from our choropleths. We identify at least weekly and yearly seasonality for the daily time series, and daily and weekly for the hourly time series. We compute the siginficant lags for both time series using autocorrelation. Plots for the daily and hourly time series, the rolling averages and autocorrelation are shown below:
 
 ![image](images/JFK_Airport_yellow_taxi_trips_per_day_2011-2025.svg)  
-*Figure 5: Time seires plot for daily Yellow Taxi pick ups at JFK Airport 2011-2025*
+*Figure 5: Time seires plot for daily Yellow Taxi pick ups at JFK Airport 2011-2025*  
 
 ![image](images/JFK_Airport_hourly_yellow_taxi_trips_2025_1_to_1.svg)  
-*Figure 6: Time series plot for hourly Yellow Taxi pick ups at JFK Airport for January 2025*
+*Figure 6: Time series plot for hourly Yellow Taxi pick ups at JFK Airport for January 2025*  
 
 ![image](images/JFK_daily_taxi_trips-365-day_moving_average.svg)  
-*Figure 7: 365 day rolling average for daily taxi pick ups at JFK Airport.*
+*Figure 7: 365 day rolling average for daily taxi pick ups at JFK Airport.*  
 
 ![image](images/hourly_seasonal_decompose_24.svg)  
-*Figure 8: Statsmodels seasonal decompose for a 24 hour frequency in the hourly time series for January 2024*
+*Figure 8: Statsmodels seasonal decompose for a 24 hour frequency in the hourly time series for January 2024*  
 
 ![image](images/daily_autocorrelation.svg)  
-*Figure 9: Partial daily lag autocorrelation plot*
+*Figure 9: Partial daily lag autocorrelation plot*  
 
 ![image](images/hourly_autocorrelation.svg)  
-*Figure 10: Partial hourly lag autocorrelation plot*
+*Figure 10: Partial hourly lag autocorrelation plot*  
 
 ### Modelling
 
@@ -74,39 +75,44 @@ Initially we find that for daily time series the boosted linear regression with 
 For the hourly time series we find that for the 24 hour and 48 hour forecast the best model is linear regression with no trend, which results in a 38.6% and 37.7% improvement on naive baseline respectively. For the 168 hour forecast we find that the boosted linear regression with no trend performs the best with a 35.3% improvement on naive baseline. Some plots showing the models:
 
 ![image](images/forecast_linear_models_daily_inital_11_60.svg)  
-*Figure 11: 60 day forecast with linear regressions (linear_order2 means trend goes up to 2nd order), XGBoost (base_non_linear) and the naive baseline (Naive)*
+*Figure 11: 60 day forecast with linear regressions (linear_order2 means trend goes up to 2nd order), XGBoost (base_non_linear) and the naive baseline (Naive)*  
 
 ![image](images/forecast_hybrid_models_daily_initial_11_30.svg)  
-*Figure 12: 30 day forecast with the boosted linear regressions (hybrid models), XGBoost (base_non_linear) and the naive baseline (Naive)*
+*Figure 12: 30 day forecast with the boosted linear regressions (hybrid models), XGBoost (base_non_linear) and the naive baseline (Naive)*  
 
 ![image](images/forecast_linear_models_hourly_initial_246_24.svg)  
-*Figure 13: 24 hour forecast with the linear regressions, XGBoost and naive baseline*
+*Figure 13: 24 hour forecast with the linear regressions, XGBoost and naive baseline*  
 
 ![image](images/forecast_hybrid_models_hourly_initial_246_168.svg)  
-*Figure 14: 168 hour (1 week) forecast with the boosted linear regressions (hybrid models), XGBoost and naive baseline*
+*Figure 14: 168 hour (1 week) forecast with the boosted linear regressions (hybrid models), XGBoost and naive baseline*  
 
 #### SHAP and Reduced Feature Set
 
 We then move on to compute SHAP values for the models and rank features by their mean absolute SHAP value. We use this to produce a smaller feature set by taking just the top 30 by mean absoulute SHAP value (technical slightly more as if one of the fourier features is in the top 30 we take all fourier features of the same period). In some cases this results in an over 13 fold decrease in the number of features for the model. We test whether the models perform as well on this reduced feature set using the same regime as in our modelling section. We find that in the XGBoost and boosted linear regression case models perform similar if not slightly better on the reduced feature set. However in the purely linear regression case there is a noticable decrease in model performance on the reduced feature set particularly in the daily time series case. We choose to keep the reduced feature set for XGBoost and the boosted linear regression models, but keep the full feature set for the linear regressions. Below are some plots showing the models both on the full and reduced feature set and highliting their similar performance, as well as SHAP summary plot showing the top 30 features for one of the models:
 
 ![image](images/forecast_reduced_daily_non_linear_11_30.svg)  
-*Figure 15: 30 day forecast with the XGBoost model trained both on the full and reduced feature sets (reduced_daily_non_linear is trained on reduced feature set), plus naive baseline*
-![image](images/forecast_reduced_daily_linear_11_7.svg)
-*Figure 16: 7 day forecast with the linear regressions trained on both the full and reduced feature sets*
-![image](images/forecast_reduced_daily_hybrid_11_60.svg)
-*Figure 17: 60 day forecast with the boosted linear regresssions (hybrid models) trained on both the full and reduced feature sets*
+*Figure 15: 30 day forecast with the XGBoost model trained both on the full and reduced feature sets (reduced_daily_non_linear is trained on reduced feature set), plus naive baseline*  
+
+![image](images/forecast_reduced_daily_linear_11_7.svg)  
+*Figure 16: 7 day forecast with the linear regressions trained on both the full and reduced feature sets*  
+
+![image](images/forecast_reduced_daily_hybrid_11_60.svg)  
+*Figure 17: 60 day forecast with the boosted linear regresssions (hybrid models) trained on both the full and reduced feature sets*  
 
 ![image](images/forecast_reduced_hourly_non_linear_246_24.svg)  
-*Figure 18: 24 hour forecast with the XGBoost model trained on both the full and reduced feature sets*
+*Figure 18: 24 hour forecast with the XGBoost model trained on both the full and reduced feature sets*  
+
 ![image](images/forecast_reduced_hourly_linear_246_48.svg)  
-*Figure 19: 48 hour forecast with the linear regressions trained on both the full and reduced feature sets*
+*Figure 19: 48 hour forecast with the linear regressions trained on both the full and reduced feature sets*  
+
 ![image](images/forecast_reduced_hourly_hybrid_246_168.svg)  
-*Figure 20: 168 hour forecast with the boosted linear regressions trained on both the full and reduced feature sets*
+*Figure 20: 168 hour forecast with the boosted linear regressions trained on both the full and reduced feature sets*  
 
 ![image](images/shap_summary_daily_base_non_linear.svg)  
-*Figure 21: SHAP summary plot showing top 30 features for XGBoost on the daily time series by mean absolute SHAP value*
+*Figure 21: SHAP summary plot showing top 30 features for XGBoost on the daily time series by mean absolute SHAP value*  
+
 ![image](images/shap_bar_plot_daily_base_non_linear.svg)  
-*Figure 22: Bar plot showing the mean absolute SHAP values for each of the features in figure 21*
+*Figure 22: Bar plot showing the mean absolute SHAP values for each of the features in figure 21*  
 
 ### Bayesian Hyperparameter Tuning
 
