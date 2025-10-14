@@ -573,7 +573,7 @@ def create_avg_mae_barplot(df_avg_mae: pd.DataFrame) -> plt.Figure:
 
     
 
-def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str) -> None:
+def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, save_file_tag: str) -> None:
     """ Forecasting function that handles both linear and non-linear models, forecasts for each value in steps, computes the MAE and 
     creates both a plot of the forecast and a bar plot of the MAEs (MAEs are also printed as well).
 
@@ -587,6 +587,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
         non_linear_models (dict): dictionary of non-linear models.
         naive (bool): whether to include naive forecast.
         time_step (str): time step of the time series (e.g. "h", "D")
+        save_file_tag (str): tag to mark the file name of the svg we save for plots
     """
 
     # Initalise instances of the model_mae_scores class for each model
@@ -728,6 +729,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
 
             # This is for readability not necessarily efficiency
             if offset in offsets_to_show:
+                plt.savefig(PROJECT_ROOT / f"images/forecast_{save_file_tag}_{offset}_{step}.svg")
                 plt.show()
             else:
                 plt.close()
@@ -745,7 +747,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
             plt.xticks(rotation=90, ha="right")
 
 
-            if offset in offsets_to_show:
+            if offset in offsets_to_show: 
                 plt.show()
             else:
                 plt.close()
@@ -757,7 +759,7 @@ def forecast_dicts(steps: list[int], y_test: pd.Series, y_hist: pd.Series, offse
     bar_plot_fig = create_avg_mae_barplot(df_avg_mae)
     display(bar_plot_fig)
     
-def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> None:
+def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series, save_file_tag: str) -> None:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline.
 
     Args:
@@ -770,12 +772,13 @@ def run_forecasts(steps: list[int], offset_list: list[int], offsets_to_show: lis
         time_step (str): time step for the time series (e.g. "h", "D")
         old_ts (pd.Series): historical time series
         new_ts (pd.Series): future time series to compare forecasts against
+        save_file_tag (str): tag for the svg file containing the plots
     """   
 
     y_test = copy.deepcopy(new_ts) # Create deepcopys to avoid any changes to the original
     y_hist = copy.deepcopy(old_ts) 
 
-    forecast_dicts(steps, y_test, y_hist, offset_list, offsets_to_show, linear_models, non_linear_models, naive, time_step)
+    forecast_dicts(steps, y_test, y_hist, offset_list, offsets_to_show, linear_models, non_linear_models, naive, time_step, save_file_tag)
 
 def run_forecasts_app(steps: int, offset_list: list[int], linear_models: dict, non_linear_models: dict, naive: bool, time_step: str, old_ts: pd.Series, new_ts: pd.Series) -> tuple[dict, dict, plt.Figure]:
     """ Run forecasts for both linear and non-linear models with the option of a naive baseline, this is the app version the only differnece is we return the figure rather than showing it.

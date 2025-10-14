@@ -894,7 +894,11 @@
     lags_file_suffix: lags.pkl, lags_preffix: sig_lags, lags_sig: eda, linear_keys_preffix: linear_keys,
     model_file_suffix: model.pkl, non_linear_keys_preffix: non_linear_keys, original_parquet_prefix: processed,
     shap_values_file: shap_values, target_file_suffix: target.pkl, ts_daily: daily,
-    ts_hourly: hour, ts_prefix: ts}, shap: {daily_base_non_linear: {extracted_fourier_features: [
+    ts_hourly: hour, ts_prefix: ts, daily_linear_initial: linear_models_daily_initial, daily_hybrid_initial: hybrid_models_daily_initial,
+    hybrid_vs_linear: hybrid_vs_linear, hourly_linear_initial: linear_models_hourly_initial, hourly_hybrid_initial: hybrid_models_hourly_initial,
+    reduced_daily_non_linear: reduced_daily_non_linear, reduced_daily_linear: reduced_daily_linear, reduced_daily_hybrid: reduced_daily_hybrid, reduced_hourly_non_linear: reduced_hourly_non_linear,
+    reduced_hourly_linear: reduced_hourly_linear, reduced_hourly_hybrid: reduced_hourly_hybrid, daily_non_linear_tuned: daily_non_linear_tuned,
+    daily_hybrid_tuned: daily_hybrid_tuned, hourly_non_linear_tuned: hourly_non_linear_tuned, hourly_hybrid_tuned}, shap: {daily_base_non_linear: {extracted_fourier_features: [
         W, YE], extracted_lags: [1, 2, 3, 4, 5, 6, 7, 10, 13, 14, 21, 23, 24, 28,
         30, 33, 35, 84, 112, 266, 330, 343, 364, 371], extracted_trends: []}, daily_hybrid_order: 0,
     daily_hybrid_order2: {extracted_fourier_features: [YE], extracted_lags: [1, 2,

@@ -36,20 +36,34 @@ via [NYC Open Data](https://opendata.cityofnewyork.us/).
 Initially we create choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general decrease across nearly all taxi zones in Yellow Taxi use since 2011. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow Taxis. The other important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. Below are screen grabs from the projects streamlit app showing some of this folium choropleths:
 
 ![image](images/choropleth_2011_01_full_scale.png)
-*Figure 1 choropleth showing taxi picks ups for whole of NYC in January 2011*
+*Figure 1: Choropleth showing taxi picks ups for whole of NYC in January 2011*
 ![image](images/choropleth_2025_01_full_scale.png)
-*Figure 2 choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*
+*Figure 2: Choropleth showing taxi pick ups for whole of NYC in January 2025. Using same scale as figure 1 allows us to see the overal decline in taxi use, particualarly in the Manhattan borough.*
 
 ![image](images/choropleth_2025_01_small_scale.png)
-*Figure 3 choropleth showing taxi pick ups for some of NYC in January 2025. Here we use a much smaller scale (max 20,000) and have dropped zones and boroughs over this scale.*
+*Figure 3: Choropleth showing taxi pick ups for some of NYC in January 2025. Here we use a much smaller scale (max 20,000) and have dropped zones and boroughs over this scale.*
 ![image](images/choropleth_2025_06_small_scale.png)
-*Figure 4 choropleth showing taxi pick ups for some of NYC in June 2025, using same scale as figure 3. These two figures highlight what appears to be a seasonal increase in taxi use across the city from January to June.*  
+*Figure 4: Choropleth showing taxi pick ups for some of NYC in June 2025, using same scale as figure 3. These two figures highlight what appears to be a seasonal increase in taxi use across the city from January to June.*  
 
+We then shift our focus towards JFK Airport where we are going to attempt to model both daily and hourly Yellow Taxi pick ups. We investigate both the daily and hourly time series, fitting rolling averages to see if we can potentially identify any seasonality to the data that was hinted out from our choropleths. We identify at least weekly and yearly seasonality for the daily time series, and daily and weekly for the hourly time series. We compute the siginficant lags for both time series using autocorrelation. Plots for the daily and hourly time series, the rolling averages and autocorrelation are shown below:
 
+![image](images/JFK_Airport_yellow_taxi_trips_per_day_2011-2025.svg)
+*Figure 5: Time seires plot for daily Yellow Taxi pick ups at JFK Airport 2011-2025*
 
-[plots here]
+![image](images/JFK_Airport_hourly_yellow_taxi_trips_2025_1%20to%201.svg)
+*Figure 6: Time series plot for hourly Yellow Taxi pick ups at JFK Airport for January 2025*
 
-We then shift our focus towards JFK Airport where we are going to attempt to model both daily and hourly Yellow Taxi pick ups. We investigate both the daily and hourly time series, fitting rolling averages to see if we can potentially identify any seasonality to the data that was hinted out from our choropleths. We identify at least weekly and yearly seasonality for the daily time series, and daily and weekly for the hourly time series. We compute the siginficant lags for both time series using autocorrelation. Rolling average and autocorrelation plots are shown below:
+![image](images/JFK_daily_taxi_trips-365-day_moving_average.svg)
+*Figure 7: 365 day rolling average for daily taxi pick ups at JFK Airport.*
+
+![image](images/hourly_seasonal_decompose_24.svg)
+*Figure 8: Statsmodels seasonal decompose for a 24 hour frequency in the hourly time series for January 2024*
+
+![image](images/daily_autocorrelation.svg)
+*Figure 9: Truncated daily lag autocorrelation plot*
+
+![image](images/hourly_autocorrelation.svg)
+*Figure 10: Truncated hourly lag autocorrelation plot*
 
 [plots here]
 

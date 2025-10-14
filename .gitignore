@@ -17,3 +17,14 @@ __pycache__/
 
 # Ignore jfk_taxi package build files
 src/jfk_taxis.egg-info/
+
+# Ignore all SVG files
+*.svg
+
+# Keep these SVG files for README
+!images/JFK_Airport_yellow_taxi_trips_per_day_2011-2025.svg
+!images/JFK_Airport_hourly_yellow_taxi_trips_2025_1%20to%201.svg
+!images/JFK_daily_taxi_trips-365-day_moving_average.svg
+!images/hourly_seasonal_decompose_24.svg
+!images/daily_autocorrelation.svg
+!images/hourly_autocorrelation.svg

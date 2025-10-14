@@ -354,7 +354,8 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         # Show only one x axis tick per month
         ax.xaxis.set_major_locator(mdates.MonthLocator(interval = 1))
 
-        plt.xticks(rotation = 45, ha = "right")        
+        plt.xticks(rotation = 45, ha = "right")  
+        plt.savefig(PROJECT_ROOT / f"images/JFK_Airport_yellow_taxi_trips_per_day_{year}.svg")      
         plt.show()
 
     elif feature == "hour":
@@ -377,6 +378,7 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year} {month_disp}", xlabel = "", ylabel = "Trips")
         
         plt.xticks(rotation = 45, ha = "right")
+        plt.savefig(PROJECT_ROOT / f"images/JFK_Airport_hourly_yellow_taxi_trips_{year}_{month_disp}.svg")
         plt.show()
     else:
         print("Invalid feature")
@@ -420,7 +422,8 @@ def plot_full_ts(df_daily: pd.DataFrame, years: list[int]) -> None:
     # Show only one x axis tick per month
     ax.xaxis.set_major_locator(mdates.YearLocator(base = 1))
 
-    plt.xticks(rotation = 45, ha = "right")        
+    plt.xticks(rotation = 45, ha = "right") 
+    plt.savefig(PROJECT_ROOT / f"images/JFK_Airport_yellow_taxi_trips_per_day_{years[0]}-{years[-1]}.svg")       
     plt.show()
 
 
