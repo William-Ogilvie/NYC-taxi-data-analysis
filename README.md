@@ -77,11 +77,13 @@ For the hourly time series we find that for the 24 hour and 48 hour forecast the
 *Figure 11: 60 day forecast with linear regressions (linear_order2 means trend goes up to 2nd order), XGBoost (base_non_linear) and the naive baseline (Naive)*
 
 ![image](images/forecast_hybrid_models_daily_initial_11_30.svg)  
-*Figure 12: 30 day forecast with the boosted linear regressiongs (hybrid models), XGBoost (base_non_linear) and the naive baseline (Naive)*
+*Figure 12: 30 day forecast with the boosted linear regressions (hybrid models), XGBoost (base_non_linear) and the naive baseline (Naive)*
 
 ![image](images/forecast_linear_models_hourly_initial_246_24.svg)  
-*Figure 13: 24 hour forecast with the linear regressions, XGBoost and naive baseline.*
+*Figure 13: 24 hour forecast with the linear regressions, XGBoost and naive baseline*
 
+![image](images/forecast_hybrid_models_hourly_initial_246_168.svg)  
+*Figure 14: 168 hour (1 week) forecast with the boosted linear regressions (hybrid models), XGBoost and naive baseline*
 
 #### SHAP and Reduced Feature Set
 
