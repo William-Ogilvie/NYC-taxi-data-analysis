@@ -178,11 +178,11 @@ This notebook does some intial EDA into the time series themselves. Mostly to tr
 
 ### 4_modelling.ipynb
 
-This notebook does our inital modelling. We start with three strands of model: linear regression, XGBoost (referred to as the non_linear model in our notebooks) and a hybrid model which is linear regression with boosted residuals (so linear regression with XGBoost fitted to the residuals of the linear regression). We use the features found in the previous notebook and split the data into a training and test set. To assess the quality of the model on the test set we compute the MAE for multi step forecasts of different step length (so for daily step lengths of 7, 30, 60 and for hourly 24, 48 and 168). As well as starting at different offsets throughout the test series, i.e. different starting dates for the forecast. We then take the average MAE across all the offsets and use that as a score to compare the models on each different step length. 
+This notebook does our inital modelling. We start with three strands of model: linear regression, XGBoost (referred to as the non_linear model in our notebooks) and a hybrid model which is linear regression with boosted residuals (so linear regression with XGBoost fitted to the residuals of the linear regression). We use the features found in the previous notebook and split the data into a training and test set. For the XGBoost models (so both standalone and the one found in the boosted linear regression) we fit using early stopping on a validation set (10% of the training set) to help reduce overfitting. To assess the quality of the model on the test set we compute the MAE for multi step forecasts of different step length (so for daily step lengths of 7, 30, 60 and for hourly 24, 48 and 168). As well as starting at different offsets throughout the test series, i.e. different starting dates for the forecast. We then take the average MAE across all the offsets and use that as a score to compare the models on each different step length. 
 
 ### 5_model_selection.ipynb
 
-In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful. Using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. Finally we use the evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
+In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful. Using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. The objective function for optuna will split the training data into 5 train test folds of increasing size. It will then train the model on the training part of the fold and run the same forecast regime used in 4_modelling on the test part of the fold. Returning an average MAE across the offsets for that fold. The objective function then returns the average of these average MAEs across all 5 folds. This is what Optuna will optimise for. We then run the same forecasting scheme as in 4_modelling to see if the tuning has improved the models. Finally we use the evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
 
 #### Notes on Hyperparameter Tuning
 
@@ -330,39 +330,4 @@ There are unittests for the custom package jfk_taxis. They are written for pytes
 cd tests
 pytest
 ```
-
-## Results / Key Findings
-
-In 1_EDA.ipynb we create and analyse choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general increase across nearly all taxi zones in Yellow taxi use. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow taxis. The other very important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. We focus on a sizeable increase from January to June in the notebook. This appears to hold across the entire city and could be due to a variety of factors, more tourisits in the summer, people are more active during the summer than winter months etc etc. But what we are particualarly interested in is that this appears to hold for JFK Airport and suggests there is seasonality (so clear periodic patterns) within the data that we could to attempt to model with say fourier features (sine and cosine curves of the correct period passed to the model). 
-
-We initally perform EDA for the entire of the NYC taxi data, primarily using choropleths. We then shift our focus to JFK Airport and create two time series that count the total number of taxis at the Airport, one daily, one hourly. We explore these time series to try and find relevant predictive features that we could use for models. Our intial exploration suggests that daily and weekly fourier features could be good for our hourly time series, and weekly and yearly fourier features for our daily time series. We also get back a considerable number of lags for both time series that cover at least one year into the past. 
-
-Then we fit some inital models to these featuers. We test three strands of model linear regression, xgboost (usually reffered to as our non linear model in notebooks) and boosted linear regression on the residuals (so xgboost is fitted to the residuals of a linear regression, and added to its predictions). We will use a Naive baseline of just predicting the current value as the same as that one time step (day or hour) ago. The use of this baseline originally was from trial and error among others like 1 week ago. However it is supported via the SHAP values as most models have a very large mean SHAP value for lag_1. Suggesting that the previous time step has considerable predictive power. (comment on findings here).
-
-Later we explore feature importance using SHAP values for all the models. We take the top 30 features by average SHAP value and see if they retain most of the predictive signal. It turns out for xgboost the reduced feature set is similarly effective. However for just pure linear regression it does seem to be considerably worse and potentially not worth using as the computational savings are smaller compared to with xgboost. 
-
-Finally we perform bayesian hyperparameter tuning with optuna. I personally ran this in on AWS EC2 instance over a few days to do 1000 trials (maybe change this idk?) but the improvements seem to be minimal unfortunately (maybe?!).
-
-We conclude with the best models for the two cases (add here). 
-
-
-
-Note explain the install of XGBoost for gpus carefully because we assume that u run one
-
-Comment on fact we expected fourier features to be important, turns out according to SHAP values actaully lags matter way way more.
-
-Make sure to explain that in terms of hourly lags we can't use all of them so we take first 300 approx and throw in roughly half year and full year ones, with full year being significant.
-
-Explain time zone conversions maybe? like converting to UTC to avoid DST errors
-
-maybe comment on how offsets work? every 30 days with a bit of jitter, so in total 7 offsets
-
-Comments on what we discovered in 1_EDA so like the change over years, the seasonality of taxis how that informs us to be interested in seasonality at JFK Airport.
-
-Comments on 3_EDA_JFK how we found seasonlaity + lags
-
-Comments on 4_modelling maybe the best models found + explanation of how we measure "best model"
-
-Comments on 5_model_selection comments on the fact the reduced feature sets go hard + the hyperparamter tuning etc.
-
 
