@@ -254,7 +254,7 @@ for key, value in bayes_dict.items():
 
 
     best_hyperparams["early_stopping_rounds"] = config["xgboost_default"]["early_stopping_rounds"]
-    
+    best_hyperparams["n_estimators"] = config["xgboost_default"]["n_estimators"]
     best_hyperparams["random_state"] = config["xgboost_setup"]["random_state"]
     best_hyperparams["eval_metric"] = config["xgboost_setup"]["eval_metric"]
     best_hyperparams["tree_method"] = config["xgboost_setup"]["tree_method"]
