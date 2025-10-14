@@ -369,6 +369,7 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         if len(month) != 0:
             plot_series = plot_series[plot_series.index.month.isin([month[0], month[1]])]
             month_disp = f"{month[0]} to {month[1]}"
+            month_disp_save = f"{month[0]}_to_{month[1]}"
         else:
             month_disp = ""
             
@@ -378,7 +379,7 @@ def ts_plots(df: pd.DataFrame, feature: str, year: int, month: list[int]) -> Non
         ax.set(title = f"JFK Airport hourly Yellow taxi trips - {year} {month_disp}", xlabel = "", ylabel = "Trips")
         
         plt.xticks(rotation = 45, ha = "right")
-        plt.savefig(PROJECT_ROOT / f"images/JFK_Airport_hourly_yellow_taxi_trips_{year}_{month_disp}.svg")
+        plt.savefig(PROJECT_ROOT / f"images/JFK_Airport_hourly_yellow_taxi_trips_{year}_{month_disp_save}.svg")
         plt.show()
     else:
         print("Invalid feature")

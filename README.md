@@ -47,22 +47,22 @@ Initially we create choropleths of taxi pick up and drop off counts by taxi zone
 
 We then shift our focus towards JFK Airport where we are going to attempt to model both daily and hourly Yellow Taxi pick ups. We investigate both the daily and hourly time series, fitting rolling averages to see if we can potentially identify any seasonality to the data that was hinted out from our choropleths. We identify at least weekly and yearly seasonality for the daily time series, and daily and weekly for the hourly time series. We compute the siginficant lags for both time series using autocorrelation. Plots for the daily and hourly time series, the rolling averages and autocorrelation are shown below:
 
-![image](images/JFK_Airport_yellow_taxi_trips_per_day_2011-2025.svg)
+![image](images/JFK_Airport_yellow_taxi_trips_per_day_2011-2025.svg)  
 *Figure 5: Time seires plot for daily Yellow Taxi pick ups at JFK Airport 2011-2025*
 
-![image](images/JFK_Airport_hourly_yellow_taxi_trips_2025_1%20to%201.svg)
+![image](images/JFK_Airport_hourly_yellow_taxi_trips_2025_1_to_1.svg)  
 *Figure 6: Time series plot for hourly Yellow Taxi pick ups at JFK Airport for January 2025*
 
-![image](images/JFK_daily_taxi_trips-365-day_moving_average.svg)
+![image](images/JFK_daily_taxi_trips-365-day_moving_average.svg)  
 *Figure 7: 365 day rolling average for daily taxi pick ups at JFK Airport.*
 
-![image](images/hourly_seasonal_decompose_24.svg)
+![image](images/hourly_seasonal_decompose_24.svg)  
 *Figure 8: Statsmodels seasonal decompose for a 24 hour frequency in the hourly time series for January 2024*
 
-![image](images/daily_autocorrelation.svg)
+![image](images/daily_autocorrelation.svg)  
 *Figure 9: Truncated daily lag autocorrelation plot*
 
-![image](images/hourly_autocorrelation.svg)
+![image](images/hourly_autocorrelation.svg)  
 *Figure 10: Truncated hourly lag autocorrelation plot*
 
 [plots here]
