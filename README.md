@@ -287,6 +287,13 @@ Then run the script with:
 ./download_and_extract.sh
 ```
 
+If the above commands fail it may be due to Windows line endings. So install dos2unix to convert to Unix format and run the above commands again:
+
+```bash
+sudo apt install dos2unix
+dos2unix download_and_extract.sh
+```
+
 Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data. Before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
 
 ```bash
