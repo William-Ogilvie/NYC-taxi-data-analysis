@@ -275,7 +275,7 @@ Then we need to download the data. Within scripts there is a file called get_par
 python get_parquet.py
 ```
 
-Then we have a small bash script called download_and_extract.sh that just loops through all the files in parquet_files.txt and downloads them. To make the bash script executable run:
+Then we have a small bash script called download_and_extract.sh that just loops through all the files in parquet_files.txt and downloads them. You may need to run the following command outside of the container due to changing the permissions of the file:
 
 ```bash
 chmod +x download_and_extract.sh
