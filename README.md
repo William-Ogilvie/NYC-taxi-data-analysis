@@ -116,9 +116,19 @@ We then move on to compute SHAP values for the models and rank features by their
 
 ### Bayesian Hyperparameter Tuning
 
-Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. We find that actually including COVID improves hyperparamter tuning and that generally hyperparamter tuning improved the following models by X amount. The plots below show the tuned models plotted alongside their untuned counterparts:
+Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. Overal we get rather mixed and inconclusive results from hyperparameter tuning, it does improve some models notably making the boosted linear regression with order 0 our best overal model for the 7 day forecast. However in other cases tuning actually makes the models significantly worse, for example when tuning XGBoost on the daily time series, the pre COVID regime makes the model a lot worse. In some cases tuning pre COVID is superior for example in the hourly hybrid case. Other times including COVID makes tuning perform better in for example the hourly XGBoost case. In the notebooks we have outline why perhaps this version of hyperparamter tuning wasn't as succesful as we had hoped with some potential ideas for how it could be improved, although this is beyond the scope of this project. Below are some of the plots showing the tuned models plotted alongside some of their untuned counterparts:
 
-[plots here]
+![images](images/forecast_daily_hybrid_tuned_daily_hybrid_non_linear_incl_COVID_11_7.svg)
+*Figure 23: 7 day forecast showing the tuned hybrid model alongside its untuned counterpart*
+
+![images](images/forecast_daily_non_linear_tuned_11_30.svg)
+*Figure 24: 30 day forecast showing the tuned non linear model alongside its untuned counterpart*
+
+![images](images/forecast_hourly_non_linear_tuned_246_48.svg)
+*Figure 25: 48 hour forecast showing the tuned non linear model alongside its untuned counterpart*
+
+![images](images/forecast_hourly_hybrid_tuned_hourly_hybrid_non_linear_incl_COVID_246_168.svg)
+*Figure 26: 168 hour forecast showing the tuned hybrid model alongside its untuned counterpart*
 
 ### Conclusion
 

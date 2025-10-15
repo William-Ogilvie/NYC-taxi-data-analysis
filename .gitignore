@@ -40,3 +40,7 @@ src/jfk_taxis.egg-info/
 !images/forecast_reduced_hourly_hybrid_246_168.svg
 !images/shap_summary_daily_base_non_linear.svg
 !images/shap_bar_plot_daily_base_non_linear.svg
+!images/forecast_daily_hybrid_tuned_daily_hybrid_non_linear_incl_COVID_11_7.svg
+!images/forecast_daily_non_linear_tuned_11_30.svg
+!images/forecast_hourly_non_linear_tuned_246_48.svg
+!images/forecast_hourly_hybrid_tuned_hourly_hybrid_non_linear_incl_COVID_246_168.svg
