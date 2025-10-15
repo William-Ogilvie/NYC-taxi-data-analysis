@@ -95,16 +95,16 @@ For the hourly time series we find that for the 24 hour and 48 hour forecast the
 
 #### SHAP and Reduced Feature Set
 
-We then move on to compute SHAP values for the models and rank features by their mean absolute SHAP value. We use this to produce a smaller feature set by taking just the top 30 by mean absolute SHAP value (technically slightly more, as if one of the fourier features is in the top 30 we take all fourier features of the same period). In some cases this results in an over 13 fold decrease in the number of features for the model. We test whether the models perform as well on this reduced feature set using the same regime as in our modelling section. We find that the XGBoost and boosted linear regression models perform similarly, if not slightly better on the reduced feature set. However in the purely linear regression case there is a noticeable decrease in model performance on the reduced feature set particularly in the daily time series case. We choose to keep the reduced feature set for XGBoost and the boosted linear regression models, but keep the full feature set for the linear regressions. One of the interesting things worth noting is that the fourier features don't appear in the top 30 for several models, particularly for the linear regressions which is interesting as I had intitially expected them to be well suited to modelling seasonal patterns in the data. Below are some plots showing the models both on the full and reduced feature set and highliting their similar performance, as well as SHAP summary plot showing the top 30 features for one of the models:
+We then move on to compute SHAP values for the models and rank features by their mean absolute SHAP value. We use this to produce a smaller feature set by taking just the top 30 by mean absolute SHAP value (technically slightly more, as if one of the fourier features is in the top 30 we take all fourier features of the same period). In some cases this results in an over 13 fold decrease in the number of features for the model. We test whether the models perform as well on this reduced feature set using the same regime as in our modelling section. We find that the XGBoost and boosted linear regression models perform similarly, if not slightly better on the reduced feature set. However in the purely linear regression case there is a noticeable decrease in model performance on the reduced feature set particularly in the daily time series case. We choose to keep the reduced feature set for XGBoost and the boosted linear regression models, but keep the full feature set for the linear regressions. One of the interesting things worth noting is that the fourier features don't appear in the top 30 for several models, particularly for the linear regressions which is interesting as I had intitially expected them to be well suited to modelling seasonal patterns in the data. Below are some plots showing the models both on the full and reduced feature set, highlighting their similar performance. As well as a SHAP summary plot showing the top 30 features for one of the models:
 
 ![image](images/readme_forecast_reduced_daily_non_linear_11_30.svg)  
-*Figure 15: 30 day forecast with the XGBoost model trained both on the full and reduced feature sets (reduced_daily_non_linear is trained on reduced feature set), plus naive baseline*  
+*Figure 15: 30 day forecast with the XGBoost model trained both on the full and reduced feature sets (reduced_daily_non_linear is trained on the reduced feature set), plus naive baseline*  
 
 ![image](images/readme_forecast_reduced_daily_linear_11_7.svg)  
 *Figure 16: 7 day forecast with the linear regressions trained on both the full and reduced feature sets*  
 
 ![image](images/readme_forecast_reduced_daily_hybrid_11_60.svg)  
-*Figure 17: 60 day forecast with the boosted linear regresssions (hybrid models) trained on both the full and reduced feature sets*  
+*Figure 17: 60 day forecast with the boosted linear regressions (hybrid models) trained on both the full and reduced feature sets*  
 
 ![image](images/readme_forecast_reduced_hourly_non_linear_246_24.svg)  
 *Figure 18: 24 hour forecast with the XGBoost model trained on both the full and reduced feature sets*  
@@ -123,7 +123,7 @@ We then move on to compute SHAP values for the models and rank features by their
 
 ### Bayesian Hyperparameter Tuning
 
-Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. Overal we get rather mixed and inconclusive results from hyperparameter tuning, it does improve some models notably making the boosted linear regression with order 0 our best overal model for the 7 day forecast. However in other cases tuning actually makes the models significantly worse, for example when tuning XGBoost on the daily time series, the pre COVID regime makes the model a lot worse. In some cases tuning pre COVID is superior for example in the hourly hybrid case. Other times including COVID makes tuning perform better in for example the hourly XGBoost case. In the notebooks we have outline why perhaps this version of hyperparamter tuning wasn't as succesful as we had hoped with some potential ideas for how it could be improved, although this is beyond the scope of this project. Below are some of the plots showing the tuned models plotted alongside some of their untuned counterparts:  
+Finally we move on to tune the hyperparameters for all XGBoost models (so both the standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparameter tuning with Optuna. This time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour forecast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusual trends if our goal is prediction into the future. Overall we get rather mixed and inconclusive results from hyperparameter tuning. It does improve some models, notably making the boosted linear regression with order 0 our best overall model for the 7 day forecast. However in other cases tuning actually makes the models significantly worse, for example when tuning XGBoost on the daily time series, the pre COVID regime increases the models' MAE. In some cases tuning pre COVID is superior, for example in the hourly hybrid case. Other times including COVID makes tuning perform better, for example the hourly XGBoost case. In the notebooks we have outlined why perhaps this version of hyperparameter tuning wasn't as successful as we had hoped. With some potential ideas for how it could be improved, although this is beyond the scope of this project. Below are some of the plots showing the tuned models, plotted alongside some of their untuned counterparts:  
 
 ![images](images/readme_forecast_daily_hybrid_tuned_daily_hybrid_non_linear_incl_COVID_11_7.svg)  
 *Figure 23: 7 day forecast showing the tuned hybrid model alongside its untuned counterpart*  
@@ -139,17 +139,17 @@ Finally we move on to tune the hyperparamters for all XGBoost models (so both st
 
 ### Conclusion
 
-We conclude with three of the best models we produced most suited to potential real world use cases. The best model for a 30 day forecast, which would allow for medium term predictions of taxi use. The best model for a 24 hour forecast for short term predictions on taxi use, with the idea of running this model regularly to update predictions. The final model will be for a 168 hour forecast for short to medium term predictions of taxi use.  
+We conclude with three of the best models we produced, most suited to potential real world use cases. The best model for a 30 day forecast, which would allow for medium term predictions of taxi use. The best model for a 24 hour forecast for short term predictions on taxi use, with the idea of running this model regularly to update predictions. The final model will be for a 168 hour forecast for short to medium term predictions of taxi use.  
 
 The models are as follows, we give their name, the features they are trained on and their percentage improvement on the naive baseline by our average MAE metric we describe earlier.  
 
-For the 30 day forecast the best model is a linear regression with a 2nd order trend, trained on all 336 lags that we find significant (see notes below for a full list), yearly and weekly fourier features with 10 harmonics for yearly and 5 for weekly. It provides a 34.1% improvement on the naive baseline by average MAE.  
+For the 30 day forecast, the best model is a linear regression with a 2nd order trend, trained on all 336 lags that we find significant (see notes below for a full list), yearly and weekly fourier features with 10 harmonics for yearly and 5 for weekly. It provides a 34.1% improvement on the naive baseline by average MAE.  
 
-For the 24 hour forecast the best model is a boosted linear regression with 0th order trend (so no trend), trained on a reduced feature set found using SHAP values. This means no fourier features and only on 30 lags (see notes below for a full list). This provides a 40.6% improvement on the naive baseline by average MAE.  
+For the 24 hour forecast, the best model is a boosted linear regression with 0th order trend (so no trend), trained on a reduced feature set found using SHAP values. This means no fourier features and only on 30 lags (see notes below for a full list). This provides a 40.6% improvement on the naive baseline by average MAE.  
 
-For the 168 hour forecast the best model is the same boosted linear regression with 0th order trend, again trained on exactly the same 30 lags. This time it's improvment on the naive baseline is 32.8%.
+For the 168 hour forecast, the best model is the same boosted linear regression with 0th order trend, again trained on the same 30 lags. This time it's improvment on the naive baseline is 32.8%.
 
-Below we plot all three of the best forecasts using our very own streamlit app:  
+Below we plot all three of the best forecasts using our very own Streamlit app:  
 
 ![image](images/readme_forecast_app_linear_order2_11.svg)  
 *Figure 27: 30 day forecast of the linear regression with 2nd order trend (linear_order2)*  
@@ -221,9 +221,15 @@ This notebook does our inital modelling. We start with three strands of model: l
 
 In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful. Using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. The objective function for optuna will split the training data into 5 train test folds of increasing size. It will then train the model on the training part of the fold and run the same forecast regime used in 4_modelling on the test part of the fold. Returning an average MAE across the offsets for that fold. The objective function then returns the average of these average MAEs across all 5 folds. This is what Optuna will optimise for. We then run the same forecasting scheme as in 4_modelling to see if the tuning has improved the models. Finally we use the evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
 
+### Stremlit App
+
+I have also made a Streamlit App
+
+The project 
+
 #### Notes on Hyperparameter Tuning
 
-Hyperparameter tuning can take a very long time depending on your machine. I did two versions of hyperparameter tuning one with early stopping to determine n_estimators (number of trees for XGBoost) and one without. Add comment on which is better. I found I needed a reasonably large number of trials and at least in the without early stopping case just 100 trials wasn't enough. This means the tuning can take a long time so I have provided pretuned hyperparameters inside the results/tuned_hyperparams directory. If you would like to use them when you run 5_model_selection to avoid having to tune the hyperparameters yourself, simply copy the files into saved_objects and run the notebook skipping the hyperparameter tuning steps (there are instructions in the notebook on how to do this).
+Hyperparameter tuning can take a very long time depending on your machine. I have provided pretuned hyperparameters inside the results/tuned_hyperparams directory. To use them when you run 5_model_selection to avoid having to tune the hyperparameters yourself, simply copy the files into saved_objects and run the notebook skipping the hyperparameter tuning steps (there are instructions in the notebook on how to do this).
 
 ## Usage
 
@@ -233,9 +239,9 @@ git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 cd NYC-taxi-data-analysis
 ```
 
-There is a Dockerfile inside the repository that you can build an image from. It has a micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was a noticable improvement in fit times when using the GPU and the project is setup so that you can use either. To sepcifiy whether you want GPU or CPU whilst building the docker image use the --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
+There is a Dockerfile inside the repository that you can build an image from. It has a micromamba base that will have CUDA installed by default on Ubuntu. There are then two enviroment YAML files that you can choose to build from, environment_cpu.yml and environment_gpu.yml. The GPU version will install the version of XGBoost with GPU support, the CPU version just runs on the CPU. On my machine there was a noticeable improvement in fit times when using the GPU and the project is setup so that you can use either. To specify whether you want GPU or CPU whilst building the docker image use --build-arg ENV_FILE=environment_gpu.yml/enviornment_gpu.yml.
 
-The full docker commands are below:
+The full Docker commands are below:
 
 ```bash
 docker build -t jfk-taxi:gpu --build-arg ENV_FILE=environment_gpu.yml .
@@ -245,9 +251,9 @@ or
 docker build -t jfk-taxi:cpu --build-arg ENV_FILE=environemnt_cpu.yml .
 ```
 
-To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consits of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and local host. If you are using your GPU for training you will need to also give the container access to it. It is also worth noting that some of the project can be slightly memory intensive so it is worth ensuring your container will have access to at least 8 GBs of RAM.
+To then run a container you will want to bind mount the current working directory to the container. This is because you want to be able to download the data as well as save and load .pkl files later on in the project. The project consists of several notebooks so we will setup the container so that you can access jupyter lab, by mapping ports 8888 to each other from the container and the host. The project also has a streamlit app that demos some of the EDA and model building, so we will map ports 8501 to each other on the container and the host. If you are using your GPU for training you will also need to give the container access to it. It is also worth noting that some of the project can be slightly memory intensive so it is worth ensuring your container will have access to at least 8 GBs of RAM.
 
-So the full docker run command is as follows:
+So the full Docker run command is as follows:
 ```bash
 docker run -it --rm --gpus all -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:gpu
 ```
@@ -255,21 +261,21 @@ or
 ```bash
 docker run -it --rm -p 8888:8888 -p 8501:8501 --mount type=bind,src="$(pwd)",dst=/app jfk-taxi:cpu
 ```
-
-Now we will need to do some intial setup before we can run the notebooks. First we will need to install the package jfk_taxis which is located inside src/jfk_taixs. This package contains helper functions that do most of the heavy lifting and make our notebooks more readable. It also has unittests for all modules that you cand find in the tests dir. To install the package use the following command whilst in the \app dir:
+ai
+Now we will need to do some initial setup before we can run the notebooks. First we will need to install the package jfk_taxis which is located inside src/jfk_taxis. This package contains helper functions that do most of the heavy lifting and make our notebooks more readable. It also has unittests for all modules that you can find in the tests directory. To install the package use the following command whilst in the /app dir:
 
 ```bash
 pip install -e . 
 ```
 
-Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do not exist already. Go to the scripts directory and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
+Then we need to setup the config file to account for whether or not we should use GPU during training. It will also create all necessary directories for the project if they do not already exist. Go to the scripts directory and run setup.py. This performs a small test to determine whether XGBoost has been installed with CUDA support and updates the config.yml file accordingly (which can be found in config/config.yml). So run the following commands:
 
 ```bash
 cd scripts
 python setup.py
 ```
 
-Then we need to download the data. Within scripts there is a file called get_parquet.py. This scrapes https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page using BeautifulSoup to get the urls to download the parquet files containing the taxi data, the .shap file for the taxi zones and the taxi zone lookup csv. This will then be saved to parquet_files.txt. So first run this script:
+Then we need to download the data. Within scripts there is a file called get_parquet.py. This scrapes https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page using BeautifulSoup to get the urls to download the parquet files containing the taxi data, the .shap file for the taxi zones, and the taxi zone lookup CSV. This will then be saved to parquet_files.txt. So first run this script:
 
 ```bash
 python get_parquet.py
@@ -304,15 +310,15 @@ cp -r "~/data/raw/" "mnt/c/NYC-taxi-data-analysis/data/raw/"
 rm -r "~/NYC-taxi-data-analysis"
 ``` 
 
-Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data. Before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
+Once the data has been downloaded you will want to start with the notebooks at least initially to process the taxi data. Before moving on to the Streamlit app. To launch Jupyter Lab in the container run the following command from the project root (so mambauser@USER_NAME:/app):
 
 ```bash
 jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
 ```
 
-You will then be able to open jupyter lab on your host machine by visting http://127.0.0.1:8888/ in a browser. From here you will be able to see the projects notebooks inside the notebooks dir. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from intial exploration of the data for completness although they may have errors within them. Once you have completed notebook 2_data_processing.ipynb the time series data will now have been processed allowing you to launch the streamlit app. However it is recommened to complete notebooks 3 through 5 first as they will provide better context for the app itself. 
+You will then be able to open Jupyter Lab on your host machine by visiting http://127.0.0.1:8888/ in a browser. From here you will be able to see the project's notebooks inside the notebooks directory. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from the initial exploration of the data for completeness, although they may have errors within them. Once you have completed notebook 2_data_processing.ipynb the time series data will now have been processed allowing you to launch the Streamlit app. However it is recommended to complete notebooks 3 through 5 first as they will provide better context for the app itself. 
 
-To then launch the streamlit app run the following commands:
+To then launch the Streamlit app run the following commands:
 
 ```bash 
 cd app
@@ -323,13 +329,13 @@ You will then be able to view the app on the host machine by going to http://127
 
 ### Using AWS for hyperparameter tuning
 
-One of the things I found on my machine was that the Bayesian hyperparamter tuning in 5_model_selection.ipynb took a long time for a large number of trials. So I used an AWS EC2 instance to run the tuning over the course of several days whilst I worked on other parts of the project. We will briefly explain how to do this here. 
+One of the things I found on my machine was that the Bayesian hyperparameter tuning in 5_model_selection.ipynb took a long time for a large number of trials. So I used an AWS EC2 instance to run the tuning over the course of several days whilst I worked on other parts of the project. We will briefly explain how to do this here. 
 
 First you will need to create an S3 bucket to store both the time series data but also the results of the hyperparameter tuning. I named the S3 bucket jfk-taxi-data-william-ogilvie. If you choose a different name you will need to manually alter the bash script hyperparam_tuning_bash.sh, change BUCKET to the name of your bucket. Inside the S3 bucket place the full time series data (ts_daily2011-2025.csv, ts_hourly2011-2025.csv) inside a data/time_series directory. 
 
-You will need to create an IAM role with AmazonS3FullAcess policy if you do not have one already. Then create the EC2 instance, I decided to use the Deep Learning Base AMI with Single CUDA (Ubuntu 22.04) AMI as it comes with git, docker and the AWS CLI pre installed and configured. I only have access to CPU instances so wasn't able to test the GPU functionality on AWS, but this instance should allow you to make use of the GPU if you would like. Make sure you give it the IAM role with AmazonS3FullAcess policy. 
+You will need to create an IAM role with the AmazonS3FullAccess policy if you do not have one already. Then create the EC2 instance. I decided to use the Deep Learning Base AMI with Single CUDA (Ubuntu 22.04) AMI as it comes with git, Docker and the AWS CLI pre installed and configured. I only have access to CPU instances so wasn't able to test the GPU functionality on AWS, but this instance should allow you to make use of the GPU if you would like. Make sure you give it the IAM role with the AmazonS3FullAccess policy. 
 
-Now if you are going to use a GPU isntance you will need to modify the hyperparam_tuning_bash.sh script. Specifically change USE_GPU to be 1 rather than 0. Then change ENV to environment_gpu.yml rather than enviornment_cpu.yml. You may also want to change the name of the docker image under IMAGE for completness. 
+Now if you are going to use a GPU instance you will need to modify the hyperparam_tuning_bash.sh script. Specifically change USE_GPU to be 1 rather than 0. Then change ENV to environment_gpu.yml rather than environment_cpu.yml. You may also want to change the name of the Docker image under IMAGE for completeness. 
 
 Then once you connect to the instance run the following commands inside the home directory:
 
@@ -339,7 +345,7 @@ cd project
 git clone https://github.com/William-Ogilvie/NYC-taxi-data-analysis.git
 ```
 
-We wil be using tmux to run the hyperparam_tuning_bash.sh script even when we disconnect from the instance. So we will need to install it:
+We will be using tmux to run the hyperparam_tuning_bash.sh script even when we disconnect from the instance. So we will need to install it:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y tmux
@@ -351,7 +357,7 @@ We will create a new tmux session:
 tmux new -s hyperparam_tuning
 ```
 
-Inside the tmux session we will then run the hyperparm_tuning_bash.sh script inside the scripts dir. This script will load the data from the S3 bucket. It will then build the docker image and run a container of this image. Inside this container it will install the jfk-taxis package, run scripts/setup.py and then run scripts/hyperparam_tuning.py. It will produce logs and save them into the logs directory on the instance as well as save the tuned hyperparameters into outputs/$RUN_ID in your S3 bucket.
+Inside the tmux session we will then run the hyperparm_tuning_bash.sh script inside the scripts directory. This script will load the data from the S3 bucket. It will then build the Docker image and run a container of this image. Inside this container it will install the jfk_taxis package, run scripts/setup.py and then run scripts/hyperparam_tuning.py. It will produce logs and save them into the logs directory on the instance, as well as save the tuned hyperparameters into outputs/$RUN_ID in your S3 bucket.
 
 Run the hyperparam_tuning_bash.sh script inside the tmux session:
 
@@ -360,7 +366,7 @@ cd NYC-taxi-data-analysis/scripts
 bash hyperparam_tuning_bash.sh 2>&1
 ```
 
-You can then download the tuned hyperparameters from the S3 bucket and place them inside the data/saved_objects folder on your local version of the repository. To see them plotted run the first four cells of the 5_model_selection.ipynb notebook. Then run all remaining cells from the following cell:
+You can then download the tuned hyperparameters from the S3 bucket and place them inside the data/saved_objects folder on your local version of the repository. To see them plotted run the first five cells of the 5_model_selection.ipynb notebook. Then run all remaining cells from the following cell:
 
 ```python
 # Load signatures
