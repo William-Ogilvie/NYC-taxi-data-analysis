@@ -4,6 +4,12 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
 ## Table of Contents
 - [Objective](#objective)
 - [Data](#data)
+- [Results / Key Findings](#results--key-findings)
+  - [EDA](#eda)
+  - [Modelling](#modelling)
+  - [SHAP and Reduced Feature Set](#shap-and-reduced-feature-set)
+  - [Bayesian Hyperparameter Tuning](#bayesian-hyperparameter-tuning)
+  - [Conclusion](#conclusion)
 - [Project Overview](#project-overview)
   - [1_EDA.ipynb](#1_edaipynb)
   - [2_data_processing.ipynb](#2_data_processingipynb)
@@ -13,8 +19,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
   - [Notes on Hyperparameter Tuning](#notes-on-hyperparameter-tuning)
 - [Usage](#usage)
   - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
-  - [Testing](#testing)
-- [Results / Key Findings](#results--key-findings) 
+  - [Testing](#testing) 
 
 
 ## Objective
@@ -68,11 +73,11 @@ We then shift our focus towards JFK Airport where we are going to attempt to mod
 
 ### Modelling
 
-We fit roughly three strands of model to both time series. Linear regression, XGBoost, and boosted linear regression (linear regresssion with XGBoost fitted to residuals). The models are fitted to the significant lags found in the EDA section, we take a subset of these lags for the hourly case as there are over 10,000 hourly lags found during our EDA and we don't have the computational rescourses to use all 10,000 in our models. We also add fourier features for the seasonality we identified. For the daily time series we do 10 harmonics for yearly seasonality, 5 for weekly. For the hourly time series we do 5 harmonics for weekly seasonality 5 for hourly seasonality.
+We fit roughly three strands of model to both time series. Linear regression, XGBoost, and boosted linear regression (linear regresssion with XGBoost fitted to residuals). The models are fitted to the significant lags found in the EDA section, we take a subset of these lags for the hourly case as there are over 10,000 hourly lags found during our EDA and we don't have the computational rescourses to use all 10,000 in our models. We also add fourier features for the seasonality we identified. For the daily time series we do 10 harmonics for yearly seasonality, 5 for weekly. For the hourly time series we do 5 harmonics for weekly seasonality 5 for hourly seasonality.  
 
-We measure model performance by MAE on different forecast steps starting from different points in the test data, and then taking an average MAE across these starting points. We compare all the models relative to a naive baseline that simply predicts the current taxi pick up count to be what it was one time step ago (so one hour or day ago). For the daily time series we look at 7, 30 and 60 day forecasts. For the hourly time series we look at 24, 48 and 168 hour forecasts.
+We measure model performance by MAE on different forecast steps starting from different points in the test data, and then taking an average MAE across these starting points. We compare all the models relative to a naive baseline that simply predicts the current taxi pick up count to be what it was one time step ago (so one hour or day ago). For the daily time series we look at 7, 30 and 60 day forecasts. For the hourly time series we look at 24, 48 and 168 hour forecasts.  
 
-Initially we find that for daily time series the boosted linear regression with order 1 trend (hybrid_order1 in notebooks) performs the best for a 7 day forecast with a 31.6% improvement on the naive baseline. Then linear regression with order 2 trend performs the best for both the 30 and 60 day forecast with a 34.1% and 26.5% improvement on naive baseline respectively. 
+Initially we find that for daily time series the boosted linear regression with order 1 trend (hybrid_order1 in notebooks) performs the best for a 7 day forecast with a 31.6% improvement on the naive baseline. Then linear regression with order 2 trend performs the best for both the 30 and 60 day forecast with a 34.1% and 26.5% improvement on naive baseline respectively.  
 
 For the hourly time series we find that for the 24 hour and 48 hour forecast the best model is linear regression with no trend, which results in a 38.6% and 37.7% improvement on naive baseline respectively. For the 168 hour forecast we find that the boosted linear regression with no trend performs the best with a 35.3% improvement on naive baseline. Some plots showing the models:
 
@@ -189,49 +194,6 @@ The 336 daily lags of the linear regression:
 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303,
 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 318, 319, 321,
 322, 323, 325, 326, 328, 329, 330, 333, 336, 343, 350, 357, 364, 371]
-
-
-
-For the 168 hour forecast the best model is the same boosted linear regression with 0th order trend, again trained on exactly the same 30 lags. This time it's improvment on the naive baseline is 32.8%.
-
-
- one for the 30 day daily forecast, the other for the 168 hour forecast. Models here with improvement on naive baseline. We plot both models below for their targeted forecast step below:
-
-[plots here]
-
-In 1_EDA.ipynb we create and analyse choropleths of taxi pick up and drop off counts by taxi zone for the entire of NYC. The key patterns we spot doing this is both there is a general increase across nearly all taxi zones in Yellow taxi use. This is likely due to the introduction of services like Uber to NYC that have taken some of the demand away from Yellow taxis. The other very important thing for our modelling is we spot that it appears in most zones taxi pick ups and drop offs change substationally throughout the year. We focus on a sizeable increase from January to June in the notebook. This appears to hold across the entire city and could be due to a variety of factors, more tourisits in the summer, people are more active during the summer than winter months etc etc. But what we are particualarly interested in is that this appears to hold for JFK Airport and suggests there is seasonality (so clear periodic patterns) within the data that we could to attempt to model with say fourier features (sine and cosine curves of the correct period passed to the model). 
-
-We initally perform EDA for the entire of the NYC taxi data, primarily using choropleths. We then shift our focus to JFK Airport and create two time series that count the total number of taxis at the Airport, one daily, one hourly. We explore these time series to try and find relevant predictive features that we could use for models. Our intial exploration suggests that daily and weekly fourier features could be good for our hourly time series, and weekly and yearly fourier features for our daily time series. We also get back a considerable number of lags for both time series that cover at least one year into the past. 
-
-Then we fit some inital models to these featuers. We test three strands of model linear regression, xgboost (usually reffered to as our non linear model in notebooks) and boosted linear regression on the residuals (so xgboost is fitted to the residuals of a linear regression, and added to its predictions). We will use a Naive baseline of just predicting the current value as the same as that one time step (day or hour) ago. The use of this baseline originally was from trial and error among others like 1 week ago. However it is supported via the SHAP values as most models have a very large mean SHAP value for lag_1. Suggesting that the previous time step has considerable predictive power. (comment on findings here).
-
-Later we explore feature importance using SHAP values for all the models. We take the top 30 features by average SHAP value and see if they retain most of the predictive signal. It turns out for xgboost the reduced feature set is similarly effective. However for just pure linear regression it does seem to be considerably worse and potentially not worth using as the computational savings are smaller compared to with xgboost. 
-
-Finally we perform bayesian hyperparameter tuning with optuna. I personally ran this in on AWS EC2 instance over a few days to do 1000 trials (maybe change this idk?) but the improvements seem to be minimal unfortunately (maybe?!).
-
-We conclude with the best models for the two cases (add here). 
-
-
-
-Note explain the install of XGBoost for gpus carefully because we assume that u run one
-
-Comment on fact we expected fourier features to be important, turns out according to SHAP values actaully lags matter way way more.
-
-Make sure to explain that in terms of hourly lags we can't use all of them so we take first 300 approx and throw in roughly half year and full year ones, with full year being significant.
-
-Explain time zone conversions maybe? like converting to UTC to avoid DST errors
-
-maybe comment on how offsets work? every 30 days with a bit of jitter, so in total 7 offsets
-
-Comments on what we discovered in 1_EDA so like the change over years, the seasonality of taxis how that informs us to be interested in seasonality at JFK Airport.
-
-Comments on 3_EDA_JFK how we found seasonlaity + lags
-
-Comments on 4_modelling maybe the best models found + explanation of how we measure "best model"
-
-Comments on 5_model_selection comments on the fact the reduced feature sets go hard + the hyperparamter tuning etc.
-
-
 
 ## Project Overview
 
