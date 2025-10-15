@@ -79,19 +79,23 @@ def create_models_designs_for_shap_tests() -> tuple[str, str, str, str]:
 
     return daily_linear_sig, hourly_linear_sig, daily_hybrid_sig, hourly_hybrid_sig
 
-def get_shap_values(model: LinearRegression | XGBRegressor, X: pd.DataFrame) -> shap.Explanation:
+def get_shap_values(model: LinearRegression | XGBRegressor, X: pd.DataFrame, sample_size: int) -> tuple[shap.Explanation, pd.DataFrame]:
     """ gets shap values for a given model and design matrix.
 
     Args:
         model (LinearRegression | XGBRegressor): the model
         X (pd.DataFrame): the design matrix
+        sample_size (int): size of sample to take
 
     Returns:
-        shap.Explanation: the SHAP values
+        tuple[shap.Explanation, pd.DataFrame]: the SHAP values and the design matrix
     """
+
+    if len(X) > sample_size:
+        X = X.sample(n=sample_size, random_state = 37, axis = 0)
     explainer = shap.Explainer(model, X)
     shap_values = explainer(X)
-    return shap_values
+    return shap_values, X
 
 
 def test_compute_shap_values():
@@ -123,9 +127,10 @@ def test_compute_shap_values():
     X_check = linear_design_loaded["model_1"][0]
     model = linear_model_loaded["model_1"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    # Set sample size
+    sample_size = 10000
 
-    print(shap_values_check)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match, rtol is relative tolerance, atol is absolute tolerance
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -139,7 +144,7 @@ def test_compute_shap_values():
     X_check = non_linear_design_loaded["model_4"][0]
     model = non_linear_model_loaded["model_4"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -156,7 +161,7 @@ def test_compute_shap_values():
     X_check = linear_design_loaded["model_7"][0]
     model = linear_model_loaded["model_7"][2]  # Hybrid model is index 2
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -170,7 +175,7 @@ def test_compute_shap_values():
     X_check = non_linear_design_loaded["model_5"][0]
     model = non_linear_model_loaded["model_5"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -188,7 +193,7 @@ def test_compute_shap_values():
     X_check = linear_design_loaded["model_2"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = linear_model_loaded["model_2"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -201,7 +206,7 @@ def test_compute_shap_values():
     X_check = non_linear_design_loaded["model_5"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = non_linear_model_loaded["model_5"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -218,7 +223,7 @@ def test_compute_shap_values():
     X_check = linear_design_loaded["model_8"][0].sample(n=hourly_sample_size, random_state = 37, axis = 0)
     model = linear_model_loaded["model_8"][2]  # Hybrid model is index
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
@@ -232,7 +237,7 @@ def test_compute_shap_values():
     X_check = non_linear_design_loaded["model_6"][0]
     model = non_linear_model_loaded["model_6"][0]
 
-    shap_values_check = get_shap_values(model, X)
+    shap_values_check, X_check = get_shap_values(model, X_check, sample_size)
 
     # Check that we have a match
     np.testing.assert_allclose(shap_values_check.values, shap_values.values, rtol = 1e-5, atol = 1e-5), "SHAP values do not match"
