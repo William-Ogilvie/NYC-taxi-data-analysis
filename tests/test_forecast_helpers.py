@@ -880,7 +880,7 @@ def test_forecast_dicts_side_effects(monkeypatch):
     monkeypatch.setattr(ipd, "display", lambda *a, **k: None)
 
     # Run unit under test
-    fh.forecast_dicts(steps, y_test, y_hist, offsets, show_offsets, linear_models, non_linear_models, naive=True, time_step=time_step)
+    fh.forecast_dicts(steps, y_test, y_hist, offsets, show_offsets, linear_models, non_linear_models, naive=True, time_step=time_step, save_file_tag="test_tag")
 
     # Assertions: one save per (step, offset)
     assert len(saved_payloads) == len(steps) * len(offsets)
@@ -916,7 +916,7 @@ def test_run_forecasts_delegation(monkeypatch):
         return None
     monkeypatch.setattr(fh, "forecast_dicts", fake_forecast_dicts)
 
-    fh.run_forecasts(steps, offset_list, offsets_to_show, linear_models, non_linear_models, True, time_step, y_hist, y_test)
+    fh.run_forecasts(steps, offset_list, offsets_to_show, linear_models, non_linear_models, True, time_step, y_hist, y_test, "test_tag")
 
     # Validate delegated parameters (positionally)
     d_args = called["args"]
