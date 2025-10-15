@@ -278,7 +278,7 @@ python get_parquet.py
 Then we have a small bash script called download_and_extract.sh that just loops through all the files in parquet_files.txt and downloads them. To make the bash script executable run:
 
 ```bash
-chmod +x donwload_and_extract.sh
+chmod +x download_and_extract.sh
 ```
 
 Then run the script with:
