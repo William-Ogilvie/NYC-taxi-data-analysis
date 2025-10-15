@@ -16,6 +16,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
   - [3_EDA_JFK.ipynb](#3_EDA_JFKipynb)
   - [4_modelling.ipynb](#4_modellingipynb)
   - [5_model_selection.ipynb](#5_model_selectionipynb)
+  - [Streamlit App](#streamlit-app)
   - [Notes on Hyperparameter Tuning](#notes-on-hyperparameter-tuning)
 - [Usage](#usage)
   - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
@@ -221,7 +222,7 @@ This notebook does our inital modelling. We start with three strands of model: l
 
 In this notebook we first compute the SHAP values for some of the best models from the previous notebook. We use this to create a reduced feature set by ranking feature importance by mean absolute SHAP value. We then test that this reduced feature set captures enough of the original signal to be useful. Using the same model evaluation scheme as in the previous notebook. Then we perform Bayesian hyperparamter tuning with Optuna to tune all the XGBoost models. The objective function for optuna will split the training data into 5 train test folds of increasing size. It will then train the model on the training part of the fold and run the same forecast regime used in 4_modelling on the test part of the fold. Returning an average MAE across the offsets for that fold. The objective function then returns the average of these average MAEs across all 5 folds. This is what Optuna will optimise for. We then run the same forecasting scheme as in 4_modelling to see if the tuning has improved the models. Finally we use the evaluation scheme as in the previous notebook to find the best model for the two time series cases: daily and hourly.
 
-### Stremlit App
+### Streamlit App
 
 I have also made a Streamlit app for the project that can be found in the app directory. There are instructions on how to run the app in the Usage section. The app allows you to generate custom choropleths as in the EDA section, with custom scales, dropping custom zones and boroughs for any year/month from 2011 to 2025. There is a also a model building section where you can build, train and plot any of the models used in the project. As well as create your own models with custom lags and fourier features. This section also allows you to compute and display a SHAP summary plot for your models like in figure 31. 
 
