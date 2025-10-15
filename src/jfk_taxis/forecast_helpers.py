@@ -962,6 +962,9 @@ def forecast_dicts_app(steps: int, y_test: pd.Series, y_hist: pd.Series, offset_
         ax.set_xlabel("Pickup datetime")
         plt.xticks(rotation = 90, ha = "right")
 
+
+        plt.savefig(PROJECT_ROOT / f"images/forecast_app_{offset}.svg")
+
         # Add to list of figures to return
         forecast_fig = ax.get_figure()
         forecast_figs[offset] = forecast_fig

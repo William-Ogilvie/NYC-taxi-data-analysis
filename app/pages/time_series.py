@@ -637,13 +637,15 @@ def compute_daily_shap_values():
     
     
     # We can only compute SHAP values for one model at a time
-    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid) 
+    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid, 10000) 
 
-    # Create SHAP summary plot
+    # Create SHAP summary plot 
     shap_summary = shap.summary_plot(shap_values, X, max_display = 30, show = False)
     plt.title(f"SHAP summary plot for {model_name} (top 30 features)")
+    plt.savefig(PROJECT_ROOT / f"images/shap_summary_plot_app_{model_name}.svg")
     fig = plt.gcf() 
     st.session_state.daily_shap_summary_fig = fig
+   
 
 def compute_hourly_shap_values():
     """Compute SHAP values for the selected hourly model. Save this in session state.
@@ -676,13 +678,15 @@ def compute_hourly_shap_values():
     
     
     # We can only compute SHAP values for one model at a time
-    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid) 
+    shap_values, X = compute_shap_values(sig, sig, model_name, linear, hybrid, 10000) 
 
-    # Create SHAP summary plot
+    # Create SHAP summary plot 
     shap_summary = shap.summary_plot(shap_values, X, max_display = 30, show = False)
     plt.title(f"SHAP summary plot for {model_name} (top 30 features)") 
+    plt.savefig(PROJECT_ROOT / f"images/shap_summary_plot_app_{model_name}.svg")
     fig = plt.gcf()
     st.session_state.hourly_shap_summary_fig = fig
+   
 
 # --- Initialize session state ---
 if "daily_linear_models" not in st.session_state:
