@@ -116,23 +116,71 @@ We then move on to compute SHAP values for the models and rank features by their
 
 ### Bayesian Hyperparameter Tuning
 
-Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. Overal we get rather mixed and inconclusive results from hyperparameter tuning, it does improve some models notably making the boosted linear regression with order 0 our best overal model for the 7 day forecast. However in other cases tuning actually makes the models significantly worse, for example when tuning XGBoost on the daily time series, the pre COVID regime makes the model a lot worse. In some cases tuning pre COVID is superior for example in the hourly hybrid case. Other times including COVID makes tuning perform better in for example the hourly XGBoost case. In the notebooks we have outline why perhaps this version of hyperparamter tuning wasn't as succesful as we had hoped with some potential ideas for how it could be improved, although this is beyond the scope of this project. Below are some of the plots showing the tuned models plotted alongside some of their untuned counterparts:
+Finally we move on to tune the hyperparamters for all XGBoost models (so both standalone and the one included inside the boosted linear regressions). We use Bayesian hyperparamter tuning with Optuna, this time we are now focused exclusively on optimising for the 30 day forecast in the daily time series and the 168 hour foreast in the hourly time series. We also test to see whether tuning on the pre COVID data makes any difference, the line of thinking being that because of the unusual data during COVID we don't want the model to overfit to those unusal trends if our goal is prediction into the current future. Overal we get rather mixed and inconclusive results from hyperparameter tuning, it does improve some models notably making the boosted linear regression with order 0 our best overal model for the 7 day forecast. However in other cases tuning actually makes the models significantly worse, for example when tuning XGBoost on the daily time series, the pre COVID regime makes the model a lot worse. In some cases tuning pre COVID is superior for example in the hourly hybrid case. Other times including COVID makes tuning perform better in for example the hourly XGBoost case. In the notebooks we have outline why perhaps this version of hyperparamter tuning wasn't as succesful as we had hoped with some potential ideas for how it could be improved, although this is beyond the scope of this project. Below are some of the plots showing the tuned models plotted alongside some of their untuned counterparts:  
 
-![images](images/forecast_daily_hybrid_tuned_daily_hybrid_non_linear_incl_COVID_11_7.svg)
-*Figure 23: 7 day forecast showing the tuned hybrid model alongside its untuned counterpart*
+![images](images/forecast_daily_hybrid_tuned_daily_hybrid_non_linear_incl_COVID_11_7.svg)  
+*Figure 23: 7 day forecast showing the tuned hybrid model alongside its untuned counterpart*  
 
-![images](images/forecast_daily_non_linear_tuned_11_30.svg)
-*Figure 24: 30 day forecast showing the tuned non linear model alongside its untuned counterpart*
+![images](images/forecast_daily_non_linear_tuned_11_30.svg)  
+*Figure 24: 30 day forecast showing the tuned non linear model alongside its untuned counterpart*  
 
-![images](images/forecast_hourly_non_linear_tuned_246_48.svg)
-*Figure 25: 48 hour forecast showing the tuned non linear model alongside its untuned counterpart*
+![images](images/forecast_hourly_non_linear_tuned_246_48.svg)  
+*Figure 25: 48 hour forecast showing the tuned non linear model alongside its untuned counterpart*  
 
-![images](images/forecast_hourly_hybrid_tuned_hourly_hybrid_non_linear_incl_COVID_246_168.svg)
-*Figure 26: 168 hour forecast showing the tuned hybrid model alongside its untuned counterpart*
+![images](images/forecast_hourly_hybrid_tuned_hourly_hybrid_non_linear_incl_COVID_246_168.svg)  
+*Figure 26: 168 hour forecast showing the tuned hybrid model alongside its untuned counterpart*  
 
 ### Conclusion
 
-We conclude with the two best models we produced, one for the 30 day daily forecast, the other for the 168 hour forecast. Models here with improvement on naive baseline. We plot both models below for their targeted forecast step below:
+We conclude with three of the best models we produced most suited to potential real world use cases. The best model for a 30 day forecast, which would allow for medium term predictions of taxi use. The best model for a 24 hour forecast for short term predictions on taxi use, with the idea of running this model regularly to update predictions. The final model will be for a 168 hour forecast for short to medium term predictions of taxi use.  
+
+The models are as follows, we give their name, the features they are trained on and their percentage improvement on the naive baseline by our average MAE metric we describe earlier.  
+
+For the 30 day forecast the best model is a linear regression with a 2nd order trend, trained on all 336 lags that we find significant (see notes below for a full list), yearly and weekly fourier features with 10 harmonics for yearly and 5 for weekly. It provides a 34.1% improvement on the naive baseline by average MAE.  
+
+For the 24 hour forecast the best model is a boosted linear regression with 0th order trend (so no trend), trained on a reduced feature set found using SHAP values. This means no fourier features and only on 30 lags (see notes below for a full list). This provides a 40.6% improvement on the naive baseline by average MAE.  
+
+For the 168 hour forecast the best model is the same boosted linear regression with 0th order trend, again trained on exactly the same 30 lags. This time it's improvment on the naive baseline is 32.8%.
+
+Below we plot all three best forecasts using our very own streamlit app:
+
+[plots here]
+
+#### Lag lists
+
+Below are the list of lags mentioned above. The first are the 30 lags used by boosted linear regression for the 24 hour and 168 hour forecasts. The second is the full 336 lags used by the linear regression for the 30 day forecast.
+
+The 30 hourly lags of the boosted linear regression:
+[1, 2, 3, 4, 5, 6, 7, 20, 23, 24, 48, 72, 96, 167, 168, 169, 173, 288, 335, 336, 8734, 8735, 8736, 8757, 8758, 8759, 8760, 8783, 8784]
+
+The 336 daily lags of the linear regression:
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
+77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127,
+128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
+224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,
+256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271,
+272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287,
+288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303,
+304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 318, 319, 321,
+322, 323, 325, 326, 328, 329, 330, 333, 336, 343, 350, 357, 364, 371]
+
+
+
+For the 168 hour forecast the best model is the same boosted linear regression with 0th order trend, again trained on exactly the same 30 lags. This time it's improvment on the naive baseline is 32.8%.
+
+
+ one for the 30 day daily forecast, the other for the 168 hour forecast. Models here with improvement on naive baseline. We plot both models below for their targeted forecast step below:
 
 [plots here]
 
