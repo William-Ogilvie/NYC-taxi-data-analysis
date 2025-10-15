@@ -293,7 +293,16 @@ If the above commands fail it may be due to Windows line endings. So install dos
 sudo apt install dos2unix
 dos2unix download_and_extract.sh
 ```
-If you are using WSL and have saved the project to the Windows part of your machine you may have errors due to missing write permissions. It may be worth temporarily moving the project to your WSL home directory, downloading the files and then moving it back. 
+If you are using WSL and have saved the project to the Windows part of your machine you may have errors due to missing write permissions. It may be worth temporarily copying the project to your WSL home directory, downloading the files and then copying the downloaded files back into the Windows project. The downloaded files go into the data/raw directory. So potentially something like this:
+
+```bash
+cp -r "mnt/c/NYC-taxi-data-analysis/" ~/
+```
+Run the bash script and then:
+```bash
+cp -r "~/data/raw/" "mnt/c/NYC-taxi-data-analysis/data/raw/"
+rm -r "~/NYC-taxi-data-analysis"
+``` 
 
 Once the data has been downloaded you will want to start with the notebooks at least initally to process the taxi data. Before moving onto the streamlit app. To launch jupyter lab in the container run the follwing command from the project root (so mambauser@USER_NAME:/app):
 
