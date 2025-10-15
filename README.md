@@ -223,7 +223,7 @@ In this notebook we first compute the SHAP values for some of the best models fr
 
 ### Stremlit App
 
-I have also made a Streamlit App
+I have also made a Streamlit app for the project that can be found in the app directory. There are instructions on how to run the app in the Usage section. The app allows you to generate custom choropleths as in the EDA section, with custom scales, dropping custom zones and boroughs for any year/month from 2011 to 2025. There is a also a model building section where you can build, train and plot any of the models used in the project. As well as create your own models with custom lags and fourier features. This section also allows you to compute and display a SHAP summary plot for your models like in figure 31. 
 
 The project 
 
