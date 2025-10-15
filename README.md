@@ -156,8 +156,8 @@ Below we plot all three best forecasts using our very own streamlit app:
 ![image](images/readme_shap_summary_plot_app_linear_order2.svg)  
 *Figure 30: SHAP summary plot for the daily linear regression with 2nd order trend (linear_order2)*  
 
-
-[plots here]
+![images](images/readme_shap_summary_plot_app_reduced_hybrid_order0.svg)  
+*Figure 31: SHAP summary plot for the boosted linear regression, order 0, on the reduced feature set (reduced_hourly_hybrid_order0)*  
 
 #### Lag lists
 
