@@ -19,6 +19,7 @@ Exploring and visualising New York City Taxi trip data (2011-2025). With modelli
   - [Streamlit App](#streamlit-app)
   - [Notes on Hyperparameter Tuning](#notes-on-hyperparameter-tuning)
 - [Usage](#usage)
+  - [Launching the Streamlit App](#launching-the-streamlit-app)
   - [Using AWS for Hyperparameter Tuning](#using-aws-for-hyperparameter-tuning)
   - [Testing](#testing) 
 
@@ -316,6 +317,8 @@ jupyter lab --ip=0.0.0.0 --no-browser --allow-root --NotebookApp.token=''
 ```
 
 You will then be able to open Jupyter Lab on your host machine by visiting http://127.0.0.1:8888/ in a browser. From here you will be able to see the project's notebooks inside the notebooks directory. The notebooks are numbered from 1 to 5 and will walk through and explain the project in order. There is a folder of rough notebooks that I have kept from the initial exploration of the data for completeness, although they may have errors within them. Once you have completed notebook 2_data_processing.ipynb the time series data will now have been processed allowing you to launch the Streamlit app. However it is recommended to complete notebooks 3 through 5 first as they will provide better context for the app itself. 
+
+### Launching the Streamlit App
 
 To then launch the Streamlit app run the following commands:
 
