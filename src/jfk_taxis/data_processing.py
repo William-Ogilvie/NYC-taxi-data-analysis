@@ -41,26 +41,27 @@ TS_HOURLY = config["saving"]["ts_hourly"]
 
 
 # --- Functions ---
-def load_parquet(year: int) -> pd.DataFrame:
-    """ Loads all parquet files for a specific year and concatenates them into a single dataframe.
+# Old load_parquet function
+# def load_parquet(year: int) -> pd.DataFrame:
+#     """ Loads all parquet files for a specific year and concatenates them into a single dataframe.
 
-    Args:
-        year (int): the year for which to load the parquet files.
+#     Args:
+#         year (int): the year for which to load the parquet files.
 
-    Returns:
-        pd.DataFrame: a dataframe containing all the data for the specified year.
-    """    
+#     Returns:
+#         pd.DataFrame: a dataframe containing all the data for the specified year.
+#     """    
  
-    # Get all files for that year
-    files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
+#     # Get all files for that year
+#     files = DATA_DIR.glob(f"yellow*{str(year)}*.parquet")
 
-    # As these are slightly different ways these files are formatted we will need to order them by month so when we concatonate we don't do it in the wrong order
-    files = sorted(files, key = lambda x: int(x.stem.split("-")[-1])) # x.stem is the file name without the suffix, so when we split on "-" the month will be the last one in the list
+#     # As these are slightly different ways these files are formatted we will need to order them by month so when we concatonate we don't do it in the wrong order
+#     files = sorted(files, key = lambda x: int(x.stem.split("-")[-1])) # x.stem is the file name without the suffix, so when we split on "-" the month will be the last one in the list
    
-    # Load and concatenate all the data into a single data frame (for tqdm leave = False ensures the bar disappears when done):
-    df = pd.concat((pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"]) for f in tqdm(files, desc = "Download files: ", leave = False)), ignore_index = True)
+#     # Load and concatenate all the data into a single data frame (for tqdm leave = False ensures the bar disappears when done):
+#     df = pd.concat((pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"]) for f in tqdm(files, desc = "Download files: ", leave = False)), ignore_index = True)
     
-    return df
+#     return df
 
 def init_clean_df(df: pd.DataFrame, year: int) -> pd.DataFrame:
     """ Initial cleaning of the dataframe.
@@ -234,30 +235,49 @@ def process_taxi_data(years: list[int], features: list[str]) -> None:
     years = years of taxi data to process, list of ints
     features = features to extract for time series, list of str 
     '''    
+    import gc
 
     # Loops through years and features creating both cleaned data frames and ts for features
     for year in tqdm(years, desc = "Processing years"):
+        # Get all files for that year
+        files = DATA_DIR.glob(f"yello*{str(year)}*.parquet")
+        files = sorted(files, key= lambda x: int(x.stem.split("-")[-1]))
 
-        # tqdm bar for each of the processing steps
-        bar = tqdm(total = 5)
+        # Initialize data containers
+        all_trips_data = []
+        jfk_trips_data = []
 
+        for f in tqdm(files, desc= f"Processing {year} files", leave = False):
+            # Load one file at a time
+            df_chunk = pd.read_parquet(f, columns = ["tpep_pickup_datetime", "PULocationID"])
 
-        # Load data
-        bar.set_description("Loading data")
-        df = load_parquet(year)
+            # Clean this chunk
+            df_chunk = init_clean_df(df_chunk, year)
+
+            # Select JFK from this chunk
+            df_jfk_chunk = select_jfk(df_chunk)
+
+            # Store the data temporarily
+            all_trips_data.append(df_chunk)
+            jfk_trips_data.append(df_jfk_chunk)
+
+            # Clear memory
+            del df_chunk, df_jfk_chunk
+            gc.collect()
+        
+        # Combine all data 
+        bar = tqdm(total = 3)
+        bar.set_description("Combining data")
+
+        df = pd.concat(all_trips_data, ignore_index = True)
+        df_jfk = pd.concat(jfk_trips_data, ignore_index = True)
+
+        # Clear intermediate data
+        del all_trips_data, jfk_trips_data
+        gc.collect()
         bar.update(1)
 
-        # Clean data
-        bar.set_description("Initial clean")
-        df = init_clean_df(df, year)
-        bar.update(1)
-
-        # Select JFK
-        bar.set_description("Select JFK")
-        df_jfk = select_jfk(df)
-        bar.update(1)
-
-        # Create ts
+        # Create time series
         bar.set_description("Create time series")
         for feature in features:
             ts = create_ts(df_jfk, feature)
@@ -269,12 +289,19 @@ def process_taxi_data(years: list[int], features: list[str]) -> None:
         bar.set_description("Save data")
         parquet_original_path = DATA_SAVE / f"{ORIGINAL_PARQUET_PREFIX}_{year}.parquet"
         df.to_parquet(parquet_original_path)
-
+ 
         parquet_jfk_path = DATA_SAVE / f"{JFK_PARQUET_PREFIX}_{year}.parquet"
         df_jfk.to_parquet(parquet_jfk_path)
         bar.update(1) 
 
         bar.close()
+
+        # Clear memory
+        del df, df_jfk
+        gc.collect()
+
+
+        
 
 def taxi_data_visuals(years: list[int]) -> None:
     """ Generates visualizations for taxi data (head and basic forecast plot). This function has to be optimised to avoid crashing the docker container by using too much memory
